@@ -55,10 +55,14 @@ def web():
         if item.suffix in {'.html', '.js', '.css'}:
             shutil.copyfile(item, output / item.name)
     revision = subprocess.run(['git', 'rev-parse', 'HEAD'], text=True, capture_output=True).stdout.strip() or 'uncommitted'
+    page = output / 'index.html'
+    asset_revision = json.loads((ROOT / 'assets/manifest.json').read_text())['sha256']
+    page.write_text(page.read_text().replace('__CHOANO_ASSET_REVISION__', asset_revision)
+                    .replace('__CHOANO_BUILD_REVISION__', revision))
     (output / 'build.json').write_text(json.dumps({'source_revision': revision,
         'game': 'choano', 'assets_sha256': json.loads((ROOT / 'assets/manifest.json').read_text())['sha256']}, indent=2) + '\n')
     (output / 'game.html').unlink()
-    (output / '_headers').write_text('/game.*\n  Cache-Control: no-cache\n/build.json\n  Cache-Control: no-cache\n/index.html\n  Cache-Control: no-cache\n')
+    (output / '_headers').write_text('/game.*\n  Cache-Control: no-cache\n/assets/manifest.json\n  Cache-Control: no-cache\n/build.json\n  Cache-Control: no-cache\n/index.html\n  Cache-Control: no-cache\n')
     if any(p.stat().st_size > 25 * 1024 * 1024 for p in output.rglob('*') if p.is_file()):
         raise SystemExit('A site file exceeds the Cloudflare Pages limit')
 

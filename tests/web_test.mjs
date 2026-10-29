@@ -8,7 +8,7 @@ import {setTimeout as delay} from 'node:timers/promises';
 const root=resolve(process.argv[2]||'build/web');
 const types={'.html':'text/html','.js':'text/javascript','.wasm':'application/wasm','.png':'image/png','.wav':'audio/wav','.json':'application/json'};
 const missing=[],errors=[];
-const server=createServer(async(req,res)=>{const path=new URL(req.url,'http://x').pathname;try{const file=resolve(root,'.'+(path==='/'?'/index.html':path));if(!file.startsWith(root+'/'))throw Error('Path');const data=await readFile(file);res.writeHead(200,{'Content-Type':types[extname(file)]||'application/octet-stream'});res.end(data)}catch{missing.push(path);res.writeHead(404);res.end()}});
+const server=createServer(async(req,res)=>{const url=new URL(req.url,'http://x');const path=url.pathname;try{if(['/game.js','/game.wasm','/assets/manifest.json'].includes(path)&&!url.searchParams.has('v'))throw Error('Unversioned cached asset');const file=resolve(root,'.'+(path==='/'?'/index.html':path));if(!file.startsWith(root+'/'))throw Error('Path');const data=await readFile(file);res.writeHead(200,{'Content-Type':types[extname(file)]||'application/octet-stream'});res.end(data)}catch{missing.push(path);res.writeHead(404);res.end()}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const profile=await mkdtemp(join(tmpdir(),'choano-browser-'));
 const env={...process.env,YUE_DESKTOP_RECOVERY:'0'};for(const key of ['DISPLAY','WAYLAND_DISPLAY','XAUTHORITY','DBUS_SESSION_BUS_ADDRESS','SESSION_MANAGER'])delete env[key];

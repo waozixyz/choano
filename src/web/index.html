@@ -12,22 +12,22 @@
 </style>
 <main><canvas id="canvas" tabindex="0" aria-label="Choano"></canvas></main>
 <script>
-var Module={canvas:document.getElementById('canvas'),keys:{},sounds:{},muted:false,
+var Module={assetRevision:'__CHOANO_ASSET_REVISION__',buildRevision:'__CHOANO_BUILD_REVISION__',locateFile(path,prefix){return prefix+path+'?v='+Module.buildRevision},canvas:document.getElementById('canvas'),keys:{},sounds:{},muted:false,
  onRuntimeInitialized(){Module.canvas.focus()},
  onAbort(){console.error('Choano could not open.')},
  setMuted(value){this.muted=value;for(const sound of Object.values(this.sounds))sound.muted=value},
- playSound(path){if(this.muted)return;for(const playing of Object.values(this.sounds)){playing.pause();playing.currentTime=0}const sound=this.sounds[path]||(this.sounds[path]=new Audio(path));sound.volume=.6;sound.play().catch(()=>{})},printErr(text){console.error(text)}};
+ playSound(path){if(this.muted)return;for(const playing of Object.values(this.sounds)){playing.pause();playing.currentTime=0}const sound=this.sounds[path]||(this.sounds[path]=new Audio(path+'?v='+this.assetRevision));sound.volume=.6;sound.play().catch(()=>{})},printErr(text){console.error(text)}};
 const directions={ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down'};
 addEventListener('keydown',e=>{if(Module.profileVisible)return;const key=directions[e.key];if(key){Module.keys[key]=true;e.preventDefault()}});
 addEventListener('keyup',e=>{const key=directions[e.key];if(key)Module.keys[key]=false});
 addEventListener('blur',()=>Module.keys={});
 let started=false;async function start(){if(started)return;started=true;try{
- const manifestResponse=await fetch('assets/manifest.json');if(!manifestResponse.ok)throw Error('Asset manifest unavailable');const manifest=await manifestResponse.json();
+ const manifestResponse=await fetch('assets/manifest.json?v='+Module.assetRevision,{cache:'no-store'});if(!manifestResponse.ok)throw Error('Asset manifest unavailable');const manifest=await manifestResponse.json();
  const paths=Object.keys(manifest.files);const loaded=new Map();let next=0;
- async function worker(){while(next<paths.length){const path=paths[next++];const response=await fetch(path);if(!response.ok)throw Error('Asset unavailable');loaded.set(path,new Uint8Array(await response.arrayBuffer()))}}
+ async function worker(){while(next<paths.length){const path=paths[next++];const response=await fetch(path+'?v='+Module.assetRevision);if(!response.ok)throw Error('Asset unavailable');loaded.set(path,new Uint8Array(await response.arrayBuffer()))}}
  await Promise.all(Array.from({length:8},worker));
  Module.preRun=[()=>{for(const [path,bytes] of loaded){Module.FS.mkdirTree('/'+path.slice(0,path.lastIndexOf('/')));Module.FS.writeFile('/'+path,bytes)}loaded.clear()}];
- const game=document.createElement('script');game.src='game.js';game.onerror=Module.onAbort;document.body.appendChild(game)
+ const game=document.createElement('script');game.src='game.js?v='+Module.buildRevision;game.onerror=Module.onAbort;document.body.appendChild(game)
  }catch(error){console.error(error);Module.onAbort()}}
 const shared=document.createElement('script');shared.src='https://account.waozi.xyz/share.js';shared.onload=()=>WaoziAccount.attach(Module,2500).then(start,start);shared.onerror=start;document.head.appendChild(shared);setTimeout(start,4000);
 </script>
