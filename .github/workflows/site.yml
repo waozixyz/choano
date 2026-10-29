@@ -57,7 +57,9 @@ jobs:
       - name: Build the browser edition with shared Entity Profile
         run: make web
       - name: Exercise browser swimming, Profile and restart
-        run: node tests/web_test.mjs build/web
+        run: |
+          export CHROMIUM="$(command -v google-chrome || command -v chromium)"
+          node tests/web_test.mjs build/web
       # Keep deployment in the verified workspace, without Actions artifact quota.
       - name: Prepare the Cloudflare Pages project
         if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
