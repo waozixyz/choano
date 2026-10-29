@@ -1,0 +1,16 @@
+{
+  "id": "xyz.waozi.choano",
+  "name": "choano",
+  "title": "Choano",
+  "kind": "game",
+  "contract_version": 1,
+  "module_api": 2,
+  "host_api": 41,
+  "save_schema": 1,
+  "build_defines": ["CHOANO_PORTABLE"],
+  "harnesses": ["arcade"],
+  "entry": "portable:Main",
+  "source": "src/portable.zi",
+  "assets": "assets",
+  "preview": "assets/choano/title-screen.png"
+}

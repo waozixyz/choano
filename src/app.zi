@@ -1,0 +1,237 @@
+#import "kryon/session"
+#if !#defined(CHOANO_PORTABLE) {
+    #import "kryon/tree_input"
+}
+#import "kryon/geometry"
+#import "kryon/box_props"
+#import "kryon/box_widget"
+#import "kryon/drawing_props"
+#import "kryon/image_props"
+#import "kryon/image_widget"
+#import "kryon/text_props"
+#import "kryon/text_widget"
+#import "kryon/text_align"
+#import "kryon/widget_palette"
+#if #defined(CHOANO_PORTABLE) {
+    Clock :: #import "portable_runtime";
+} else {
+    Clock :: #import "kryon/Clock";
+}
+#import "std/number_text"
+#import "std/text_buffer"
+
+#import "game"
+#if #defined(CHOANO_PORTABLE) {
+    #import "portable_sound"
+} else #if #defined(PLATFORM_WEB) {
+    #import "web_sound"
+} else {
+    #import "sound"
+}
+
+view: Rectangle;
+view_scale: float32 = 1.0;
+GameBounds :: (rect: Rectangle) -> Rectangle {
+    return Rectangle.{view.x + rect.x * view_scale, view.y + rect.y * view_scale,
+        rect.width * view_scale, rect.height * view_scale}
+}
+PauseClock :: () { last_tick = -1.0; held_input = .{} }
+last_tick: float64 = -1.0;
+held_input: GameInput;
+
+SetHeldInput :: (left: bool, right: bool, up: bool, down: bool) {
+    held_input = .{.left = left, .right = right, .up = up, .down = down}
+}
+score_text: [32]u8;
+life_overflow_text: [24]u8;
+stage_text: [48]u8;
+path_buffers: [16][128]u8;
+path_buffer_index: s32;
+
+CopyText :: (value: string, output: []u8, at: s32) -> s32 {
+    index: s32 = 0
+    while index < cast(s32)value.count && at < cast(s32)output.count {
+        output[at] = value[index]
+        index += 1
+        at += 1
+    }
+    return at
+}
+
+FramePath :: (kind: string, side: string, stage: s32, frame: s32) -> string {
+    if path_buffer_index >= 16 { path_buffer_index = 0 }
+    path_buffer := path_buffers[path_buffer_index][:]
+    at := CopyText("assets/choano/", path_buffer, 0)
+    at = CopyText(kind, path_buffer, at)
+    at = CopyText("-", path_buffer, at)
+    at = CopyText(side, path_buffer, at)
+    at = CopyText("-", path_buffer, at)
+    digits: [12]u8
+    at = CopyText(FormatInteger(cast(s64)StageSize(stage), digits[:]), path_buffer, at)
+    at = CopyText("-", path_buffer, at)
+    at = CopyText(FormatInteger(cast(s64)frame, digits[:]), path_buffer, at)
+    at = CopyText(".png", path_buffer, at)
+    if at < cast(s32)path_buffer.count { path_buffer[at] = cast(u8)0 }
+    path_buffer_index += 1
+    return TextUntilNul(path_buffer[:])
+}
+
+FrameCount :: (kind: string, stage: s32) -> s32 {
+    if kind == "player" && stage > STAGE_FIRST { return 4 }
+    return 3
+}
+
+AnimationFrame :: (animation: float64, count: s32) -> s32 {
+    frame := cast(s32)(animation * 8.0) % count
+    if frame < 0 { frame += count }
+    return frame
+}
+
+DrawSprite :: (session: Session, kind: string, side: string, stage: s32, animation: float64,
+    x: float32, y: float32, key: u64) {
+    size := cast(float32)StageSize(stage)
+    count := FrameCount(kind, stage)
+    frame := AnimationFrame(animation, count)
+    unused Image(session, ImageProps.{
+        .key = key,
+        .asset_path = FramePath(kind, side, stage, frame),
+        .bounds = GameBounds(Rectangle.{x - size * .5, y - size * .5, size, size}),
+        .fit = ImageFit.ImageFitStretch,
+        .smooth = false
+    })
+}
+
+DrawBlob :: (session: Session, animation: float64, x: float32, y: float32, key: u64) {
+    frame := AnimationFrame(animation * .75, 6)
+    if path_buffer_index >= 16 { path_buffer_index = 0 }
+    path_buffer := path_buffers[path_buffer_index][:]
+    at := CopyText("assets/choano/blob-", path_buffer, 0)
+    digits: [12]u8
+    at = CopyText(FormatInteger(cast(s64)frame, digits[:]), path_buffer, at)
+    at = CopyText(".png", path_buffer, at)
+    if at < cast(s32)path_buffer.count { path_buffer[at] = cast(u8)0 }
+    path_buffer_index += 1
+    unused Image(session, ImageProps.{.key = key, .asset_path = TextUntilNul(path_buffer[:]),
+        .bounds = GameBounds(Rectangle.{x - 19.5, y - 19.5, 39.0, 39.0}),
+        .fit = ImageFit.ImageFitStretch, .smooth = false})
+}
+
+DrawLifeIcon :: (session: Session, x: float32, y: float32, key: u64) {
+    unused Image(session, ImageProps.{.key = key, .asset_path = FramePath("player", "right", STAGE_FIRST, 0),
+        .bounds = GameBounds(Rectangle.{x - 8.5, y - 8.5, 17.0, 17.0}),
+        .fit = ImageFit.ImageFitStretch, .smooth = false})
+}
+
+DrawPanel :: (session: Session, bounds: Rectangle, key: u64) {
+    unused Box(session, BoxProps.{.key = key, .bounds = GameBounds(bounds),
+        .fill = ColorFromPacked(0x051120d8), .border = ColorFromPacked(0x99ccffff), .radius = 8.0})
+}
+
+Label :: (session: Session, text: string, bounds: Rectangle, key: u64, size: s32) {
+    unused Text(session, TextProps.{.key = key, .bounds = GameBounds(bounds), .text = text,
+        .font = cast(s32)(cast(float32)size * view_scale), .align = TextAlign.TextAlignStart, .vertical_align = TextAlign.TextAlignCenter})
+}
+
+CenterLabel :: (session: Session, text: string, bounds: Rectangle, key: u64, size: s32) {
+    unused Text(session, TextProps.{.key = key, .bounds = GameBounds(bounds), .text = text,
+        .font = cast(s32)(cast(float32)size * view_scale), .align = TextAlign.TextAlignCenter, .vertical_align = TextAlign.TextAlignCenter})
+}
+
+DrawGame :: (session: Session, bounds: Rectangle) {
+    view_scale = bounds.width / 500.0
+    if bounds.height / 420.0 < view_scale { view_scale = bounds.height / 420.0 }
+    view = Rectangle.{bounds.x + (bounds.width - 500.0 * view_scale) * .5,
+        bounds.y + (bounds.height - 420.0 * view_scale) * .5, 500.0 * view_scale, 420.0 * view_scale}
+    path_buffer_index = 0
+    unused Image(session, ImageProps.{.key = cast(u64)1, .asset_path = "assets/choano/background-inside.png",
+        .bounds = view, .fit = ImageFit.ImageFitStretch, .smooth = false})
+    side := ifx game.player_facing == 0 then "left" else "right"
+    DrawSprite(session, "player", side, game.player_stage, game.player_animation,
+        game.player_x, game.player_y, cast(u64)1000)
+    for index: cast(s32)0..game.enemy_count - 1 {
+        enemy := game.enemies[index]
+        if !enemy.active {
+            DrawBlob(session, enemy.animation, enemy.x, enemy.y, cast(u64)(2400 + index))
+        } else {
+            enemy_side := ifx enemy.velocity_x < 0.0 then "left" else "right"
+            DrawSprite(session, "enemy", enemy_side, enemy.stage, enemy.animation,
+                enemy.x, enemy.y, cast(u64)(2000 + index))
+        }
+    }
+    avoid_stage := game.player_stage + 1
+    if avoid_stage > STAGE_LAST { avoid_stage = STAGE_LAST }
+    DrawPanel(session, Rectangle.{424.0, 10.0, 76.0, 58.0}, cast(u64)3000)
+    CenterLabel(session, "AVOID", Rectangle.{424.0, 12.0, 76.0, 18.0}, cast(u64)3001, 13)
+    DrawSprite(session, "enemy", "right", avoid_stage, game.elapsed, 462.0, 48.0, cast(u64)3002)
+
+    score_digits: [16]u8
+    score := FormatInteger(cast(s64)game.score, score_digits[:])
+    at := CopyText("SCORE ", score_text[:], 0)
+    at = CopyText(score, score_text[:], at)
+    if at < cast(s32)score_text.count { score_text[at] = cast(u8)0 }
+    DrawPanel(session, Rectangle.{390.0, 384.0, 102.0, 30.0}, cast(u64)3010)
+    CenterLabel(session, TextUntilNul(score_text[:]), Rectangle.{390.0, 384.0, 102.0, 30.0}, cast(u64)3011, 15)
+
+    life_icon_count := game.lives
+    if life_icon_count < 0 { life_icon_count = 0 }
+    if life_icon_count > 5 { life_icon_count = 5 }
+    life_panel_width := 30.0 + cast(float32)life_icon_count * 20.0
+    if game.lives > 5 { life_panel_width += 30.0 }
+    DrawPanel(session, Rectangle.{18.0, 10.0, life_panel_width, 34.0}, cast(u64)3020)
+    if life_icon_count > 0 {
+        for index: cast(s32)0..life_icon_count - 1 {
+            DrawLifeIcon(session, 39.0 + cast(float32)index * 20.0, 27.0, cast(u64)(3021 + index))
+        }
+    }
+    if game.lives > 5 {
+        life_overflow_digits: [12]u8
+        life_overflow := FormatInteger(cast(s64)(game.lives - 5), life_overflow_digits[:])
+        at := CopyText("+", life_overflow_text[:], 0)
+        at = CopyText(life_overflow, life_overflow_text[:], at)
+        if at < cast(s32)life_overflow_text.count { life_overflow_text[at] = cast(u8)0 }
+        CenterLabel(session, TextUntilNul(life_overflow_text[:]),
+            Rectangle.{28.0 + cast(float32)life_icon_count * 20.0, 10.0, 26.0, 34.0},
+            cast(u64)3030, 14)
+    }
+
+    if game.over {
+        unused Box(session, BoxProps.{.key = cast(u64)4000,
+            .bounds = GameBounds(Rectangle.{100.0, 168.0, 290.0, 82.0}), .fill = ColorFromPacked(0x051120e0),
+            .border = ColorFromPacked(0x99ccffff), .radius = 10.0})
+        CenterLabel(session, "GAME OVER", Rectangle.{100.0, 176.0, 290.0, 34.0}, cast(u64)4001, 28)
+        CenterLabel(session, "PRESS ENTER TO PLAY AGAIN", Rectangle.{100.0, 214.0, 290.0, 22.0}, cast(u64)4002, 15)
+    }
+}
+
+#program_export
+Frame :: (session: Session, viewport: Rectangle) -> s32 {
+    unused WidgetPaletteUse(session, WidgetPalette.{.background = 0x051120ff, .base = 0x162b42ff,
+        .text = 0xdbeaffff, .selected = 0x99ccffff, .selected_text = 0x051120ff,
+        .border = 0x709fc5ff, .danger = 0xff8888ff, .warning = 0xffd080ff, .success = 0x80ddbbff})
+    defer { unused WidgetPaletteRestore(session) }
+    now := cast(float64)Clock.Milliseconds() / 1000.0
+    if !game.started {
+        game.started = true
+        StartGame(cast(u32)Clock.Milliseconds())
+        last_tick = now
+    }
+    #if #defined(CHOANO_PORTABLE) {
+        key := Clock.PressedKey()
+    } else {
+        key := KeyboardTake(session)
+    }
+    if key == 256 { return 1 }
+    if (game.over && key == 257) || key == 82 || key == 114 {
+        StartGame(cast(u32)Clock.Milliseconds())
+        held_input = .{}
+    }
+    if last_tick < 0.0 { last_tick = now }
+    if now >= last_tick {
+        UpdateGame(held_input, now - last_tick)
+        for event: cast(s32)0..game.event_count - 1 { unused SoundPlayEvent(game.events[event]) }
+        game.event_count = 0
+        last_tick = now
+    }
+    DrawGame(session, viewport)
+    return 0
+}

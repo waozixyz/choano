@@ -1,0 +1,66 @@
+using Desktop :: #import "kryon/Desktop";
+DesktopLoop :: #import "kryon/desktop_loop";
+Timer :: #import "std/timer_linux";
+#import "app"
+#import "kryon/geometry"
+#import "kryon/input_protocol"
+#import "kryon/session"
+#import "kryon/tree"
+#import "kryon/tree_input"
+#import "kryon/Frame"
+
+#program_export
+ClockMillisecondsHost :: () -> s64 { return Timer.MonotonicMilliseconds() }
+
+choano_sdl :: #system_library "SDL2";
+KeyboardState :: (count: *s32) -> *u8 #foreign choano_sdl "SDL_GetKeyboardState";
+
+KeyIsDown :: (scancode: s32) -> bool {
+    count: s32 = 0
+    state := KeyboardState(*count)
+    if state == null || scancode < 0 || scancode >= count { return false }
+    return state[scancode] != cast(u8)0
+}
+
+UpdateHeldInput :: () {
+    SetHeldInput(KeyIsDown(80) || KeyIsDown(4), KeyIsDown(79) || KeyIsDown(7),
+        KeyIsDown(82) || KeyIsDown(26), KeyIsDown(81) || KeyIsDown(22))
+}
+
+DrawGameFrame :: (session: Session) -> bool {
+    BeginDesktopFrame()
+    viewport: Rectangle = DesktopViewport()
+    pointer: PointerFrame = PollPointer()
+    TreePointerUpdate(session, pointer)
+    PointerWheelSend(session, pointer.x, pointer.y, DesktopWheelMove())
+    if BeginFrame(session, cast(u64)1, viewport) != FrameStatus.FrameOk { return false }
+    if Frame(session, viewport) != 0 { TreeCancel(session); return false }
+    if EndFrame(session) != FrameStatus.FrameOk { return false }
+    return EndDesktopFrame()
+}
+
+#program_export
+main :: () -> s32 {
+    if !DesktopLoop.DesktopStartBeside("assets/choano/background-inside.png") { return 1 }
+    if !OpenDesktopSized(500, 420) { CloseDesktop(); return 1 }
+    unused DesktopSetTitle("Choano")
+    session: Session = SessionOpen()
+    if !SessionValid(session) { CloseDesktop(); return 1 }
+    ok: bool = true
+    while ok && PollDesktop() {
+        UpdateHeldInput()
+        KeyboardModifiersSend(session, DesktopModifiers())
+        key: s32 = DesktopPressedKey()
+        if key != 0 { KeyboardSend(session, key) }
+        codepoint: s32 = DesktopTypedCodepoint()
+        while codepoint != 0 {
+            TypedCodepointSend(session, codepoint)
+            codepoint = DesktopTypedCodepoint()
+        }
+        ok = DrawGameFrame(session)
+        if ok { PauseDesktop() }
+    }
+    CloseSession(session)
+    CloseDesktop()
+    return ifx ok then 0 else 1
+}

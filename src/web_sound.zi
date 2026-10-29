@@ -1,0 +1,11 @@
+#import "std/web"
+Paths :: #import "sound_paths";
+#import "std/format"
+SoundPlayEvent :: (event: s32) -> bool {
+    name := Paths.SoundPath(event)
+    if name == "" { return false }
+    path: Vec(u8)
+    BuilderPrint(*path, "assets/choano/audio/%.wav", name)
+    unused WebCall1(WebModule, WebName("playSound"), WebText(BuilderFinish(path)))
+    return true
+}

@@ -1,0 +1,52 @@
+// Highest growth stage is earned progress. A run's position, lives and RNG
+// stay on the device; the account provider owns record IDs and cryptography.
+#import "entity/game_progress"
+#import "std/c_string"
+#import "std/json_scan"
+#import "std/text_buffer"
+#import "std/format"
+#import "std/vec"
+#if #defined(CHOANO_PROGRESS_TEST) {
+    Account :: #import "progress_fixture";
+} else #if #defined(CHOANO_PORTABLE) {
+    Account :: #import "portable_runtime";
+} else {
+    Account :: #import "web_account";
+}
+owner: [97]u8;
+record: GameProgressRecord;
+next_poll: float64;
+dirty: bool;
+ProgressPump :: (now: float64, stage: s32, stamp: s64) -> bool {
+    if now < next_poll { return false }
+    next_poll = now + 2.0
+    status := Account.Service("entity.records", "{\"operation\":\"status\"}")
+    current: [97]u8
+    if ReadStringText(status, FieldAt(status, 0, "account"), current[:]) < 0 { return false }
+    changed := TextUntilNul(owner[:]) != TextUntilNul(current[:])
+    if changed { owner = current; record = .{}; dirty = false; return true }
+    if current[0] == 0 { return false }
+    unused CopyCString("choano", record.game[:])
+    if record.unlocked < 1 { record.unlocked = 1 }
+    request: Vec(u8)
+    GameProgressGetRequest("choano", *request)
+    incoming: GameProgressRecord
+    if GameProgressReply(Account.Service("entity.records", BuilderFinish(request)), *incoming) {
+        unused GameProgressMerge(*record, *incoming)
+    }
+    if stage > record.unlocked {
+        record.unlocked = stage
+        record.updated_at = stamp
+        dirty = true
+    }
+    if !dirty { return false }
+    output: Vec(u8)
+    GameProgressPutRequest(*record, *output)
+    answer := Account.Service("entity.records", BuilderFinish(output))
+    state: [32]u8
+    dirty = ReadStringText(answer, FieldAt(answer, 0, "status"), state[:]) < 0 ||
+        TextUntilNul(state[:]) != "done"
+    return false
+}
+
+HighestStage :: () -> s32 { return record.unlocked }

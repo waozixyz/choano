@@ -1,0 +1,25 @@
+#import "std/json_scan"
+#import "std/format"
+account: string = "a";
+remote_stage: s32 = 4;
+writes: s32;
+written_stage: s32;
+fail: bool;
+Service :: (name: string, request: string) -> string {
+    unused name
+    if request == "{\"operation\":\"status\"}" {
+        out: Vec(u8)
+        BuilderPrint(*out, "{\"account\":\"%\"}", account)
+        return BuilderFinish(out)
+    }
+    operation: [16]u8
+    count := ReadStringText(request, FieldAt(request, 0, "operation"), operation[:])
+    if count == 3 && operation[0] == #char "g" {
+        out: Vec(u8)
+        BuilderPrint(*out, "{\"status\":\"done\",\"document\":{\"game\":\"choano\",\"unlocked\":%,\"completed\":\"\",\"updated_at\":1}}", remote_stage)
+        return BuilderFinish(out)
+    }
+    writes += 1
+    written_stage = cast(s32)ReadNumber(request, FieldAt(request, FieldAt(request, 0, "document"), "unlocked")).value
+    return ifx fail then "{\"status\":\"failed\"}" else "{\"status\":\"done\"}"
+}

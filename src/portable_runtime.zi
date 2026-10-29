@@ -1,0 +1,10 @@
+host_api :: #system_library "host_api";
+AppServiceHost :: (name: string, request: string) -> string #foreign host_api;
+AppKeyHost :: () -> s32 #foreign host_api;
+AppSoundHost :: (path: string) -> bool #foreign host_api;
+frame_now: float64;
+Milliseconds :: () -> s64 { return cast(s64)(frame_now * 1000.0) }
+Service :: (name: string, request: string) -> string { return AppServiceHost(name, request) }
+
+PressedKey :: () -> s32 { return AppKeyHost() }
+PlaySound :: (path: string) -> bool { return AppSoundHost(path) }

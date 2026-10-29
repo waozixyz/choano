@@ -1,0 +1,336 @@
+Math :: #import "std/math";
+
+FIELD_WIDTH :: 500.0;
+FIELD_HEIGHT :: 420.0;
+DISH_CENTER_X :: 245.0;
+DISH_CENTER_Y :: 209.0;
+DISH_RADIUS :: 208.0;
+STAGE_FIRST :: 1;
+STAGE_LAST :: 10;
+PLAYER_STAGE_LAST :: 9;
+ENEMY_LIMIT :: 64;
+INITIAL_ENEMIES :: 6;
+PLAYER_SPEED :: 100.0;
+ENEMY_SPEED_SCALE :: 90.0;
+COLLISION_INSET :: 3.0;
+
+SOUND_NONE :: 0;
+SOUND_START :: 1;
+SOUND_EAT :: 2;
+SOUND_GROW :: 3;
+SOUND_EXTRA_LIFE :: 4;
+SOUND_LOSE_LIFE :: 5;
+SOUND_GAME_OVER :: 6;
+SOUND_SPAWN_SAFE :: 7;
+SOUND_SPAWN_DANGEROUS :: 8;
+SOUND_BACKGROUND :: 9;
+
+Enemy :: struct {
+    x: float32
+    y: float32
+    stage: s32
+    velocity_x: float32
+    velocity_y: float32
+    active: bool
+    warning_timer: float64
+    animation: float64
+}
+
+GameInput :: struct {
+    left: bool
+    right: bool
+    up: bool
+    down: bool
+}
+
+Game :: struct {
+    started: bool
+    over: bool
+    player_x: float32
+    player_y: float32
+    player_stage: s32
+    player_facing: s32
+    player_animation: float64
+    growth_progress: s32
+    next_growth_threshold: s32
+    growth_stages: s32
+    score: s32
+    lives: s32
+    next_spawn_timer: float64
+    elapsed: float64
+    enemy_count: s32
+    enemies: [ENEMY_LIMIT]Enemy
+    random: u32
+    event_count: s32
+    events: [8]s32
+}
+
+// StartGame initializes every run, including the portable VM instance.
+game: Game;
+
+StageSize :: (index: s32) -> s32 { return index * 4 + 7 }
+
+GrowthThreshold :: (stage: s32) -> s32 {
+    thresholds: [10]s32 = .[0, 14, 44, 96, 168, 256, 416, 661, 981, 1386]
+    if stage < STAGE_FIRST { return thresholds[STAGE_FIRST] }
+    if stage > PLAYER_STAGE_LAST { return thresholds[PLAYER_STAGE_LAST] }
+    return thresholds[stage]
+}
+
+RandomNext :: (limit: s32) -> u32 {
+    game.random = game.random ^ (game.random << 13)
+    game.random = game.random ^ (game.random >> 17)
+    game.random = game.random ^ (game.random << 5)
+    if limit <= 0 { return 0 }
+    return game.random % cast(u32)limit
+}
+
+QueueSound :: (event: s32) {
+    if event == SOUND_NONE || game.event_count >= cast(s32)8 { return }
+    game.events[game.event_count] = event
+    game.event_count += 1
+}
+
+DirectionX :: (direction: s32) -> float32 {
+    if direction == 0 { return -1.0 }
+    if direction == 2 { return 1.0 }
+    return 0.0
+}
+
+DirectionY :: (direction: s32) -> float32 {
+    if direction == 1 { return -1.0 }
+    if direction == 3 { return 1.0 }
+    return 0.0
+}
+
+DistanceSquared :: (first_x: float32, first_y: float32, second_x: float32, second_y: float32) -> float32 {
+    delta_x := first_x - second_x
+    delta_y := first_y - second_y
+    return delta_x * delta_x + delta_y * delta_y
+}
+
+ClampPoint :: (x: *float32, y: *float32, size: float32) -> bool {
+    delta_x := <<x - cast(float32)DISH_CENTER_X
+    delta_y := <<y - cast(float32)DISH_CENTER_Y
+    distance_squared := delta_x * delta_x + delta_y * delta_y
+    maximum := DISH_RADIUS - size * .5
+    if maximum <= 0.0 || distance_squared <= maximum * maximum { return false }
+    distance := cast(float32)Math.Sqrt(cast(float64)distance_squared)
+    if distance <= 0.0 { return true }
+    <<x = cast(float32)DISH_CENTER_X + delta_x * maximum / distance
+    <<y = cast(float32)DISH_CENTER_Y + delta_y * maximum / distance
+    return true
+}
+
+RandomSpeed :: () -> float32 {
+    speed := cast(float32)RandomNext(50) * .01
+    if RandomNext(2) == 0 { speed = -speed }
+    return speed
+}
+
+EdibleCount :: () -> s32 {
+    count: s32 = 0
+    for index: cast(s32)0..game.enemy_count - 1 {
+        if game.enemies[index].stage <= game.player_stage { count += 1 }
+    }
+    return count
+}
+
+StageForPopulation :: (edible_count: s32, enemy_count: s32) -> s32 {
+    minimum := (game.player_stage * 2 + 4) / 4
+    if edible_count < minimum || edible_count < enemy_count * 3 / 4 {
+        return cast(s32)RandomNext(game.player_stage) + 1
+    }
+    dangerous := game.player_stage + 1
+    if dangerous > STAGE_LAST { dangerous = STAGE_LAST }
+    return dangerous
+}
+
+CanPlaceEnemy :: (x: float32, y: float32, size: float32) -> bool {
+    player_size := cast(float32)StageSize(game.player_stage)
+    clear := size * .5 + player_size * .5 + 4.0
+    if DistanceSquared(x, y, game.player_x, game.player_y) < clear * clear { return false }
+    for index: cast(s32)0..game.enemy_count - 1 {
+        other_size := cast(float32)StageSize(game.enemies[index].stage)
+        other_clear := size * .5 + other_size * .5 + 2.0
+        if DistanceSquared(x, y, game.enemies[index].x, game.enemies[index].y) < other_clear * other_clear { return false }
+    }
+    return true
+}
+
+SpawnEnemy :: (forced_stage: s32) -> bool {
+    if game.enemy_count >= ENEMY_LIMIT { return false }
+    stage := forced_stage
+    if stage < STAGE_FIRST { stage = StageForPopulation(EdibleCount(), game.enemy_count) }
+    if stage > STAGE_LAST { stage = STAGE_LAST }
+    size := cast(float32)StageSize(stage)
+    maximum := cast(float32)DISH_RADIUS - size * .5
+    attempt: s32 = 0
+    x := cast(float32)DISH_CENTER_X
+    y := cast(float32)DISH_CENTER_Y
+    placed := false
+    while attempt < 64 && !placed {
+        x = cast(float32)DISH_CENTER_X + cast(float32)RandomNext(cast(s32)(maximum * 2.0)) - maximum
+        y = cast(float32)DISH_CENTER_Y + cast(float32)RandomNext(cast(s32)(maximum * 2.0)) - maximum
+        placed = DistanceSquared(x, y, cast(float32)DISH_CENTER_X, cast(float32)DISH_CENTER_Y) <= maximum * maximum && CanPlaceEnemy(x, y, size)
+        attempt += 1
+    }
+    if !placed { return false }
+    game.enemies[game.enemy_count] = .{
+        .x = x,
+        .y = y,
+        .stage = stage,
+        .velocity_x = RandomSpeed(),
+        .velocity_y = RandomSpeed(),
+        .active = false,
+        .warning_timer = 3.0 + cast(float64)RandomNext(4000) / 1000.0,
+        .animation = cast(float64)RandomNext(100) / 100.0
+    }
+    game.enemy_count += 1
+    return true
+}
+
+StartGame :: (seed: u32) {
+    game = .{
+        .player_x = DISH_CENTER_X,
+        .player_y = DISH_CENTER_Y,
+        .player_stage = STAGE_FIRST,
+        .next_growth_threshold = 14,
+        .lives = 2,
+        .next_spawn_timer = 5.0,
+        .random = seed
+    }
+    game.started = true
+    if game.random == 0 { game.random = 1 }
+    game.next_spawn_timer = 5.0 + cast(float64)RandomNext(4000) / 1000.0
+    while game.enemy_count < INITIAL_ENEMIES { unused SpawnEnemy(STAGE_FIRST) }
+    game.event_count = 0
+    QueueSound(SOUND_START)
+}
+
+RemoveEnemy :: (index: s32) {
+    if index < 0 || index >= game.enemy_count { return }
+    for move: index..game.enemy_count - 2 {
+        game.enemies[move] = game.enemies[move + 1]
+    }
+    game.enemy_count -= 1
+}
+
+GrowPlayer :: () {
+    if game.growth_progress < game.next_growth_threshold { return }
+    if game.player_stage < PLAYER_STAGE_LAST {
+        game.player_stage += 1
+        game.next_growth_threshold = GrowthThreshold(game.player_stage)
+    } else {
+        game.next_growth_threshold = game.next_growth_threshold * 3 / 2
+    }
+    game.growth_stages += 1
+    QueueSound(SOUND_GROW)
+    if game.growth_stages % 3 == 0 {
+        game.lives += 1
+        QueueSound(SOUND_EXTRA_LIFE)
+    }
+}
+
+MovePlayer :: (input: GameInput, delta: float64) {
+    delta_x := DirectionX(ifx input.left then 0 else ifx input.right then 2 else -1)
+    delta_y := DirectionY(ifx input.up then 1 else ifx input.down then 3 else -1)
+    distance := PLAYER_SPEED * cast(float32)delta
+    if delta_x != 0.0 && delta_y != 0.0 { distance *= .70710678 }
+    game.player_x += delta_x * distance
+    game.player_y += delta_y * distance
+    if delta_x < 0.0 { game.player_facing = 0 }
+    if delta_x > 0.0 { game.player_facing = 1 }
+    size := cast(float32)StageSize(game.player_stage)
+    unused ClampPoint(*game.player_x, *game.player_y, size)
+    if delta_x != 0.0 || delta_y != 0.0 { game.player_animation += delta }
+}
+
+MoveEnemy :: (index: s32, delta: float64) {
+    enemy := *game.enemies[index]
+    enemy.animation += delta
+    if !enemy.active {
+        enemy.warning_timer -= delta
+        if enemy.warning_timer <= 0.0 {
+            enemy.active = true
+            if enemy.stage <= game.player_stage { QueueSound(SOUND_SPAWN_SAFE) }
+            else { QueueSound(SOUND_SPAWN_DANGEROUS) }
+        }
+        return
+    }
+    if RandomNext(100) == 0 {
+        enemy.velocity_x = RandomSpeed()
+        enemy.velocity_y = RandomSpeed()
+    }
+    enemy.x += enemy.velocity_x * ENEMY_SPEED_SCALE * cast(float32)delta
+    enemy.y += enemy.velocity_y * ENEMY_SPEED_SCALE * cast(float32)delta
+    size := cast(float32)StageSize(enemy.stage)
+    if ClampPoint(*enemy.x, *enemy.y, size) {
+        enemy.velocity_x = -enemy.velocity_x
+        enemy.velocity_y = -enemy.velocity_y
+    }
+}
+
+RectanglesOverlap :: (first_left: float32, first_right: float32, first_top: float32, first_bottom: float32,
+    second_left: float32, second_right: float32, second_top: float32, second_bottom: float32) -> bool {
+    return first_left <= second_right && second_left <= first_right &&
+        first_top <= second_bottom && second_top <= first_bottom
+}
+
+ResolveCollisions :: () {
+    player_size := cast(float32)StageSize(game.player_stage)
+    player_left := game.player_x - player_size * .5
+    player_right := game.player_x + player_size * .5
+    player_top := game.player_y - player_size * .5
+    player_bottom := game.player_y + player_size * .5
+    index: s32 = 0
+    while index < game.enemy_count {
+        enemy := game.enemies[index]
+        if !enemy.active { index += 1; continue }
+        enemy_size := cast(float32)StageSize(enemy.stage)
+        inset := enemy_size * .5 - COLLISION_INSET
+        if inset < 0.0 { inset = 0.0 }
+        overlap := RectanglesOverlap(player_left, player_right, player_top, player_bottom,
+            enemy.x - inset, enemy.x + inset, enemy.y - inset, enemy.y + inset)
+        if !overlap { index += 1; continue }
+        if enemy.stage <= game.player_stage {
+            edible_before := EdibleCount()
+            enemy_count_before := game.enemy_count
+            game.score += enemy.stage * 10
+            game.growth_progress += enemy.stage
+            QueueSound(SOUND_EAT)
+            RemoveEnemy(index)
+            GrowPlayer()
+            unused SpawnEnemy(StageForPopulation(edible_before, enemy_count_before - 1))
+            player_size = cast(float32)StageSize(game.player_stage)
+            player_left = game.player_x - player_size * .5
+            player_right = game.player_x + player_size * .5
+            player_top = game.player_y - player_size * .5
+            player_bottom = game.player_y + player_size * .5
+            continue
+        }
+        game.lives -= 1
+        QueueSound(SOUND_LOSE_LIFE)
+        if game.lives < 0 {
+            game.over = true
+            QueueSound(SOUND_GAME_OVER)
+        }
+        return
+    }
+}
+
+UpdateGame :: (input: GameInput, delta: float64) {
+    if !game.started || game.over { return }
+    if delta > .1 { delta = .1 }
+    game.elapsed += delta
+    MovePlayer(input, delta)
+    for index: cast(s32)0..game.enemy_count - 1 { MoveEnemy(index, delta) }
+    ResolveCollisions()
+    if game.over { return }
+    game.next_spawn_timer -= delta
+    if game.next_spawn_timer <= 0.0 {
+        unused SpawnEnemy(-1)
+        QueueSound(SOUND_BACKGROUND)
+        game.next_spawn_timer = 5.0 + cast(float64)RandomNext(4000) / 1000.0
+    }
+}

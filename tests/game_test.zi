@@ -1,0 +1,77 @@
+#import "game"
+
+Expect :: (condition: bool, message: string) -> s32 {
+    if condition { return 0 }
+    print("choano test failed: %\n", message)
+    return 1
+}
+
+main :: () -> s32 {
+    StartGame(12345)
+    if Expect(game.started, "game starts immediately") != 0 { return 1 }
+    if Expect(game.enemy_count == INITIAL_ENEMIES, "original initial enemy count") != 0 { return 1 }
+    if Expect(game.lives == 2 && game.player_stage == 1 && game.score == 0 &&
+        game.next_growth_threshold == 14, "original initial state") != 0 { return 1 }
+    for index: cast(s32)0..game.enemy_count - 1 {
+        if Expect(!game.enemies[index].active && game.enemies[index].stage == 1,
+            "initial enemies are delayed size-11 amoebas") != 0 { return 1 }
+    }
+
+    if Expect(StageSize(1) == 11 && StageSize(10) == 47, "one-based stage sizes") != 0 { return 1 }
+    game.player_x = 500.0
+    game.player_y = 209.0
+    unused ClampPoint(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage))
+    maximum := cast(float32)DISH_RADIUS - cast(float32)StageSize(game.player_stage) * .5
+    if Expect(DistanceSquared(game.player_x, game.player_y, cast(float32)DISH_CENTER_X, cast(float32)DISH_CENTER_Y) <= maximum * maximum,
+        "player remains inside the petri dish") != 0 { return 1 }
+
+    StartGame(12345)
+    game.enemy_count = 1
+    game.enemies[0] = .{.x = game.player_x - 8.0, .y = game.player_y, .stage = 1,
+        .velocity_x = 1.0, .velocity_y = 0.0, .active = true, .warning_timer = 0.0}
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.score == 10 && game.growth_progress == 1 && game.enemy_count == 1,
+        "equal enemy is eaten, scored, and replaced") != 0 { return 1 }
+
+    StartGame(12345)
+    game.enemy_count = 1
+    game.growth_progress = 13
+    game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 1,
+        .velocity_x = 1.0, .velocity_y = 0.0, .active = true, .warning_timer = 0.0}
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.player_stage == 2 && game.growth_stages == 1 &&
+        game.next_growth_threshold == 44, "original cumulative growth threshold") != 0 { return 1 }
+
+    StartGame(12345)
+    game.growth_stages = 2
+    game.growth_progress = 43
+    game.player_stage = 2
+    game.next_growth_threshold = 44
+    game.enemy_count = 1
+    game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 1,
+        .velocity_x = 1.0, .velocity_y = 0.0, .active = true, .warning_timer = 0.0}
+    game.lives = 2
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.player_stage == 3 && game.lives == 3,
+        "third growth stage grants an extra life") != 0 { return 1 }
+
+    StartGame(12345)
+    game.enemy_count = 1
+    game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 2,
+        .velocity_x = 1.0, .velocity_y = 0.0, .active = true, .warning_timer = 0.0}
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(!game.over && game.lives == 1, "larger enemy costs a life without invented immunity") != 0 { return 1 }
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(!game.over && game.lives == 0, "second dangerous contact reaches the final life state") != 0 { return 1 }
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.over, "third dangerous contact ends the game") != 0 { return 1 }
+
+    StartGame(54321)
+    game.enemies[0].warning_timer = 0.0
+    game.enemies[0].active = false
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.enemies[0].active, "warning timer activates an enemy") != 0 { return 1 }
+
+    print("Choano local tests passed.\n")
+    return 0
+}

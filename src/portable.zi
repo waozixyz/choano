@@ -1,0 +1,33 @@
+// Independent game package; Arcade and Inner Breeze supply bounded services.
+#import "apps/node_types"
+#import "apps/node_app"
+#import "kryon/geometry"
+App :: #import "app";
+Game :: #import "game";
+Runtime :: #import "portable_runtime";
+Progress :: #import "progress";
+host_api :: #system_library "host_api";
+ReadAppUiHost :: () -> AppUiFrame #foreign host_api;
+
+#program_export
+Main :: () -> s32 { return RunNodeApp(ChoanoFrame) }
+
+ChoanoFrame :: (message: AppMessage) -> bool {
+    frame := ReadAppUiHost()
+    Runtime.frame_now = frame.now
+    area := Rectangle.{0.0, cast(float32)frame.top, cast(float32)frame.width,
+        cast(float32)(frame.height - frame.top - frame.bottom)}
+    // Hosts expose key presses; directions persist until another direction
+    // or Space is pressed.
+    key := Runtime.PressedKey()
+    if key == 263 || key == 65 { App.SetHeldInput(true, false, false, false) }
+    if key == 262 || key == 68 { App.SetHeldInput(false, true, false, false) }
+    if key == 265 || key == 87 { App.SetHeldInput(false, false, true, false) }
+    if key == 264 || key == 83 { App.SetHeldInput(false, false, false, true) }
+    if key == 32 { App.SetHeldInput(false, false, false, false) }
+    if key == 80 { unused Runtime.Service("entity.profile", "open"); App.PauseClock() }
+    if Progress.ProgressPump(frame.now, Game.game.player_stage, message.time) {
+        Game.StartGame(cast(u32)(frame.now * 1000.0)); App.PauseClock()
+    }
+    return App.Frame(frame.session, area) == 0
+}

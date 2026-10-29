@@ -1,0 +1,6 @@
+Entity :: #import "entity/native_host";
+Records :: #import "entity/entity_records";
+Service :: (name: string, request: string) -> string {
+    if name == "entity.records" { return Records.EntityRecordsAnswer(request) }
+    return ""
+}

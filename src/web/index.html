@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#051120">
+<title>Choano — eat or be eaten</title>
+<meta name="description" content="Swim through a microscopic world. Eat smaller amoebas, grow, and avoid larger ones. Play Choano free in your browser.">
+<link rel="canonical" href="https://choano.waozi.xyz/">
+<link rel="icon" href="assets/choano/icon.png">
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#051120;color:#dbeaff;font:16px system-ui,sans-serif}body{display:flex;flex-direction:column;overflow:hidden}header{display:flex;align-items:center;gap:14px;padding:8px 16px;flex-shrink:0}header strong{margin-right:auto}a{color:#b8ddff}button{background:#162b42;color:inherit;border:1px solid #709fc5;border-radius:8px;padding:8px 14px;cursor:pointer}main{flex:1;min-height:0;position:relative}canvas{width:100%;height:100%;display:block;outline:none;touch-action:none}#loading{position:absolute;inset:0;display:grid;place-content:center;text-align:center;background:#051120}#loading[hidden]{display:none}footer{text-align:center;font-size:13px;padding:8px;flex-shrink:0}#pad{display:flex;gap:8px;justify-content:center}#pad button{touch-action:none;user-select:none;min-width:48px}@media(min-width:900px){#pad{display:none}}@media(max-width:500px){header{font-size:14px;padding:6px 8px}header a{display:none}}
+</style>
+<header><strong>Choano</strong><a href="https://github.com/waozixyz/choano">Source &amp; downloads</a><button id="profile">Profile</button><button id="mute" aria-pressed="false">Sound on</button></header>
+<main><canvas id="canvas" tabindex="0" aria-label="Choano amoeba game"></canvas><div id="loading" role="status">Opening the petri dish…</div></main>
+<div id="pad" aria-label="Swimming controls"><button data-key="left" aria-label="Swim left">←</button><button data-key="up" aria-label="Swim up">↑</button><button data-key="down" aria-label="Swim down">↓</button><button data-key="right" aria-label="Swim right">→</button><button id="restart">↻</button></div>
+<footer>Arrows / WASD to swim · Enter to restart · Eat equal or smaller amoebas</footer>
+<script>
+var Module={canvas:document.getElementById('canvas'),keys:{},sounds:{},muted:false,
+ onRuntimeInitialized(){document.getElementById('loading').hidden=true;Module.canvas.focus()},
+ onAbort(){const el=document.getElementById('loading');el.hidden=false;el.textContent='Choano could not open. Reload to try again.'},
+ playSound(path){if(this.muted)return;let sound=this.sounds[path]||(this.sounds[path]=new Audio(path));sound.currentTime=0;sound.play().catch(()=>{})},printErr(text){console.error(text)}};
+const directions={ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down'};
+addEventListener('keydown',e=>{if(Module.profileVisible)return;const key=directions[e.key];if(key){Module.keys[key]=true;e.preventDefault()}});
+addEventListener('keyup',e=>{const key=directions[e.key];if(key)Module.keys[key]=false});
+addEventListener('blur',()=>Module.keys={});
+document.querySelectorAll('[data-key]').forEach(button=>{button.onpointerdown=e=>{button.setPointerCapture(e.pointerId);Module.keys[button.dataset.key]=true;e.preventDefault()};for(const name of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(name,()=>Module.keys[button.dataset.key]=false)});
+document.getElementById('profile').onclick=()=>{Module.profileRequested=true;Module.keys={}};
+document.getElementById('mute').onclick=e=>{Module.muted=!Module.muted;for(const sound of Object.values(Module.sounds))sound.muted=Module.muted;e.target.textContent=Module.muted?'Sound off':'Sound on';e.target.setAttribute('aria-pressed',String(Module.muted))};
+document.getElementById('restart').onclick=()=>{Module.canvas.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',code:'Enter',keyCode:13,bubbles:true}));Module.canvas.focus()};
+let started=false;async function start(){if(started)return;started=true;try{
+ const manifestResponse=await fetch('assets/manifest.json');if(!manifestResponse.ok)throw Error('Asset manifest unavailable');const manifest=await manifestResponse.json();
+ const paths=Object.keys(manifest.files);const loaded=new Map();let next=0;
+ async function worker(){while(next<paths.length){const path=paths[next++];const response=await fetch(path);if(!response.ok)throw Error('Asset unavailable');loaded.set(path,new Uint8Array(await response.arrayBuffer()))}}
+ await Promise.all(Array.from({length:8},worker));
+ Module.preRun=[()=>{for(const [path,bytes] of loaded){Module.FS.mkdirTree('/'+path.slice(0,path.lastIndexOf('/')));Module.FS.writeFile('/'+path,bytes)}loaded.clear()}];
+ const game=document.createElement('script');game.src='game.js';game.onerror=Module.onAbort;document.body.appendChild(game)
+ }catch(error){console.error(error);Module.onAbort()}}
+const shared=document.createElement('script');shared.src='https://account.waozi.xyz/share.js';shared.onload=()=>WaoziAccount.attach(Module,2500).then(start,start);shared.onerror=start;document.head.appendChild(shared);setTimeout(start,4000);
+</script>
+</html>

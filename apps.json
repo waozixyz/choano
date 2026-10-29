@@ -1,0 +1,12 @@
+{
+  "id": "xyz.waozi.choano-player",
+  "title": "Choano",
+  "apps": [{
+    "manifest": "catalog.json",
+    "cover": {
+      "portrait": "assets/choano/title-screen.png",
+      "landscape": "assets/choano/title-screen.png",
+      "action": "play"
+    }
+  }]
+}

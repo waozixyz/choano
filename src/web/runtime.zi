@@ -1,0 +1,93 @@
+using Canvas :: #import "kryon/Canvas";
+#import "kryon/bundle_storage_web"
+#import "kryon/session"
+#import "kryon/geometry"
+#import "kryon/tree"
+#import "kryon/tree_input"
+#import "kryon/Frame"
+#import "kryon/page_core"
+#import "kryon/key_input"
+#import "kryon/text_input_props"
+#import "kryon/text_props"
+#import "kryon/text_widget"
+#import "kryon/button_props"
+#import "kryon/button_widget"
+#import "std/web"
+#import "std/file"
+Entity :: #import "entity/native_host";
+App :: #import "app";
+Game :: #import "game";
+Progress :: #import "progress";
+
+#program_export
+ClockMillisecondsHost :: () -> s64 { return cast(s64)PageNow() }
+
+Held :: (keys: s32, name: string) -> bool { return WebAsBool(WebGet(keys, WebName(name))) }
+
+#program_export
+main :: () -> s32 {
+    if !OpenCanvas() || !BundleStorageOpen() { return 1 }
+    defer CloseCanvas()
+    CanvasSetExitKey(0)
+    while !BundleStorageReady() && !BundleStorageFailed() { WebSleep(10) }
+    if !BundleStorageReady() { return 1 }
+    profile, found := ReadEntireFile("/entity.zx")
+    Entity.EntityHostProfileSections(10)
+    Entity.EntityHostGameContext("choano")
+    if !found || !Entity.EntityHostOpen(profile, "/kryon-apps/choano-profile", "choano", true) { return 1 }
+    defer { unused Entity.EntityHostClose(); unused BundleStorageSync(false) }
+    session := SessionOpen()
+    if !SessionValid(session) { return 1 }
+    defer { unused SessionClose(session) }
+    visible: bool;
+    saved := PageNow()
+    WebSet(WebModule, WebName("choanoReady"), WebBool(true))
+    while PollCanvas() {
+        scope := WebScope()
+        Entity.EntityHostPump()
+        viewport := CanvasViewport()
+        pointer := PollPointer()
+        key := CanvasPressedKey()
+        TreePointerUpdate(session, pointer)
+        KeyboardModifiersSend(session, CanvasModifiers())
+        if key != 0 { unused KeyboardSend(session, key) }
+        point := CanvasTypedCodepoint()
+        while point != 0 { unused TypedCodepointSend(session, point); point = CanvasTypedCodepoint() }
+        BeginCanvasFrame()
+        if BeginFrame(session, cast(u64)1, viewport) != FrameStatus.FrameOk { return 1 }
+        if WebAsBool(WebGet(WebModule, WebName("profileRequested"))) {
+            WebSet(WebModule, WebName("profileRequested"), WebBool(false))
+            Entity.EntityHostReload()
+            unused Entity.EntityHostPage("profile")
+            visible = true
+        }
+        if visible {
+            App.PauseClock()
+            typed: [1024]u8
+            input := TextFieldInputFor(key, CanvasModifiers(), TypedTextTake(session, typed[:]))
+            bounds := Rectangle.{0.0, 50.0, viewport.width, viewport.height - 50.0}
+            if !Entity.EntityHostFrame(session, bounds, key, CanvasModifiers(), input, true) { return 1 }
+            if Button(session, ButtonProps.{.key = cast(u64)49001, .id = 49001, .label = "Back",
+                .bounds = Rectangle.{8.0, 4.0, 80.0, 40.0}}) != 0 || key == 256 {
+                if !Entity.EntityHostBack() && Entity.EntityHostSave() { visible = false }
+            }
+        } else {
+            keys := WebGetObject(WebModule, WebName("keys"))
+            App.SetHeldInput(Held(keys, "left"), Held(keys, "right"), Held(keys, "up"), Held(keys, "down"))
+            now := PageNow() / 1000.0
+            if Progress.ProgressPump(now, Game.game.player_stage, cast(s64)(WebAsNumber(WebCall0(WebGetObject(WebGlobal, WebName("Date")), WebName("now"))) / 1000.0)) {
+                Game.StartGame(cast(u32)PageNow()); App.PauseClock()
+            }
+            unused App.Frame(session, viewport)
+            WebSet(WebModule, WebName("choanoScore"), WebNumber(cast(float64)Game.game.score))
+            WebSet(WebModule, WebName("choanoX"), WebNumber(cast(float64)Game.game.player_x))
+            WebSet(WebModule, WebName("choanoY"), WebNumber(cast(float64)Game.game.player_y))
+        }
+        WebSet(WebModule, WebName("profileVisible"), WebBool(visible))
+        if EndFrame(session) != FrameStatus.FrameOk { return 1 }
+        unused EndCanvasFrame()
+        if PageNow() - saved > 1000.0 { unused BundleStorageSync(false); saved = PageNow() }
+        WebEnd(scope)
+    }
+    return 0
+}

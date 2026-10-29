@@ -1,0 +1,6 @@
+SoundPath :: (event: s32) -> string {
+    paths: [10]string = .["", "game-start", "eat", "grow", "extra-life", "lose-life",
+        "game-over", "spawn-safe", "spawn-dangerous", "background"]
+    if event < 1 || event > 9 { return "" }
+    return paths[event]
+}

@@ -1,0 +1,42 @@
+[package]
+name = "Choano"
+entry = "src/app.zi"
+module_roots = ["src", "tests"]
+bridge_modules = ["app"]
+tool = "kryon"
+
+[toolchain]
+git = "https://github.com/ziranlang/ziran.git"
+ref = "master"
+
+[dependencies.kryon]
+git = "https://github.com/kryonlabs/kryon.git"
+ref = "master"
+
+[install]
+bin = "Choano"
+
+[tool.kryon]
+default_profile = "native"
+entry = "src/app.zi"
+
+[tool.kryon.profiles.native]
+backend = "desktop"
+host = "src/desktop.zi"
+assets = "assets"
+
+[tool.kryon.install]
+profile = "native"
+name = "Choano"
+comment = "Eat or be eaten"
+icon = "assets/choano/icon.png"
+categories = "Game;"
+working_directory = "."
+
+[dependencies.apps]
+git = "https://github.com/waozixyz/apps.git"
+ref = "master"
+
+[dependencies.entity]
+git = "https://github.com/waozixyz/entity.git"
+ref = "master"

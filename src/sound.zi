@@ -1,0 +1,121 @@
+#import "std/byte_text_linux"
+#import "std/c_string"
+#import "std/file"
+
+SOUND_EVENT_START :: 1
+SOUND_EVENT_EAT :: 2
+SOUND_EVENT_GROW :: 3
+SOUND_EVENT_EXTRA_LIFE :: 4
+SOUND_EVENT_LOSE_LIFE :: 5
+SOUND_EVENT_GAME_OVER :: 6
+SOUND_EVENT_SPAWN_SAFE :: 7
+SOUND_EVENT_SPAWN_DANGEROUS :: 8
+SOUND_EVENT_BACKGROUND :: 9
+
+SoundSpec :: struct {
+    freq: s32
+    format: u16
+    channels: u8
+    silence: u8
+    samples: u16
+    padding: u16
+    size: u32
+    callback: *void
+    userdata: *void
+}
+
+sound_sdl :: #system_library "SDL2";
+sound_c :: #system_library "c";
+SoundInit :: (flags: u32) -> s32 #foreign sound_sdl "SDL_InitSubSystem";
+SoundOpenDevice :: (device: *u8, capture: s32, desired: *SoundSpec, obtained: *SoundSpec,
+    changes: s32) -> u32 #foreign sound_sdl "SDL_OpenAudioDevice";
+SoundPause :: (device: u32, paused: s32) #foreign sound_sdl "SDL_PauseAudioDevice";
+SoundQueue :: (device: u32, data: *u8, length: u32) -> s32 #foreign sound_sdl "SDL_QueueAudio";
+SoundClear :: (device: u32) #foreign sound_sdl "SDL_ClearQueuedAudio";
+SoundFromMemory :: (bytes: *u8, count: s32) -> *void #foreign sound_sdl "SDL_RWFromConstMem";
+SoundLoadWave :: (source: *void, free_source: s32, spec: *SoundSpec, buffer: **u8,
+    length: *u32) -> *SoundSpec #foreign sound_sdl "SDL_LoadWAV_RW";
+SoundFreeWave :: (buffer: *u8) #foreign sound_sdl "SDL_FreeWAV";
+SoundNewStream :: (source_format: u16, source_channels: u8, source_rate: s32,
+    format: u16, channels: u8, rate: s32) -> *void #foreign sound_sdl "SDL_NewAudioStream";
+SoundStreamPut :: (stream: *void, data: *u8, length: s32) -> s32 #foreign sound_sdl "SDL_AudioStreamPut";
+SoundStreamFlush :: (stream: *void) -> s32 #foreign sound_sdl "SDL_AudioStreamFlush";
+SoundStreamAvailable :: (stream: *void) -> s32 #foreign sound_sdl "SDL_AudioStreamAvailable";
+SoundStreamGet :: (stream: *void, data: *u8, length: s32) -> s32 #foreign sound_sdl "SDL_AudioStreamGet";
+SoundFreeStream :: (stream: *void) #foreign sound_sdl "SDL_FreeAudioStream";
+SoundAllocate :: (count: usize, size: usize) -> *u8 #foreign sound_c "calloc";
+SoundRelease :: (bytes: *u8) #foreign sound_c "free";
+
+SOUND_INIT_AUDIO :: 16
+SOUND_S16 :: 32784
+SOUND_RATE :: 44100
+SOUND_BYTE_LIMIT :: 16777216
+
+sound_device: u32;
+sound_unavailable: bool;
+sound_files: [10]string;
+
+SoundPath :: (event: s32) -> string {
+    if event == SOUND_EVENT_START { return "assets/choano/audio/game-start.wav" }
+    if event == SOUND_EVENT_EAT { return "assets/choano/audio/eat.wav" }
+    if event == SOUND_EVENT_GROW { return "assets/choano/audio/grow.wav" }
+    if event == SOUND_EVENT_EXTRA_LIFE { return "assets/choano/audio/extra-life.wav" }
+    if event == SOUND_EVENT_LOSE_LIFE { return "assets/choano/audio/lose-life.wav" }
+    if event == SOUND_EVENT_GAME_OVER { return "assets/choano/audio/game-over.wav" }
+    if event == SOUND_EVENT_SPAWN_SAFE { return "assets/choano/audio/spawn-safe.wav" }
+    if event == SOUND_EVENT_SPAWN_DANGEROUS { return "assets/choano/audio/spawn-dangerous.wav" }
+    if event == SOUND_EVENT_BACKGROUND { return "assets/choano/audio/background.wav" }
+    return ""
+}
+
+SoundOpen :: () -> bool {
+    if sound_device != cast(u32)0 { return true }
+    if sound_unavailable || SoundInit(cast(u32)SOUND_INIT_AUDIO) != 0 {
+        sound_unavailable = true
+        return false
+    }
+    desired := SoundSpec.{.freq = SOUND_RATE, .format = cast(u16)SOUND_S16,
+        .channels = cast(u8)1, .samples = cast(u16)1024}
+    obtained: SoundSpec
+    sound_device = SoundOpenDevice(null, 0, *desired, *obtained, 0)
+    if sound_device == cast(u32)0 {
+        sound_unavailable = true
+        return false
+    }
+    SoundPause(sound_device, 0)
+    return true
+}
+
+SoundPlayBytes :: (bytes: string) -> bool {
+    if bytes.count <= 0 || bytes.count > SOUND_BYTE_LIMIT || !SoundOpen() { return false }
+    descriptor := cast(*TextDescriptor)(*bytes)
+    source := SoundFromMemory(descriptor.data, cast(s32)bytes.count)
+    if source == null { return false }
+    spec: SoundSpec
+    wave: *u8
+    length: u32
+    if SoundLoadWave(source, 1, *spec, *wave, *length) == null { return false }
+    stream := SoundNewStream(spec.format, spec.channels, spec.freq,
+        cast(u16)SOUND_S16, cast(u8)1, SOUND_RATE)
+    ready := stream != null && SoundStreamPut(stream, wave, cast(s32)length) == 0 &&
+        SoundStreamFlush(stream) == 0
+    SoundFreeWave(wave)
+    played := false
+    if ready {
+        available := SoundStreamAvailable(stream)
+        pcm: *u8 = null
+        if available > 0 { pcm = SoundAllocate(cast(usize)available, cast(usize)1) }
+        if pcm != null && SoundStreamGet(stream, pcm, available) == available {
+            SoundClear(sound_device)
+            played = SoundQueue(sound_device, pcm, cast(u32)available) == 0
+        }
+        if pcm != null { SoundRelease(pcm) }
+    }
+    if stream != null { SoundFreeStream(stream) }
+    return played
+}
+
+SoundPlayEvent :: (event: s32) -> bool {
+    bytes, found := ReadEntireFile(SoundPath(event))
+    return found && SoundPlayBytes(bytes)
+}

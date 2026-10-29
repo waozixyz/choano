@@ -1,0 +1,10 @@
+#import "std/format"
+Paths :: #import "sound_paths";
+Runtime :: #import "portable_runtime";
+SoundPlayEvent :: (event: s32) -> bool {
+    name := Paths.SoundPath(event)
+    if name == "" { return false }
+    path: Vec(u8)
+    BuilderPrint(*path, "assets/choano/audio/%.wav", name)
+    return Runtime.PlaySound(BuilderFinish(path))
+}
