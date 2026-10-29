@@ -1,0 +1,51 @@
+// Android event chimes through raylib's audio device; relative paths read
+// from the APK's assets.
+#import "std/format"
+#import "std/c_string"
+Paths :: #import "sound_paths";
+raylib :: #system_library "raylib";
+AudioStream :: struct {
+    buffer: *void
+    processor: *void
+    sample_rate: u32
+    sample_size: u32
+    channels: u32
+}
+Sound :: struct {
+    stream: AudioStream
+    frame_count: u32
+}
+InitAudio :: () #foreign raylib "InitAudioDevice";
+AudioReady :: () -> bool #foreign raylib "IsAudioDeviceReady";
+LoadSound :: (path: *u8) -> Sound #foreign raylib "LoadSound";
+SoundValid :: (sound: Sound) -> bool #foreign raylib "IsSoundValid";
+PlaySound :: (sound: Sound) #foreign raylib "PlaySound";
+StopSound :: (sound: Sound) #foreign raylib "StopSound";
+
+sounds: [7]Sound;
+loaded: [7]bool;
+playing: s32;
+sound_unavailable: bool;
+sound_muted: bool;
+
+SoundPlayEvent :: (event: s32) -> bool {
+    if sound_muted || sound_unavailable || event < 1 || event > 6 { return false }
+    if !AudioReady() { InitAudio() }
+    if !AudioReady() { sound_unavailable = true; return false }
+    if !loaded[event] {
+        path: Vec(u8)
+        BuilderPrint(*path, "assets/choano/audio/%.wav", Paths.SoundPath(event))
+        loaded[event] = true
+        name: [96]u8
+        if !CopyCString(BuilderFinish(path), name[:]) { return false }
+        sounds[event] = LoadSound(*name[0])
+    }
+    if !SoundValid(sounds[event]) { return false }
+    // One chime at a time, as on the other editions.
+    if playing != 0 && playing != event { StopSound(sounds[playing]) }
+    PlaySound(sounds[event])
+    playing = event
+    return true
+}
+
+SoundSetMuted :: (value: bool) { sound_muted = value }

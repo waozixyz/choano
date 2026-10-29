@@ -32,14 +32,14 @@ try{
  if(!await evaluate('Module.FS.stat("/assets/choano/organisms-hd.png").size>1000000'))throw Error('High-resolution organisms not loaded');
  if(!await evaluate('document.querySelectorAll("header,footer,button,#loading").length===0 && Module.canvas.clientWidth===innerWidth && Module.canvas.clientHeight===innerHeight'))throw Error('HTML app chrome remains');
  await shot(process.env.CHOANO_SCREENSHOT);
- let size=await dimensions();await click(size.w/2,52+(size.h-52)*.75+24);await until('Module.choanoPage===4');await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.controls.png');
- await press('1','Digit1',49);await until('Module.choanoPage===1 && Math.abs(Module.choanoX-245)<1');
+ let size=await dimensions();await click(size.w/2,52+(size.h-52)*.75+24);await until('Module.choanoPage===1 && Math.abs(Module.choanoX-245)<1');
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.game.png');
  const before=await evaluate('Module.choanoX');await command('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});await delay(350);await command('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
  if(await evaluate('Module.choanoX')-before<10)throw Error('Keyboard swimming failed');
  await command('Emulation.setTouchEmulationEnabled',{enabled:true});
  const swipeBefore=await evaluate('Module.choanoX');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(100);await command('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:360,y:200}]});await delay(300);await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  if(await evaluate('Module.choanoX')-swipeBefore<8)throw Error('Swipe steering did not swim right');
+ const released=await evaluate('Module.choanoX');await delay(300);if(await evaluate('Module.choanoX')-released<8)throw Error('A swipe heading did not hold after release');
  await press('Escape','Escape',27);await until('Module.choanoPage===2');const paused=await evaluate('Module.choanoX');await delay(350);if(await evaluate('Module.choanoX')!==paused)throw Error('Pause advanced the game');
  await click(size.w-48,26);await until('Module.choanoPage===3');await click(size.w/2,52+(size.h-52-194)/2+38);await until('Module.choanoPage===4');
  await press('2','Digit2',50);await until('Module.choanoPage===3');await press('Escape','Escape',27);await until('Module.choanoPage===2');await press('Escape','Escape',27);await until('Module.choanoPage===1');
@@ -54,7 +54,7 @@ try{
  if(!await evaluate('Module.muted'))throw Error('Sound preference was not retained');
  await press('Enter','Enter',13);await until('Module.choanoPage===1');
  if(missing.length)throw Error('Missing assets: '+missing.join(', '));if(errors.length)throw Error(errors.join('\n'));
- console.log('Choano local browser tests passed: app title/chrome, choice, keyboard/swipe/pad, pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
+ console.log('Choano local browser tests passed: app title/chrome, choice, keyboard/swipe heading/pad, pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
 }finally{
  const exited=!browser.pid||browser.exitCode!==null?Promise.resolve():new Promise(r=>browser.once('exit',r));
  if(socket?.readyState===WebSocket.OPEN)await command('Browser.close').catch(()=>{});

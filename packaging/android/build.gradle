@@ -1,0 +1,74 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Choano on Kryon's Android host (scripts/android.py build), which copies
+// this file over the droid/app/build.gradle Kryon's scaffold makes.
+def envOrProp = { String envName, String propName ->
+    System.getenv(envName) ?: project.findProperty(propName)
+}
+def kryonDir = envOrProp('KRYON_DIR', 'kryon.dir')
+def ziranDir = envOrProp('ZIRAN_DIR', 'ziran.dir')
+def raylibDir = envOrProp('RAYLIB_DIR', 'raylib.dir')
+if (kryonDir == null || ziranDir == null || raylibDir == null) {
+    throw new GradleException('Build through scripts/android.py build')
+}
+def androidAbis = (project.findProperty('app.abis') ?: 'arm64-v8a,armeabi-v7a').split(',').toList()
+
+// Kryon's editions: -Papp.edition=direct (the default, also the F-Droid
+// download) or gplay. Only the Google Play edition carries a Google library:
+// Kryon's android-gplay.gradle adds Play Billing and needs Android 6 and
+// AndroidX (-Pandroid.useAndroidX=true).
+def appEdition = (project.findProperty('app.edition') ?: 'direct').toString()
+if (!(appEdition in ['direct', 'fdroid', 'gplay'])) {
+    throw new GradleException('app.edition must be direct, fdroid or gplay')
+}
+def googlePlay = appEdition == 'gplay'
+def requestedMinSdk = Integer.parseInt((project.findProperty('app.minSdk') ?: '21').toString())
+
+android {
+    namespace 'xyz.waozi.choano'
+    compileSdk 36
+    ndkVersion '28.2.13676358'
+
+    defaultConfig {
+        applicationId 'xyz.waozi.choano'
+        minSdk googlePlay ? Math.max(requestedMinSdk, 23) : requestedMinSdk
+        targetSdk 36
+        versionCode Integer.parseInt((project.findProperty('app.versionCode') ?: '1').toString())
+        versionName (project.findProperty('app.versionName') ?: '0.0.0').toString()
+        manifestPlaceholders = [nativeLaunchMode: 'standard']
+        ndk {
+            abiFilters += androidAbis
+        }
+        externalNativeBuild {
+            cmake {
+                arguments '-DKRYON_DIR=' + kryonDir,
+                    '-DZIRAN_DIR=' + ziranDir,
+                    '-DRAYLIB_DIR=' + raylibDir,
+                    '-DAPP_EDITION=' + appEdition
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path 'src/main/cpp/CMakeLists.txt'
+            version '3.22.1'
+        }
+    }
+
+    // Choano's art and chimes and the launcher icon, staged by scripts/android.py.
+    sourceSets.main.assets.srcDir "${rootProject.projectDir}/../build/android/assets"
+    sourceSets.main.res.srcDir "${rootProject.projectDir}/../build/android/res"
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
+
+if (googlePlay) {
+    apply from: new File(kryonDir, 'templates/android-gplay.gradle')
+}

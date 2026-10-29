@@ -1,4 +1,4 @@
-.PHONY: all test native portable web
+.PHONY: all test native portable web android android-gplay
 all: native portable
 native:
 	ziran build --project --locked native
@@ -6,6 +6,11 @@ portable:
 	python3 scripts/build.py bundle
 web:
 	python3 scripts/build.py web
+# Unsigned release APKs: the normal (also F-Droid) edition and Google Play's.
+android:
+	python3 scripts/android.py build
+android-gplay:
+	python3 scripts/android.py build --edition gplay
 test:
 	python3 tests/assets_test.py
 	ziran check --project --locked

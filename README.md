@@ -19,8 +19,9 @@ Moeboid assets and binaries are excluded; see [asset provenance](ASSETS.md).
 ## Controls
 
 Desktop and browser: hold arrow keys or WASD to swim. Enter after game over
-or R starts a fresh run. Choose Swipe or Direction pad on first Play. Change controls or sound from
-the in-app Settings or Pause screen. Profile pauses play and opens the shared Entity account UI;
+or R starts a fresh run. On touch screens a swipe sets the heading, which holds until the next swipe
+or key press. Swipe steering is the default; choose the direction pad or
+turn sound off in the in-app Settings, also reachable from Pause. Profile pauses play and opens the shared Entity account UI;
 Back returns to the same run. Signing in is optional. Earned growth stages
 follow that account; the current run stays on this device and is not restored
 after closing the game.
@@ -48,6 +49,24 @@ python3 -m http.server --directory build/web
 `~/emsdk/upstream/emscripten/emcc` or `emcc` from PATH. `make all` produces
 `build/Choano-native` and `build/choano.zx`. Window tests use only a fresh
 private Xvfb display; browser tests use a disposable headless Chromium profile.
+
+## Android
+
+`make android` builds the unsigned release APK on Kryon's Android host and
+`make android-gplay` the Google Play edition's. They need JDK 21 and the
+Android SDK's NDK 28.2.13676358, build-tools 36.0.0, android-36 and CMake
+3.22.1; Gradle's project is generated in ignored `droid/` from the locked
+Kryon. `python3 scripts/android.py sign APK --output FILE` signs with the
+ignored `backup/android-signing` key and verifies the package, both ARM
+architectures, the bundled art and the Choano certificate.
+
+The Android workflow builds `choano-vVERSION.apk`, the same Google-free build
+as `choano-VERSION-fdroid.apk`, and `choano-vVERSION-gplay.apk`, the only one
+with a Google library (Play Billing). It checks both editions with Kryon's
+`google-free` action, signs them with the `CHOANO_ANDROID_KEYSTORE` and
+`CHOANO_ANDROID_KEYSTORE_PASSWORD` secrets and keeps them as workflow
+artifacts. VERSION is the newest numbered changelog entry, 0.0.0 until the
+first release; nothing is published to a release or store.
 
 ## Independent game package
 

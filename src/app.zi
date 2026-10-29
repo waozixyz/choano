@@ -27,6 +27,8 @@ Shell :: #import "shell";
     #import "portable_sound"
 } else #if #defined(PLATFORM_WEB) {
     #import "web_sound"
+} else #if #defined(ANDROID_BUILD) {
+    #import "android_sound"
 } else {
     #import "sound"
 }
@@ -281,9 +283,13 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     if (game.over && key == 257) || key == 82 || key == 114 {
         StartGame(cast(u32)Clock.Milliseconds())
         held_input = .{}
+        Shell.ClearHeading()
     }
     input := held_input
-    if direction >= 0 {
+    held := input.left || input.right || input.up || input.down
+    // Keys steer while held and end a swipe's heading.
+    if held { Shell.ClearHeading() }
+    if direction >= 0 && !held {
         input = .{.left = direction == 0, .up = direction == 1,
             .right = direction == 2, .down = direction == 3}
     }

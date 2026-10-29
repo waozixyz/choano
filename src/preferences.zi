@@ -4,6 +4,20 @@
     SaveAppRecordHost :: (name: string, text: string) -> bool #foreign host_api;
     Read :: () -> string { return AppRecordHost("choano.preferences") }
     Write :: (value: string) -> bool { return SaveAppRecordHost("choano.preferences", value) }
+} else #if #defined(ANDROID_BUILD) {
+    // The APK's assets are read-only; settings live in the app's private
+    // files folder, which Android creates.
+    #import "std/file"
+    #import "std/format"
+    #import "kryon/android_jni"
+    private_directory: [4096]u8;
+    Path :: () -> string {
+        out: Vec(u8)
+        BuilderPrint(*out, "%/preferences.v1", AndroidPrivateDataPath(private_directory[:]))
+        return BuilderFinish(out)
+    }
+    Read :: () -> string { text, found := ReadEntireFile(Path()); return ifx found then text else "" }
+    Write :: (value: string) -> bool { return WriteEntireFile(Path(), value) }
 } else {
     #import "std/file"
     #import "std/file_tree_linux"

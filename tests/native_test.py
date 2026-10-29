@@ -34,8 +34,6 @@ try:
     assert 'WIDTH=900' in geometry and 'HEIGHT=680' in geometry, geometry
     subprocess.run(['xdotool', 'windowfocus', window, 'key', 'Return'], check=True, env=env)
     time.sleep(.2)
-    subprocess.run(['xdotool', 'key', '1'], check=True, env=env)
-    time.sleep(.2)
     subprocess.run(['xdotool', 'keydown', 'Right'], check=True, env=env)
     time.sleep(.4)
     subprocess.run(['xdotool', 'keyup', 'Right', 'key', 'r'], check=True, env=env)
