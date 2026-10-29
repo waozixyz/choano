@@ -19,6 +19,7 @@
 }
 #import "std/number_text"
 #import "std/text_buffer"
+Trig :: #import "std/math";
 
 #import "game"
 #import "sprites"
@@ -46,8 +47,8 @@ held_input: GameInput;
 SetHeldInput :: (left: bool, right: bool, up: bool, down: bool) {
     held_input = .{.left = left, .right = right, .up = up, .down = down}
 }
-score_text: [32]u8;
-life_overflow_text: [24]u8;
+score_text: [16]u8;
+lives_text: [16]u8;
 stage_text: [48]u8;
 path_buffers: [16][128]u8;
 path_buffer_index: s32;
@@ -113,20 +114,34 @@ PaintOrganism :: (session: Session, kind: string, side: string, stage: s32, fram
             .bounds = fitted, .source = source, .smooth = true, .fit = ImageFit.ImageFitStretch})
     }
 }
-// The swim poses differ in length; one scale for all of them and a fixed
-// front keep the eyes still while the tail stretches behind.
-DrawPlayer :: (session: Session, side: string, stage: s32, animation: float64, moving: bool,
-    x: float32, y: float32, key: u64) {
+// The amoeba floats in its rest pose: a slow bob and breath, and a lean
+// into its swim. The swim poses' stretching tails made it lurch about.
+DrawPlayer :: (session: Session, side: string, stage: s32, animation: float64,
+    velocity_y: float32, x: float32, y: float32, key: u64) {
     size := cast(float32)StageSize(stage)
-    frame := ifx moving then AnimationFrame(animation * .75, 4) else 0
-    source := OrganismSource("player", stage, frame)
-    rest := OrganismSource("player", stage, 0)
-    scale := size / rest.width
-    width := source.width * scale
-    height := source.height * scale
-    left := ifx side == "left" then x - size * .5 else x + size * .5 - width
-    bounds := GameBounds(Rectangle.{left, y - height * .5, width, height})
-    PaintOrganism(session, "player", side, stage, frame, bounds, key)
+    source := OrganismSource("player", stage, 0)
+    breath := cast(float32)Trig.Sin(animation * 4.4)
+    width := size * (1.0 + breath * .03)
+    height := size * source.height / source.width * (1.0 - breath * .03)
+    y += cast(float32)Trig.Sin(animation * 2.6) * size * .04
+    flip: float32 = ifx side == "left" then -1.0 else 1.0
+    lean := velocity_y / PLAYER_SPEED
+    if lean > 1.0 { lean = 1.0 }
+    if lean < -1.0 { lean = -1.0 }
+    angle := cast(float64)(lean * .3 * flip)
+    cosine := cast(float32)Trig.Cos(angle)
+    sine := cast(float32)Trig.Sin(angle)
+    corners: [4]Vector2 = .[.{-.5, -.5}, .{.5, -.5}, .{-.5, .5}, .{.5, .5}]
+    points: [4]Vector2
+    for index: 0..3 {
+        across := corners[index].x * width * flip
+        along := corners[index].y * height
+        points[index] = Vector2.{view.x + (x + across * cosine - along * sine) * view_scale,
+            view.y + (y + across * sine + along * cosine) * view_scale}
+    }
+    unused Image(session, ImageProps.{.key = key, .asset_path = "assets/choano/organisms-hd.png",
+        .bounds = GameBounds(Rectangle.{x - width * .5, y - height * .5, width, height}), .source = source,
+        .smooth = true, .mesh = ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
 }
 DrawSprite :: (session: Session, kind: string, side: string, stage: s32, animation: float64,
     x: float32, y: float32, key: u64) {
@@ -156,26 +171,6 @@ DrawBlob :: (session: Session, animation: float64, x: float32, y: float32, key: 
         .fit = ImageFit.ImageFitStretch, .smooth = false})
 }
 
-DrawLifeIcon :: (session: Session, x: float32, y: float32, key: u64) {
-    PaintOrganism(session, "player", "right", STAGE_FIRST, 0,
-        GameBounds(Rectangle.{x - 8.5, y - 8.5, 17.0, 17.0}), key)
-}
-
-DrawPanel :: (session: Session, bounds: Rectangle, key: u64) {
-    unused Box(session, BoxProps.{.key = key, .bounds = GameBounds(bounds),
-        .fill = ColorFromPacked(0x051120d8), .border = ColorFromPacked(0x99ccffff), .radius = 8.0})
-}
-
-Label :: (session: Session, text: string, bounds: Rectangle, key: u64, size: s32) {
-    unused Text(session, TextProps.{.key = key, .bounds = GameBounds(bounds), .text = text,
-        .font = cast(s32)(cast(float32)size * view_scale), .align = TextAlign.TextAlignStart, .vertical_align = TextAlign.TextAlignCenter})
-}
-
-CenterLabel :: (session: Session, text: string, bounds: Rectangle, key: u64, size: s32) {
-    unused Text(session, TextProps.{.key = key, .bounds = GameBounds(bounds), .text = text,
-        .font = cast(s32)(cast(float32)size * view_scale), .align = TextAlign.TextAlignCenter, .vertical_align = TextAlign.TextAlignCenter})
-}
-
 DrawGame :: (session: Session, bounds: Rectangle) {
     view_scale = bounds.width / 500.0
     if bounds.height / 420.0 < view_scale { view_scale = bounds.height / 420.0 }
@@ -195,44 +190,47 @@ DrawGame :: (session: Session, bounds: Rectangle) {
         }
     }
     side := ifx game.player_facing == 0 then "left" else "right"
-    DrawPlayer(session, side, game.player_stage, game.player_animation, game.player_moving,
+    DrawPlayer(session, side, game.player_stage, game.player_animation, game.player_velocity_y,
         game.player_x, game.player_y, cast(u64)1000)
+}
+
+// The score, lives and the next danger sit in the top bar, as in an arcade
+// game, leaving the dish clear.
+DrawHud :: (session: Session, bar: Rectangle) {
+    middle := bar.y + bar.height * .5
+    PaintOrganism(session, "player", "right", STAGE_FIRST, 0,
+        Rectangle.{bar.x + 90.0, middle - 12.0, 24.0, 24.0}, cast(u64)3020)
+    lives := game.lives
+    if lives < 0 { lives = 0 }
+    lives_digits: [12]u8
+    at := CopyText("x", lives_text[:], 0)
+    at = CopyText(FormatInteger(cast(s64)lives, lives_digits[:]), lives_text[:], at)
+    if at < cast(s32)lives_text.count { lives_text[at] = cast(u8)0 }
+    HudText(session, TextUntilNul(lives_text[:]), Rectangle.{bar.x + 118.0, bar.y, 48.0, bar.height},
+        cast(u64)3021, 20, TextAlign.TextAlignStart)
+
+    HudText(session, "SCORE", Rectangle.{bar.x, bar.y + 3.0, bar.width, 14.0}, cast(u64)3010, 11,
+        TextAlign.TextAlignCenter)
+    score_digits: [16]u8
+    at = CopyText(FormatInteger(cast(s64)game.score, score_digits[:]), score_text[:], 0)
+    if at < cast(s32)score_text.count { score_text[at] = cast(u8)0 }
+    HudText(session, TextUntilNul(score_text[:]), Rectangle.{bar.x, bar.y + 15.0, bar.width, bar.height - 17.0},
+        cast(u64)3011, 24, TextAlign.TextAlignCenter)
+
     avoid_stage := game.player_stage + 1
     if avoid_stage > STAGE_LAST { avoid_stage = STAGE_LAST }
-    DrawPanel(session, Rectangle.{424.0, 10.0, 76.0, 58.0}, cast(u64)3000)
-    CenterLabel(session, "AVOID", Rectangle.{424.0, 12.0, 76.0, 18.0}, cast(u64)3001, 13)
-    DrawSprite(session, "enemy", "right", avoid_stage, game.elapsed, 462.0, 48.0, cast(u64)3002)
+    right := bar.x + bar.width
+    HudText(session, "AVOID", Rectangle.{right - 104.0, bar.y, 56.0, bar.height}, cast(u64)3000, 12,
+        TextAlign.TextAlignEnd)
+    frame := AnimationFrame(game.elapsed, 3)
+    PaintOrganism(session, "enemy", "right", avoid_stage, frame,
+        Rectangle.{right - 42.0, middle - 15.0, 30.0, 30.0}, cast(u64)3002)
+}
 
-    score_digits: [16]u8
-    score := FormatInteger(cast(s64)game.score, score_digits[:])
-    at := CopyText("SCORE ", score_text[:], 0)
-    at = CopyText(score, score_text[:], at)
-    if at < cast(s32)score_text.count { score_text[at] = cast(u8)0 }
-    DrawPanel(session, Rectangle.{390.0, 384.0, 102.0, 30.0}, cast(u64)3010)
-    CenterLabel(session, TextUntilNul(score_text[:]), Rectangle.{390.0, 384.0, 102.0, 30.0}, cast(u64)3011, 15)
-
-    life_icon_count := game.lives
-    if life_icon_count < 0 { life_icon_count = 0 }
-    if life_icon_count > 5 { life_icon_count = 5 }
-    life_panel_width := 30.0 + cast(float32)life_icon_count * 20.0
-    if game.lives > 5 { life_panel_width += 30.0 }
-    DrawPanel(session, Rectangle.{18.0, 10.0, life_panel_width, 34.0}, cast(u64)3020)
-    if life_icon_count > 0 {
-        for index: cast(s32)0..life_icon_count - 1 {
-            DrawLifeIcon(session, 39.0 + cast(float32)index * 20.0, 27.0, cast(u64)(3021 + index))
-        }
-    }
-    if game.lives > 5 {
-        life_overflow_digits: [12]u8
-        life_overflow := FormatInteger(cast(s64)(game.lives - 5), life_overflow_digits[:])
-        at := CopyText("+", life_overflow_text[:], 0)
-        at = CopyText(life_overflow, life_overflow_text[:], at)
-        if at < cast(s32)life_overflow_text.count { life_overflow_text[at] = cast(u8)0 }
-        CenterLabel(session, TextUntilNul(life_overflow_text[:]),
-            Rectangle.{28.0 + cast(float32)life_icon_count * 20.0, 10.0, 26.0, 34.0},
-            cast(u64)3030, 14)
-    }
-
+HudText :: (session: Session, text: string, bounds: Rectangle, key: u64, size: s32, align: TextAlign) {
+    strong: [1]TextRange = .[.{0, cast(s32)text.count}]
+    unused Text(session, TextProps.{.key = key, .bounds = bounds, .text = text, .font = size,
+        .strong = strong[:], .align = align, .vertical_align = TextAlign.TextAlignCenter})
 }
 
 last_sound: s32;
@@ -288,7 +286,8 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     area := Shell.Begin(session, viewport, key, now)
     SoundSetMuted(Shell.muted)
     if Shell.WantsBoard() { DrawGame(session, area) }
-    direction := Shell.End(session, now, game.over)
+    if Shell.HudVisible() { DrawHud(session, Shell.bar) }
+    Shell.End(session, now, game.over)
     if Shell.TakeStart() {
         StartGame(cast(u32)Clock.Milliseconds())
         last_tick = now
@@ -302,12 +301,10 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     }
     input := held_input
     held := input.left || input.right || input.up || input.down
-    // Keys steer while held and end a swipe's heading.
+    // Keys steer while held and end a touch heading.
     if held { Shell.ClearHeading() }
-    if direction >= 0 && !held {
-        input = .{.left = direction == 0, .up = direction == 1,
-            .right = direction == 2, .down = direction == 3}
-    }
+    input.steer_x = Shell.heading_x
+    input.steer_y = Shell.heading_y
     if last_tick < 0.0 { last_tick = now }
     if now >= last_tick {
         UpdateGame(input, now - last_tick)

@@ -3,9 +3,6 @@ Controls :: #import "game2d/controls";
 Prefs :: #import "preferences";
 #import "kryon/session"
 #import "kryon/geometry"
-#import "kryon/title_bar_widget"
-#import "kryon/title_bar_props"
-#import "kryon/dropdown_props"
 #import "kryon/button_props"
 #import "kryon/button_widget"
 #import "kryon/control_props"
@@ -20,10 +17,16 @@ Prefs :: #import "preferences";
 #import "kryon/direction_pad"
 #import "kryon/joystick"
 
+BAR_HEIGHT :: 52.0;
+
 state: Nav.GameNavigation;
-swipe: Controls.GameSwipe;
-// A swipe sets the heading, which holds until the next swipe, as Wurm steers.
-heading: s32 = -1;
+stick: Controls.GameStick;
+// A drag sets the heading in any direction; it holds after release, as Wurm
+// steers, and a tap stops.
+heading_x: float32;
+heading_y: float32;
+// The top bar; while playing, the app draws the score and lives in it.
+bar: Rectangle;
 loaded: bool;
 muted: bool;
 profile_available: bool;
@@ -36,25 +39,47 @@ Save :: () { save_failed = !Prefs.Save(state.controls_selected, state.controls_m
 Start :: () { if Nav.GameNavigationPlay(*state) { start_requested = true } }
 Choose :: (mode: s32) {
     if Nav.GameNavigationChoose(*state, mode) { start_requested = true }
-    swipe.active = false
+    stick.active = false
     Save()
 }
 TakeStart :: () -> bool {
     result := start_requested; start_requested = false
-    if result { heading = -1; swipe.active = false }
+    if result { ClearHeading(); stick.active = false }
     return result
 }
-ClearHeading :: () { heading = -1 }
+ClearHeading :: () { heading_x = 0.0; heading_y = 0.0 }
 TakeProfile :: () -> bool { result := profile_requested; profile_requested = false; return result }
 Page :: () -> s32 { return state.page }
 Playing :: () -> bool { return state.page == Nav.GAME_PLAYING }
 WantsBoard :: () -> bool { return state.running && state.page != Nav.GAME_TITLE && state.page != Nav.GAME_SETTINGS }
-Back :: () -> bool { swipe.active = false; return Nav.GameNavigationBack(*state) }
+Back :: () -> bool { stick.active = false; return Nav.GameNavigationBack(*state) }
 
 Action :: (session: Session, key: u64, text: string, bounds: Rectangle) -> bool {
     return Button(session, ButtonProps.{.key = key, .id = cast(s32)key,
         .bounds = bounds, .label = text, .emphasis = ButtonEmphasis.ButtonEmphasisFilled}) != 0
 }
+RoundAction :: (session: Session, key: u64, text: string, bounds: Rectangle) -> bool {
+    return Button(session, ButtonProps.{.key = key, .id = cast(s32)key, .bounds = bounds, .label = text,
+        .pill = true, .emphasis = ButtonEmphasis.ButtonEmphasisSoft}) != 0
+}
+// A game's top bar: deep water with a glowing edge, a rounded Back or Pause
+// button and a bold centred title.
+GameBar :: (session: Session, viewport: Rectangle, key: u64, title: string, leading: bool, playing: bool) -> bool {
+    bounds := Rectangle.{viewport.x, viewport.y, viewport.width, BAR_HEIGHT}
+    unused Box(session, BoxProps.{.key = key, .bounds = bounds, .fill = ColorFromPacked(0x0a2438ff)})
+    unused Box(session, BoxProps.{.key = key + 1, .bounds = Rectangle.{bounds.x, bounds.y + BAR_HEIGHT - 3.0, bounds.width, 3.0},
+        .fill = ColorFromPacked(0x80cbd8ff)})
+    if title.count > 0 {
+        strong: [1]TextRange = .[.{0, cast(s32)title.count}]
+        unused Text(session, TextProps.{.key = key + 2, .text = title, .font = 24, .strong = strong[:],
+            .bounds = Rectangle.{bounds.x + 88.0, bounds.y, bounds.width - 176.0, BAR_HEIGHT - 3.0},
+            .align = TextAlign.TextAlignCenter, .vertical_align = TextAlign.TextAlignCenter})
+    }
+    if !leading { return false }
+    return RoundAction(session, key + 3, ifx playing then "Pause" else "Back",
+        Rectangle.{bounds.x + 8.0, bounds.y + 5.0, 72.0, 40.0})
+}
+HudVisible :: () -> bool { return state.running && state.page == Nav.GAME_PLAYING }
 
 Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64) -> Rectangle {
     if !loaded {
@@ -71,23 +96,19 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64) -> Rect
     else if key == 257 && state.page == Nav.GAME_TITLE { Start() }
     else if state.page == Nav.GAME_CONTROLS && (key == 49 || key == 50) { Choose(key - 49) }
     else if key == 77 || key == 109 { muted = !muted; Save() }
-    empty: [0]DropdownOption
-    settings_available := state.page != Nav.GAME_SETTINGS && state.page != Nav.GAME_CONTROLS
-    trailing: s32 = ifx profile_available then 80 else 0
+    playing := HudVisible()
+    settings_available := state.page != Nav.GAME_SETTINGS && state.page != Nav.GAME_CONTROLS && !playing
+    trailing: s32 = ifx profile_available && !playing then 80 else 0
     if settings_available { trailing += 88 }
-    title := "Choano"
-    if state.page == Nav.GAME_PAUSED { title = "Paused" }
-    if state.page == Nav.GAME_SETTINGS { title = "Settings" }
-    if state.page == Nav.GAME_CONTROLS { title = "Controls" }
-    bar := TitleBar(session, TitleBarProps.{.key = cast(u64)50000, .id = 50000,
-        .bounds = Rectangle.{viewport.x, viewport.y, viewport.width, 52.0},
-        .height = 52, .title = title, .strong_title = true,
-        .has_leading_action = state.page != Nav.GAME_TITLE,
-        .leading_label = ifx state.page == Nav.GAME_PLAYING then "Pause" else "Back",
-        .trailing_width = trailing}, empty[:])
-    if bar.clicked_leading { unused Back() }
+    title := "CHOANO"
+    if playing { title = "" }
+    if state.page == Nav.GAME_PAUSED { title = "PAUSED" }
+    if state.page == Nav.GAME_SETTINGS { title = "SETTINGS" }
+    if state.page == Nav.GAME_CONTROLS { title = "CONTROLS" }
+    bar = Rectangle.{viewport.x, viewport.y, viewport.width, BAR_HEIGHT - 3.0}
+    if GameBar(session, viewport, cast(u64)50000, title, state.page != Nav.GAME_TITLE, playing) { unused Back() }
     x := viewport.x + viewport.width - cast(float32)trailing
-    if profile_available {
+    if profile_available && !playing {
         if Action(session, cast(u64)50010, "Profile", Rectangle.{x, viewport.y + 6.0, 76.0, 40.0}) {
             profile_requested = true
             Nav.GameNavigationPause(*state)
@@ -95,9 +116,9 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64) -> Rect
         x += 80.0
     }
     if settings_available && Action(session, cast(u64)50011, "Settings", Rectangle.{x, viewport.y + 6.0, 80.0, 40.0}) {
-        if state.page != Nav.GAME_SETTINGS { Nav.GameNavigationSettings(*state) }
+        Nav.GameNavigationSettings(*state)
     }
-    area = Rectangle.{viewport.x, viewport.y + 52.0, viewport.width, viewport.height - 52.0}
+    area = Rectangle.{viewport.x, viewport.y + BAR_HEIGHT, viewport.width, viewport.height - BAR_HEIGHT}
     return area
 }
 
@@ -122,7 +143,7 @@ Row :: (session: Session, bounds: Rectangle, row: s32, text: string) -> bool {
         Rectangle.{bounds.x + 16.0, bounds.y + 16.0 + cast(float32)row * 54.0, bounds.width - 32.0, 44.0})
 }
 
-End :: (session: Session, now: float64, over: bool) -> s32 {
+End :: (session: Session, now: float64, over: bool) {
     if state.page == Nav.GAME_TITLE {
         Backdrop(session)
         width := area.width - 64.0
@@ -172,24 +193,22 @@ End :: (session: Session, now: float64, over: bool) -> s32 {
     } else if state.controls_mode == Nav.GAME_PAD {
         pad := DirectionPad(session, DirectionPadProps.{.key = cast(u64)52000,
             .bounds = DirectionPadBounds(area), .label = "Move", .now = now, .floating = true})
-        return pad.direction
+        heading_x = ifx pad.direction == 0 then -1.0 else ifx pad.direction == 2 then 1.0 else 0.0
+        heading_y = ifx pad.direction == 1 then -1.0 else ifx pad.direction == 3 then 1.0 else 0.0
+        return
     } else {
         // Captured contact only; the release-only swipe result is unused.
         gesture := SwipeArea(session, SwipeAreaProps.{.key = cast(u64)52010, .bounds = area,
             .label = "Move", .now = now, .min_distance = 6.0})
-        turned := Controls.GameSwipeDirection(*swipe, gesture.down, gesture.at_x, gesture.at_y)
-        if turned >= 0 { heading = turned }
-        Controls.GameSwipeIndicator(session, cast(u64)52020, swipe, gesture.at_x, gesture.at_y, heading)
-        return heading
+        steer := Controls.GameStickSteer(*stick, gesture.down, gesture.at_x, gesture.at_y)
+        if steer.steering { heading_x = steer.x; heading_y = steer.y }
+        if steer.tapped { ClearHeading() }
+        Controls.GameStickIndicator(session, cast(u64)52020, stick, heading_x, heading_y)
+        return
     }
-    swipe.active = false
-    return -1
+    stick.active = false
 }
 
 ProfileBar :: (session: Session, viewport: Rectangle) -> bool {
-    empty: [0]DropdownOption
-    bar := TitleBar(session, TitleBarProps.{.key = cast(u64)53000, .id = 53000,
-        .bounds = Rectangle.{viewport.x, viewport.y, viewport.width, 52.0}, .height = 52,
-        .title = "Profile", .strong_title = true, .has_leading_action = true, .leading_label = "Back"}, empty[:])
-    return bar.clicked_leading
+    return GameBar(session, viewport, cast(u64)53000, "PROFILE", true, false)
 }

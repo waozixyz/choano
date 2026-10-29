@@ -66,6 +66,19 @@ main :: () -> s32 {
     UpdateGame(.{}, 1.0 / 60.0)
     if Expect(game.over, "third dangerous contact ends the game") != 0 { return 1 }
 
+    StartGame(1357)
+    game.enemy_count = 0
+    for step: 0..59 { UpdateGame(.{.steer_x = .6, .steer_y = -.8}, 1.0 / 60.0) }
+    moved_x := game.player_x - cast(float32)DISH_CENTER_X
+    moved_y := game.player_y - cast(float32)DISH_CENTER_Y
+    if Expect(moved_x > 30.0 && moved_y < -40.0 && moved_y * .6 + moved_x * .8 > -1.0 && moved_y * .6 + moved_x * .8 < 1.0,
+        "a touch heading swims in any direction") != 0 { return 1 }
+    if Expect(game.player_facing == 1 && game.player_moving, "the player faces its swim") != 0 { return 1 }
+    UpdateGame(.{.left = true, .steer_x = 1.0}, 1.0 / 60.0)
+    if Expect(game.player_velocity_x < 50.0, "keys win over the touch heading") != 0 { return 1 }
+    for step: 0..119 { UpdateGame(.{}, 1.0 / 60.0) }
+    if Expect(!game.player_moving, "the player glides to rest") != 0 { return 1 }
+
     StartGame(54321)
     game.enemies[0].warning_timer = 0.0
     game.enemies[0].active = false

@@ -11,6 +11,8 @@ PLAYER_STAGE_LAST :: 9;
 ENEMY_LIMIT :: 64;
 INITIAL_ENEMIES :: 6;
 PLAYER_SPEED :: 100.0;
+// How quickly the player's velocity eases towards its heading, per second.
+PLAYER_EASE :: 8.0;
 ENEMY_SPEED_SCALE :: 90.0;
 COLLISION_INSET :: 3.0;
 
@@ -38,6 +40,9 @@ GameInput :: struct {
     right: bool
     up: bool
     down: bool
+    // A touch heading in any direction, up to unit length; keys win.
+    steer_x: float32
+    steer_y: float32
 }
 
 Game :: struct {
@@ -49,6 +54,8 @@ Game :: struct {
     player_facing: s32
     player_animation: float64
     player_moving: bool
+    player_velocity_x: float32
+    player_velocity_y: float32
     growth_progress: s32
     next_growth_threshold: s32
     growth_stages: s32
@@ -231,18 +238,29 @@ GrowPlayer :: () {
 }
 
 MovePlayer :: (input: GameInput, delta: float64) {
-    delta_x := DirectionX(ifx input.left then 0 else ifx input.right then 2 else -1)
-    delta_y := DirectionY(ifx input.up then 1 else ifx input.down then 3 else -1)
-    distance := PLAYER_SPEED * cast(float32)delta
-    if delta_x != 0.0 && delta_y != 0.0 { distance *= .70710678 }
-    game.player_x += delta_x * distance
-    game.player_y += delta_y * distance
-    if delta_x < 0.0 { game.player_facing = 0 }
-    if delta_x > 0.0 { game.player_facing = 1 }
+    target_x := DirectionX(ifx input.left then 0 else ifx input.right then 2 else -1)
+    target_y := DirectionY(ifx input.up then 1 else ifx input.down then 3 else -1)
+    if target_x != 0.0 && target_y != 0.0 { target_x *= .70710678; target_y *= .70710678 }
+    if target_x == 0.0 && target_y == 0.0 {
+        target_x = input.steer_x
+        target_y = input.steer_y
+        length := cast(float32)Math.Sqrt(cast(float64)(target_x * target_x + target_y * target_y))
+        if length > 1.0 { target_x /= length; target_y /= length }
+    }
+    // The velocity eases towards the heading, so the amoeba glides.
+    ease := cast(float32)delta * PLAYER_EASE
+    if ease > 1.0 { ease = 1.0 }
+    game.player_velocity_x += (target_x * PLAYER_SPEED - game.player_velocity_x) * ease
+    game.player_velocity_y += (target_y * PLAYER_SPEED - game.player_velocity_y) * ease
+    game.player_x += game.player_velocity_x * cast(float32)delta
+    game.player_y += game.player_velocity_y * cast(float32)delta
+    if game.player_velocity_x < -8.0 { game.player_facing = 0 }
+    if game.player_velocity_x > 8.0 { game.player_facing = 1 }
     size := cast(float32)StageSize(game.player_stage)
     unused ClampPoint(*game.player_x, *game.player_y, size)
-    game.player_moving = delta_x != 0.0 || delta_y != 0.0
-    if game.player_moving { game.player_animation += delta }
+    game.player_moving = game.player_velocity_x * game.player_velocity_x +
+        game.player_velocity_y * game.player_velocity_y > 25.0
+    game.player_animation += delta
 }
 
 MoveEnemy :: (index: s32, delta: float64) {
