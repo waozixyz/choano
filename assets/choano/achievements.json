@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "app": "xyz.waozi.choano",
+  "achievements": [
+    {
+      "id": "xyz.waozi.choano.full_size",
+      "group": "choano",
+      "metric": "xyz.waozi.choano.full_size",
+      "rule": "count",
+      "target": 1,
+      "variant": "",
+      "pack": "",
+      "needs": "",
+      "title_key": "achievement_choano_full_size_title",
+      "description_key": "achievement_choano_full_size_description",
+      "title": "Full size",
+      "description": "Grow to full size in the amoeba dish and unlock Fish mode.",
+      "icon": "assets/choano/icons/xyz.waozi.choano.full_size.shape",
+      "icon_source": "mingcute_regular_trophy"
+    }
+  ]
+}

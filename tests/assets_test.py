@@ -43,6 +43,11 @@ for p in (ROOT / 'assets').rglob('*'):
 catalog = json.loads((ROOT / 'catalog.json').read_text())
 assert catalog['id'] == 'xyz.waozi.choano' and catalog['module_api'] == 2
 assert (ROOT / catalog['source']).is_file() and (ROOT / catalog['preview']).is_file()
+awards = json.loads((ROOT / 'assets/choano/achievements.json').read_text())
+assert awards['app'] == catalog['id'] and all(a['metric'].startswith(catalog['id'] + '.') for a in awards['achievements'])
+assert all((ROOT / a['icon']).is_file() for a in awards['achievements'])
+for path in (ROOT / 'assets/choano/achievement-locales').glob('*.json'):
+    assert {k for a in awards['achievements'] for k in (a['title_key'], a['description_key'])} <= set(json.loads(path.read_text())), path
 assert '[dependencies.arcade]' not in (ROOT / 'ziran.toml').read_text()
 print('Choano local asset and package tests passed: 185 PNGs, 6 quiet WAVs.')
 
