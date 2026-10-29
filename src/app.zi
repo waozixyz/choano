@@ -21,6 +21,8 @@
 #import "std/text_buffer"
 
 #import "game"
+#import "sprites"
+Shell :: #import "shell";
 #if #defined(CHOANO_PORTABLE) {
     #import "portable_sound"
 } else #if #defined(PLATFORM_WEB) {
@@ -87,18 +89,39 @@ AnimationFrame :: (animation: float64, count: s32) -> s32 {
     return frame
 }
 
+PaintOrganism :: (session: Session, kind: string, side: string, stage: s32, frame: s32,
+    bounds: Rectangle, key: u64) {
+    source := OrganismSource(kind, stage, frame)
+    fitted := bounds
+    if source.width > source.height {
+        fitted.height = bounds.height * source.height / source.width
+        fitted.y += (bounds.height - fitted.height) * .5
+    } else {
+        fitted.width = bounds.width * source.width / source.height
+        fitted.x += (bounds.width - fitted.width) * .5
+    }
+    if side == "left" {
+        points: [4]Vector2 = .[.{fitted.x + fitted.width, fitted.y}, .{fitted.x, fitted.y},
+            .{fitted.x + fitted.width, fitted.y + fitted.height}, .{fitted.x, fitted.y + fitted.height}]
+        unused Image(session, ImageProps.{.key = key, .asset_path = "assets/choano/organisms-hd.png",
+            .bounds = fitted, .source = source, .smooth = true,
+            .mesh = ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
+    } else {
+        unused Image(session, ImageProps.{.key = key, .asset_path = "assets/choano/organisms-hd.png",
+            .bounds = fitted, .source = source, .smooth = true, .fit = ImageFit.ImageFitStretch})
+    }
+}
 DrawSprite :: (session: Session, kind: string, side: string, stage: s32, animation: float64,
     x: float32, y: float32, key: u64) {
     size := cast(float32)StageSize(stage)
-    count := FrameCount(kind, stage)
-    frame := AnimationFrame(animation, count)
-    unused Image(session, ImageProps.{
-        .key = key,
-        .asset_path = FramePath(kind, side, stage, frame),
-        .bounds = GameBounds(Rectangle.{x - size * .5, y - size * .5, size, size}),
-        .fit = ImageFit.ImageFitStretch,
-        .smooth = false
-    })
+    frame := AnimationFrame(animation, FrameCount(kind, stage))
+    bounds := GameBounds(Rectangle.{x - size * .5, y - size * .5, size, size})
+    if kind == "enemy" && frame != 0 {
+        pulse: float32 = ifx frame == 1 then .96 else 1.04
+        bounds.x += bounds.width * (1.0 - pulse) * .5
+        bounds.width *= pulse
+    }
+    PaintOrganism(session, kind, side, stage, frame, bounds, key)
 }
 
 DrawBlob :: (session: Session, animation: float64, x: float32, y: float32, key: u64) {
@@ -117,9 +140,8 @@ DrawBlob :: (session: Session, animation: float64, x: float32, y: float32, key: 
 }
 
 DrawLifeIcon :: (session: Session, x: float32, y: float32, key: u64) {
-    unused Image(session, ImageProps.{.key = key, .asset_path = FramePath("player", "right", STAGE_FIRST, 0),
-        .bounds = GameBounds(Rectangle.{x - 8.5, y - 8.5, 17.0, 17.0}),
-        .fit = ImageFit.ImageFitStretch, .smooth = false})
+    PaintOrganism(session, "player", "right", STAGE_FIRST, 0,
+        GameBounds(Rectangle.{x - 8.5, y - 8.5, 17.0, 17.0}), key)
 }
 
 DrawPanel :: (session: Session, bounds: Rectangle, key: u64) {
@@ -145,9 +167,6 @@ DrawGame :: (session: Session, bounds: Rectangle) {
     path_buffer_index = 0
     unused Image(session, ImageProps.{.key = cast(u64)1, .asset_path = "assets/choano/background-inside.png",
         .bounds = view, .fit = ImageFit.ImageFitStretch, .smooth = false})
-    side := ifx game.player_facing == 0 then "left" else "right"
-    DrawSprite(session, "player", side, game.player_stage, game.player_animation,
-        game.player_x, game.player_y, cast(u64)1000)
     for index: cast(s32)0..game.enemy_count - 1 {
         enemy := game.enemies[index]
         if !enemy.active {
@@ -158,6 +177,9 @@ DrawGame :: (session: Session, bounds: Rectangle) {
                 enemy.x, enemy.y, cast(u64)(2000 + index))
         }
     }
+    side := ifx game.player_facing == 0 then "left" else "right"
+    DrawSprite(session, "player", side, game.player_stage, game.player_animation,
+        game.player_x, game.player_y, cast(u64)1000)
     avoid_stage := game.player_stage + 1
     if avoid_stage > STAGE_LAST { avoid_stage = STAGE_LAST }
     DrawPanel(session, Rectangle.{424.0, 10.0, 76.0, 58.0}, cast(u64)3000)
@@ -194,44 +216,82 @@ DrawGame :: (session: Session, bounds: Rectangle) {
             cast(u64)3030, 14)
     }
 
-    if game.over {
-        unused Box(session, BoxProps.{.key = cast(u64)4000,
-            .bounds = GameBounds(Rectangle.{100.0, 168.0, 290.0, 82.0}), .fill = ColorFromPacked(0x051120e0),
-            .border = ColorFromPacked(0x99ccffff), .radius = 10.0})
-        CenterLabel(session, "GAME OVER", Rectangle.{100.0, 176.0, 290.0, 34.0}, cast(u64)4001, 28)
-        CenterLabel(session, "PRESS ENTER TO PLAY AGAIN", Rectangle.{100.0, 214.0, 290.0, 22.0}, cast(u64)4002, 15)
+}
+
+last_sound: s32;
+last_sound_at: float64 = -1.0;
+SoundRank :: (event: s32) -> s32 {
+    if event == SOUND_GAME_OVER { return 6 }
+    if event == SOUND_LOSE_LIFE { return 5 }
+    if event == SOUND_EXTRA_LIFE { return 4 }
+    if event == SOUND_GROW { return 3 }
+    if event == SOUND_START { return 2 }
+    if event == SOUND_EAT { return 1 }
+    return 0
+}
+PlayEvents :: (now: float64) {
+    best: s32;
+    for index: cast(s32)0..game.event_count - 1 {
+        if SoundRank(game.events[index]) > SoundRank(best) { best = game.events[index] }
     }
+    if best != 0 && !(best == last_sound && now - last_sound_at < .16) {
+        unused SoundPlayEvent(best)
+        last_sound = best
+        last_sound_at = now
+    }
+    game.event_count = 0
+}
+UsePalette :: (session: Session) {
+    unused WidgetPaletteUse(session, WidgetPalette.{.background = 0x051120ff, .base = 0x162b42ff,
+        .text = 0xdbeaffff, .selected = 0x99ccffff, .selected_text = 0x051120ff,
+        .border = 0x709fc5ff, .danger = 0xff8888ff, .warning = 0xffd080ff, .success = 0x80ddbbff})
+}
+SetProfileAvailable :: (available: bool) { Shell.profile_available = available }
+TakeProfileRequest :: () -> bool { return Shell.TakeProfile() }
+NavigationPage :: () -> s32 { return Shell.Page() }
+NavigateBack :: () -> bool { PauseClock(); return Shell.Back() }
+ProfileHeader :: (session: Session, viewport: Rectangle) -> bool {
+    UsePalette(session)
+    defer { unused WidgetPaletteRestore(session) }
+    return Shell.ProfileBar(session, viewport)
 }
 
 #program_export
 Frame :: (session: Session, viewport: Rectangle) -> s32 {
-    unused WidgetPaletteUse(session, WidgetPalette.{.background = 0x051120ff, .base = 0x162b42ff,
-        .text = 0xdbeaffff, .selected = 0x99ccffff, .selected_text = 0x051120ff,
-        .border = 0x709fc5ff, .danger = 0xff8888ff, .warning = 0xffd080ff, .success = 0x80ddbbff})
+    UsePalette(session)
     defer { unused WidgetPaletteRestore(session) }
+    unused Box(session, BoxProps.{.key = cast(u64)49000, .bounds = viewport,
+        .fill = ColorFromPacked(0x051120ff)})
     now := cast(float64)Clock.Milliseconds() / 1000.0
-    if !game.started {
-        game.started = true
-        StartGame(cast(u32)Clock.Milliseconds())
-        last_tick = now
-    }
     #if #defined(CHOANO_PORTABLE) {
         key := Clock.PressedKey()
     } else {
         key := KeyboardTake(session)
     }
-    if key == 256 { return 1 }
+    area := Shell.Begin(session, viewport, key, now)
+    SoundSetMuted(Shell.muted)
+    if Shell.WantsBoard() { DrawGame(session, area) }
+    direction := Shell.End(session, now, game.over)
+    if Shell.TakeStart() {
+        StartGame(cast(u32)Clock.Milliseconds())
+        last_tick = now
+        held_input = .{}
+    }
+    if !Shell.Playing() { last_tick = -1.0; return 0 }
     if (game.over && key == 257) || key == 82 || key == 114 {
         StartGame(cast(u32)Clock.Milliseconds())
         held_input = .{}
     }
+    input := held_input
+    if direction >= 0 {
+        input = .{.left = direction == 0, .up = direction == 1,
+            .right = direction == 2, .down = direction == 3}
+    }
     if last_tick < 0.0 { last_tick = now }
     if now >= last_tick {
-        UpdateGame(held_input, now - last_tick)
-        for event: cast(s32)0..game.event_count - 1 { unused SoundPlayEvent(game.events[event]) }
-        game.event_count = 0
+        UpdateGame(input, now - last_tick)
+        PlayEvents(now)
         last_tick = now
     }
-    DrawGame(session, viewport)
     return 0
 }

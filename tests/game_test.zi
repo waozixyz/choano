@@ -72,6 +72,12 @@ main :: () -> s32 {
     UpdateGame(.{}, 1.0 / 60.0)
     if Expect(game.enemies[0].active, "warning timer activates an enemy") != 0 { return 1 }
 
+    StartGame(2468)
+    game.enemy_count = 0
+    game.event_count = 0
+    game.next_spawn_timer = 0.0
+    UpdateGame(.{}, .01)
+    if Expect(game.event_count == 0, "spawning has no repeated background beat") != 0 { return 1 }
     print("Choano local tests passed.\n")
     return 0
 }

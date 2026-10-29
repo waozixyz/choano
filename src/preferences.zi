@@ -1,0 +1,46 @@
+#if #defined(CHOANO_PORTABLE) {
+    host_api :: #system_library "host_api";
+    AppRecordHost :: (name: string) -> string #foreign host_api;
+    SaveAppRecordHost :: (name: string, text: string) -> bool #foreign host_api;
+    Read :: () -> string { return AppRecordHost("choano.preferences") }
+    Write :: (value: string) -> bool { return SaveAppRecordHost("choano.preferences", value) }
+} else {
+    #import "std/file"
+    #import "std/file_tree_linux"
+    #import "std/environment_linux"
+    #import "std/format"
+    Root :: () -> string {
+        #if #defined(PLATFORM_WEB) {
+            return "/kryon-apps/choano"
+        }
+        value := EnvironmentText("CHOANO_DATA")
+        if value != "" { return value }
+        base := EnvironmentText("XDG_DATA_HOME")
+        if base == "" {
+            out: Vec(u8)
+            BuilderPrint(*out, "%/.local/share", EnvironmentText("HOME"))
+            base = BuilderFinish(out)
+        }
+        out: Vec(u8)
+        BuilderPrint(*out, "%/choano", base)
+        return BuilderFinish(out)
+    }
+    Path :: () -> string {
+        out: Vec(u8)
+        BuilderPrint(*out, "%/preferences.v1", Root())
+        return BuilderFinish(out)
+    }
+    Read :: () -> string { text, found := ReadEntireFile(Path()); return ifx found then text else "" }
+    Write :: (value: string) -> bool { return CreateDirectories(Root()) && WriteEntireFile(Path(), value) }
+}
+Load :: () -> (chosen: bool, pad: bool, muted: bool) {
+    text := Read()
+    if text.count != 3 || text[0] != #char "1" || (text[1] != #char "s" && text[1] != #char "p" && text[1] != #char "u") ||
+        (text[2] != #char "0" && text[2] != #char "1") { return false, false, false }
+    return text[1] != #char "u", text[1] == #char "p", text[2] == #char "1"
+}
+Save :: (chosen: bool, pad: bool, muted: bool) -> bool {
+    if !chosen { return Write(ifx muted then "1u1" else "1u0") }
+    if pad { return Write(ifx muted then "1p1" else "1p0") }
+    return Write(ifx muted then "1s1" else "1s0")
+}

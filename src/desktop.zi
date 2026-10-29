@@ -42,7 +42,7 @@ DrawGameFrame :: (session: Session) -> bool {
 #program_export
 main :: () -> s32 {
     if !DesktopLoop.DesktopStartBeside("assets/choano/background-inside.png") { return 1 }
-    if !OpenDesktopSized(500, 420) { CloseDesktop(); return 1 }
+    if !OpenDesktopSized(900, 680) { CloseDesktop(); return 1 }
     unused DesktopSetTitle("Choano")
     session: Session = SessionOpen()
     if !SessionValid(session) { CloseDesktop(); return 1 }

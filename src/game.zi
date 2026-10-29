@@ -21,9 +21,6 @@ SOUND_GROW :: 3;
 SOUND_EXTRA_LIFE :: 4;
 SOUND_LOSE_LIFE :: 5;
 SOUND_GAME_OVER :: 6;
-SOUND_SPAWN_SAFE :: 7;
-SOUND_SPAWN_DANGEROUS :: 8;
-SOUND_BACKGROUND :: 9;
 
 Enemy :: struct {
     x: float32
@@ -253,8 +250,6 @@ MoveEnemy :: (index: s32, delta: float64) {
         enemy.warning_timer -= delta
         if enemy.warning_timer <= 0.0 {
             enemy.active = true
-            if enemy.stage <= game.player_stage { QueueSound(SOUND_SPAWN_SAFE) }
-            else { QueueSound(SOUND_SPAWN_DANGEROUS) }
         }
         return
     }
@@ -330,7 +325,6 @@ UpdateGame :: (input: GameInput, delta: float64) {
     game.next_spawn_timer -= delta
     if game.next_spawn_timer <= 0.0 {
         unused SpawnEnemy(-1)
-        QueueSound(SOUND_BACKGROUND)
         game.next_spawn_timer = 5.0 + cast(float64)RandomNext(4000) / 1000.0
     }
 }

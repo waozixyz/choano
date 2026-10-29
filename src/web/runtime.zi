@@ -39,6 +39,7 @@ main :: () -> s32 {
     session := SessionOpen()
     if !SessionValid(session) { return 1 }
     defer { unused SessionClose(session) }
+    App.SetProfileAvailable(true)
     visible: bool;
     saved := PageNow()
     WebSet(WebModule, WebName("choanoReady"), WebBool(true))
@@ -55,20 +56,14 @@ main :: () -> s32 {
         while point != 0 { unused TypedCodepointSend(session, point); point = CanvasTypedCodepoint() }
         BeginCanvasFrame()
         if BeginFrame(session, cast(u64)1, viewport) != FrameStatus.FrameOk { return 1 }
-        if WebAsBool(WebGet(WebModule, WebName("profileRequested"))) {
-            WebSet(WebModule, WebName("profileRequested"), WebBool(false))
-            Entity.EntityHostReload()
-            unused Entity.EntityHostPage("profile")
-            visible = true
-        }
         if visible {
+            unused KeyboardTake(session)
             App.PauseClock()
             typed: [1024]u8
             input := TextFieldInputFor(key, CanvasModifiers(), TypedTextTake(session, typed[:]))
-            bounds := Rectangle.{0.0, 50.0, viewport.width, viewport.height - 50.0}
+            bounds := Rectangle.{0.0, 52.0, viewport.width, viewport.height - 52.0}
             if !Entity.EntityHostFrame(session, bounds, key, CanvasModifiers(), input, true) { return 1 }
-            if Button(session, ButtonProps.{.key = cast(u64)49001, .id = 49001, .label = "Back",
-                .bounds = Rectangle.{8.0, 4.0, 80.0, 40.0}}) != 0 || key == 256 {
+            if App.ProfileHeader(session, viewport) || key == 256 {
                 if !Entity.EntityHostBack() && Entity.EntityHostSave() { visible = false }
             }
         } else {
@@ -79,6 +74,13 @@ main :: () -> s32 {
                 Game.StartGame(cast(u32)PageNow()); App.PauseClock()
             }
             unused App.Frame(session, viewport)
+            if App.TakeProfileRequest() {
+                Entity.EntityHostReload()
+                unused Entity.EntityHostPage("profile")
+                visible = true
+                App.PauseClock()
+            }
+            WebSet(WebModule, WebName("choanoPage"), WebNumber(cast(float64)App.NavigationPage()))
             WebSet(WebModule, WebName("choanoScore"), WebNumber(cast(float64)Game.game.score))
             WebSet(WebModule, WebName("choanoX"), WebNumber(cast(float64)Game.game.player_x))
             WebSet(WebModule, WebName("choanoY"), WebNumber(cast(float64)Game.game.player_y))

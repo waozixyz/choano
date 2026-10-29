@@ -1,0 +1,17 @@
+{
+  "mode": "built-in image_gen",
+  "assets": [
+    {
+      "file": "assets/choano/title-landscape.png",
+      "prompt": "Use case: stylized-concept. Asset type: high-resolution title-screen background illustration for Choano, a 2D amoeba swimming/eat-and-grow game. Create a beautiful polished landscape 3:2 composition at high resolution, with crisp readable organic silhouettes, detailed hand-painted glossy pink amoeba protagonist and smaller jewel-coloured unicellular creatures floating in luminous turquoise microscopic water inside a petri-dish world. The protagonist is a friendly pink amoeba with large expressive eyes and little magenta nucleus bubbles, matching the reference's character identity; supporting cells are violet, orange and lime. Tiny suspended bubbles, translucent membranes and subtle caustic light, rich aquatic depth, charming premium game art, sharp clean edges rather than blurry bloom. One exact title integrated across the upper part: \"CHOANO\" in dimensional friendly pink organic lettering. Keep the lower centre calm and dark teal enough for real app-rendered Play and Controls buttons; do not draw buttons, panels, menus, browser headers, footer text, tutorials, device frames, watermarks or extra lettering. This is scene art to fill an app title screen, not a screenshot of a UI. Preserve broad spacious composition that also crops gracefully on portrait screens."
+    },
+    {
+      "file": "assets/choano/title-portrait.png",
+      "prompt": "Use case: stylized-concept. Asset type: portrait title-screen illustration for the game Choano, companion to the landscape reference. Create a tall 2:3 high-resolution polished composition. Keep the exact same friendly glossy pink amoeba protagonist with big expressive eyes, magenta nucleus bubbles, jewel-coloured violet/orange/lime unicellular supporting creatures, translucent membranes, suspended bubbles and rich turquoise microscopic water as the reference. Crisp detailed silhouettes and clean premium illustrated game art, not blurry bloom. Put the exact organic pink title \"CHOANO\" clearly across the upper quarter, fully inside the portrait framing. Place the large pink protagonist around the upper middle with supporting creatures at the sides. Leave the lower quarter visually calm dark teal water for real app-rendered Play and Controls buttons. No painted buttons, menus, panels, browser chrome, footer, tutorials, extra text, watermark or device frame."
+    },
+    {
+      "file": "assets/choano/organisms-hd.png",
+      "source": "Original high-resolution Choano generated sprite master; copied as a binary file without reduction. Frame source rectangles are in src/sprites.zi."
+    }
+  ]
+}

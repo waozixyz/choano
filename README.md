@@ -2,13 +2,15 @@
 
 Swim, eat and grow in a microscopic world. Eat equal or smaller amoebas,
 avoid larger ones, and stay inside the petri dish. Spawn warnings give you
-time to move; cumulative growth earns extra lives. The game starts directly
-in play, with no title screen.
+time to move; cumulative growth earns extra lives. An illustrated title screen opens the game, with native in-app navigation.
 
 [Play in your browser](https://choano.waozi.xyz/)
 · [Source](https://github.com/waozixyz/choano)
 
-![Choano replacement artwork](assets/choano/title-screen.png)
+![Choano replacement artwork](assets/choano/title-landscape.png)
+
+Six quiet event chimes replace the old beat and spawn noises. There is no
+loading message or browser footer; forming bubbles stay beneath the player.
 
 Native and browser editions share the same Ziran game rules and Kryon
 widgets. All artwork and audio are replacements made for Choano. Original
@@ -17,14 +19,14 @@ Moeboid assets and binaries are excluded; see [asset provenance](ASSETS.md).
 ## Controls
 
 Desktop and browser: hold arrow keys or WASD to swim. Enter after game over
-or R starts a fresh run. The browser also has touch direction buttons and
-sound controls. Profile pauses play and opens the shared Entity account UI;
+or R starts a fresh run. Choose Swipe or Direction pad on first Play. Change controls or sound from
+the in-app Settings or Pause screen. Profile pauses play and opens the shared Entity account UI;
 Back returns to the same run. Signing in is optional. Earned growth stages
 follow that account; the current run stays on this device and is not restored
 after closing the game.
 
-In a compatible game library, arrow keys or WASD choose a swimming direction,
-Space stops, and P opens the host's Profile. Leaving returns to the library.
+The same title, pause, settings and movement-control flow runs in compatible
+game libraries. Back returns through the current screen before leaving the game.
 
 ## Build and local tests
 
@@ -51,7 +53,8 @@ private Xvfb display; browser tests use a disposable headless Chromium profile.
 
 `apps.json` and `catalog.json` declare Choano's stable identity
 `xyz.waozi.choano`, portable entry and cover artwork. The portable edition uses
-`apps/node_app` and Entity's `game_progress` schema through bounded host
+`apps/node_app`, the generic `kryonlabs/game2d` navigation/control modules,
+and Entity's `game_progress` schema through bounded host
 services. Hosts own account keys, record IDs, storage and synchronization.
 Arcade is a consumer/catalog of this package and is not a Choano dependency.
 This repository does not change Arcade's catalog or publish a signed node package.

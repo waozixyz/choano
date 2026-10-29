@@ -8,9 +8,6 @@ SOUND_EVENT_GROW :: 3
 SOUND_EVENT_EXTRA_LIFE :: 4
 SOUND_EVENT_LOSE_LIFE :: 5
 SOUND_EVENT_GAME_OVER :: 6
-SOUND_EVENT_SPAWN_SAFE :: 7
-SOUND_EVENT_SPAWN_DANGEROUS :: 8
-SOUND_EVENT_BACKGROUND :: 9
 
 SoundSpec :: struct {
     freq: s32
@@ -62,9 +59,6 @@ SoundPath :: (event: s32) -> string {
     if event == SOUND_EVENT_EXTRA_LIFE { return "assets/choano/audio/extra-life.wav" }
     if event == SOUND_EVENT_LOSE_LIFE { return "assets/choano/audio/lose-life.wav" }
     if event == SOUND_EVENT_GAME_OVER { return "assets/choano/audio/game-over.wav" }
-    if event == SOUND_EVENT_SPAWN_SAFE { return "assets/choano/audio/spawn-safe.wav" }
-    if event == SOUND_EVENT_SPAWN_DANGEROUS { return "assets/choano/audio/spawn-dangerous.wav" }
-    if event == SOUND_EVENT_BACKGROUND { return "assets/choano/audio/background.wav" }
     return ""
 }
 
@@ -116,6 +110,10 @@ SoundPlayBytes :: (bytes: string) -> bool {
 }
 
 SoundPlayEvent :: (event: s32) -> bool {
+    if sound_muted { return false }
     bytes, found := ReadEntireFile(SoundPath(event))
     return found && SoundPlayBytes(bytes)
 }
+
+sound_muted: bool;
+SoundSetMuted :: (value: bool) { sound_muted = value }

@@ -8,9 +8,9 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 env = {k: v for k, v in os.environ.items() if k not in
        ('DISPLAY', 'WAYLAND_DISPLAY', 'XAUTHORITY', 'DBUS_SESSION_BUS_ADDRESS', 'SESSION_MANAGER')}
-env.update(YUE_DESKTOP_RECOVERY='0', SDL_AUDIODRIVER='dummy')
+env.update(YUE_DESKTOP_RECOVERY='0', SDL_AUDIODRIVER='dummy', CHOANO_DATA=str(ROOT / 'work/native-profile'))
 read_fd, write_fd = os.pipe()
-server = subprocess.Popen(['Xvfb', '-displayfd', str(write_fd), '-screen', '0', '800x600x24', '-nolisten', 'tcp'],
+server = subprocess.Popen(['Xvfb', '-displayfd', str(write_fd), '-screen', '0', '1280x1024x24', '-nolisten', 'tcp'],
                           pass_fds=(write_fd,), env=env, stdout=subprocess.DEVNULL)
 os.close(write_fd)
 app = None
@@ -31,8 +31,12 @@ try:
         time.sleep(.1)
     assert window, 'Native Choano window missing'
     geometry = subprocess.check_output(['xdotool', 'getwindowgeometry', '--shell', window], env=env, text=True)
-    assert 'WIDTH=500' in geometry and 'HEIGHT=420' in geometry, geometry
-    subprocess.run(['xdotool', 'windowfocus', window, 'keydown', 'Right'], check=True, env=env)
+    assert 'WIDTH=900' in geometry and 'HEIGHT=680' in geometry, geometry
+    subprocess.run(['xdotool', 'windowfocus', window, 'key', 'Return'], check=True, env=env)
+    time.sleep(.2)
+    subprocess.run(['xdotool', 'key', '1'], check=True, env=env)
+    time.sleep(.2)
+    subprocess.run(['xdotool', 'keydown', 'Right'], check=True, env=env)
     time.sleep(.4)
     subprocess.run(['xdotool', 'keyup', 'Right', 'key', 'r'], check=True, env=env)
     time.sleep(.3)

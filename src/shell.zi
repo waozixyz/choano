@@ -1,0 +1,184 @@
+Nav :: #import "game2d/navigation";
+Controls :: #import "game2d/controls";
+Prefs :: #import "preferences";
+#import "kryon/session"
+#import "kryon/geometry"
+#import "kryon/title_bar_widget"
+#import "kryon/title_bar_props"
+#import "kryon/dropdown_props"
+#import "kryon/button_props"
+#import "kryon/button_widget"
+#import "kryon/control_props"
+#import "kryon/box_props"
+#import "kryon/box_widget"
+#import "kryon/text_props"
+#import "kryon/text_widget"
+#import "kryon/text_align"
+#import "kryon/drawing_props"
+#import "kryon/image_props"
+#import "kryon/image_widget"
+#import "kryon/direction_pad"
+#import "kryon/joystick"
+
+state: Nav.GameNavigation;
+swipe: Controls.GameSwipe;
+loaded: bool;
+muted: bool;
+profile_available: bool;
+profile_requested: bool;
+start_requested: bool;
+save_failed: bool;
+area: Rectangle;
+
+Save :: () { save_failed = !Prefs.Save(state.controls_selected, state.controls_mode == Nav.GAME_PAD, muted) }
+Start :: () { if Nav.GameNavigationPlay(*state) { start_requested = true } }
+Choose :: (mode: s32) {
+    if Nav.GameNavigationChoose(*state, mode) { start_requested = true }
+    swipe.active = false
+    Save()
+}
+TakeStart :: () -> bool { result := start_requested; start_requested = false; return result }
+TakeProfile :: () -> bool { result := profile_requested; profile_requested = false; return result }
+Page :: () -> s32 { return state.page }
+Playing :: () -> bool { return state.page == Nav.GAME_PLAYING }
+WantsBoard :: () -> bool { return state.running && state.page != Nav.GAME_TITLE && state.page != Nav.GAME_SETTINGS }
+Back :: () -> bool { swipe.active = false; return Nav.GameNavigationBack(*state) }
+
+Action :: (session: Session, key: u64, text: string, bounds: Rectangle) -> bool {
+    return Button(session, ButtonProps.{.key = key, .id = cast(s32)key,
+        .bounds = bounds, .label = text, .emphasis = ButtonEmphasis.ButtonEmphasisFilled}) != 0
+}
+
+Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64) -> Rectangle {
+    if !loaded {
+        loaded = true
+        chosen, pad, sound := Prefs.Load()
+        state.controls_selected = chosen
+        state.controls_mode = ifx pad then Nav.GAME_PAD else Nav.GAME_SWIPE
+        muted = sound
+    }
+    if key == 256 { unused Back() }
+    else if key == 32 && state.page == Nav.GAME_PLAYING { Nav.GameNavigationPause(*state) }
+    else if key == 257 && state.page == Nav.GAME_TITLE { Start() }
+    else if state.page == Nav.GAME_CONTROLS && (key == 49 || key == 50) { Choose(key - 49) }
+    else if key == 77 || key == 109 { muted = !muted; Save() }
+    empty: [0]DropdownOption
+    settings_available := state.page != Nav.GAME_SETTINGS && state.page != Nav.GAME_CONTROLS
+    trailing: s32 = ifx profile_available then 80 else 0
+    if settings_available { trailing += 88 }
+    title := "Choano"
+    if state.page == Nav.GAME_PAUSED { title = "Paused" }
+    if state.page == Nav.GAME_SETTINGS { title = "Settings" }
+    if state.page == Nav.GAME_CONTROLS { title = "Controls" }
+    bar := TitleBar(session, TitleBarProps.{.key = cast(u64)50000, .id = 50000,
+        .bounds = Rectangle.{viewport.x, viewport.y, viewport.width, 52.0},
+        .height = 52, .title = title, .strong_title = true,
+        .has_leading_action = state.page != Nav.GAME_TITLE,
+        .leading_label = ifx state.page == Nav.GAME_PLAYING then "Pause" else "Back",
+        .trailing_width = trailing}, empty[:])
+    if bar.clicked_leading { unused Back() }
+    x := viewport.x + viewport.width - cast(float32)trailing
+    if profile_available {
+        if Action(session, cast(u64)50010, "Profile", Rectangle.{x, viewport.y + 6.0, 76.0, 40.0}) {
+            profile_requested = true
+            Nav.GameNavigationPause(*state)
+        }
+        x += 80.0
+    }
+    if settings_available && Action(session, cast(u64)50011, "Settings", Rectangle.{x, viewport.y + 6.0, 80.0, 40.0}) {
+        if state.page != Nav.GAME_SETTINGS { Nav.GameNavigationSettings(*state) }
+    }
+    area = Rectangle.{viewport.x, viewport.y + 52.0, viewport.width, viewport.height - 52.0}
+    return area
+}
+
+Backdrop :: (session: Session) {
+    path := ifx area.height > area.width then "assets/choano/title-portrait.png" else "assets/choano/title-landscape.png"
+    unused Image(session, ImageProps.{.key = cast(u64)50100, .asset_path = path,
+        .bounds = area, .fit = ImageFit.ImageFitContain, .smooth = true})
+}
+MenuBounds :: (count: s32) -> Rectangle {
+    width := area.width - 48.0
+    if width > 300.0 { width = 300.0 }
+    height := cast(float32)count * 54.0 + 32.0
+    return Rectangle.{area.x + (area.width - width) * .5,
+        area.y + (area.height - height) * .5, width, height}
+}
+Menu :: (session: Session, bounds: Rectangle) {
+    unused Box(session, BoxProps.{.key = cast(u64)50200, .bounds = bounds,
+        .fill = ColorFromPacked(0x051922ed), .border = ColorFromPacked(0x80cbd8ff), .radius = 22.0})
+}
+Row :: (session: Session, bounds: Rectangle, row: s32, text: string) -> bool {
+    return Action(session, cast(u64)(50210 + row), text,
+        Rectangle.{bounds.x + 16.0, bounds.y + 16.0 + cast(float32)row * 54.0, bounds.width - 32.0, 44.0})
+}
+
+End :: (session: Session, now: float64, over: bool) -> s32 {
+    if state.page == Nav.GAME_TITLE {
+        Backdrop(session)
+        width := area.width - 64.0
+        if width > 280.0 { width = 280.0 }
+        y := area.y + area.height * .75
+        if y + 108.0 > area.y + area.height { y = area.y + area.height - 116.0 }
+        x := area.x + (area.width - width) * .5
+        if Action(session, cast(u64)50110, ifx state.running then "New game" else "Play", Rectangle.{x, y, width, 48.0}) { Start() }
+        if state.running && !over {
+            if Action(session, cast(u64)50111, "Continue", Rectangle.{x, y - 58.0, width, 48.0}) { Nav.GameNavigationResume(*state) }
+        }
+        if Action(session, cast(u64)50112, "Controls", Rectangle.{x, y + 58.0, width, 42.0}) { Nav.GameNavigationControls(*state) }
+    } else if state.page == Nav.GAME_CONTROLS {
+        if !WantsBoard() { Backdrop(session) }
+        choice := Controls.GameControlsChoice(session, Controls.GameControlsProps.{.key = cast(u64)51000,
+            .bounds = area, .now = now, .title = "Controls", .swipe_label = "Swipe", .pad_label = "Direction pad",
+            .selected = ifx state.controls_selected then state.controls_mode else -1})
+        if choice >= 0 { Choose(choice) }
+    } else if state.page == Nav.GAME_PAUSED {
+        bounds := MenuBounds(5)
+        Menu(session, bounds)
+        if Row(session, bounds, 0, ifx over then "Play again" else "Resume") {
+            if over { start_requested = true }
+            Nav.GameNavigationResume(*state)
+        }
+        if Row(session, bounds, 1, "Restart") { start_requested = true; Nav.GameNavigationResume(*state) }
+        if Row(session, bounds, 2, "Controls") { Nav.GameNavigationControls(*state) }
+        if Row(session, bounds, 3, "Settings") { Nav.GameNavigationSettings(*state) }
+        if Row(session, bounds, 4, "Title screen") { Nav.GameNavigationHome(*state) }
+    } else if state.page == Nav.GAME_SETTINGS {
+        Backdrop(session)
+        bounds := MenuBounds(3)
+        Menu(session, bounds)
+        if Row(session, bounds, 0, ifx state.controls_mode == Nav.GAME_PAD then "Controls: Direction pad" else "Controls: Swipe") { Nav.GameNavigationControls(*state) }
+        if Row(session, bounds, 1, ifx muted then "Sound: Off" else "Sound: On") { muted = !muted; Save() }
+        if Row(session, bounds, 2, "Back") { unused Back() }
+        if save_failed {
+            unused Text(session, TextProps.{.key = cast(u64)50220, .text = "Could not save settings",
+                .bounds = Rectangle.{bounds.x, bounds.y + bounds.height + 8.0, bounds.width, 28.0}, .font = 14,
+                .align = TextAlign.TextAlignCenter})
+        }
+    } else if over {
+        bounds := MenuBounds(2)
+        unused Text(session, TextProps.{.key = cast(u64)50230, .text = "Game over", .font = 26,
+            .bounds = Rectangle.{bounds.x, bounds.y - 44.0, bounds.width, 36.0}, .align = TextAlign.TextAlignCenter})
+        Menu(session, bounds)
+        if Row(session, bounds, 0, "Play again") { start_requested = true }
+        if Row(session, bounds, 1, "Title screen") { Nav.GameNavigationHome(*state) }
+    } else if state.controls_mode == Nav.GAME_PAD {
+        pad := DirectionPad(session, DirectionPadProps.{.key = cast(u64)52000,
+            .bounds = DirectionPadBounds(area), .label = "Move", .now = now, .floating = true})
+        return pad.direction
+    } else {
+        gesture := SwipeArea(session, SwipeAreaProps.{.key = cast(u64)52010, .bounds = area,
+            .label = "Move", .now = now, .min_distance = 6.0, .repeat_seconds = .05})
+        return Controls.GameSwipeDirection(*swipe, gesture.down, gesture.at_x, gesture.at_y)
+    }
+    swipe.active = false
+    return -1
+}
+
+ProfileBar :: (session: Session, viewport: Rectangle) -> bool {
+    empty: [0]DropdownOption
+    bar := TitleBar(session, TitleBarProps.{.key = cast(u64)53000, .id = 53000,
+        .bounds = Rectangle.{viewport.x, viewport.y, viewport.width, 52.0}, .height = 52,
+        .title = "Profile", .strong_title = true, .has_leading_action = true, .leading_label = "Back"}, empty[:])
+    return bar.clicked_leading
+}

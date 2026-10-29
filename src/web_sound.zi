@@ -2,6 +2,7 @@
 Paths :: #import "sound_paths";
 #import "std/format"
 SoundPlayEvent :: (event: s32) -> bool {
+    if sound_muted { return false }
     name := Paths.SoundPath(event)
     if name == "" { return false }
     path: Vec(u8)
@@ -9,3 +10,6 @@ SoundPlayEvent :: (event: s32) -> bool {
     unused WebCall1(WebModule, WebName("playSound"), WebText(BuilderFinish(path)))
     return true
 }
+
+sound_muted: bool;
+SoundSetMuted :: (value: bool) { sound_muted = value; unused WebCall1(WebModule, WebName("setMuted"), WebBool(value)) }

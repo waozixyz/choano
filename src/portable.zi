@@ -10,9 +10,10 @@ host_api :: #system_library "host_api";
 ReadAppUiHost :: () -> AppUiFrame #foreign host_api;
 
 #program_export
-Main :: () -> s32 { return RunNodeApp(ChoanoFrame) }
+Main :: () -> s32 { return RunNodeApp(ChoanoFrame, ChoanoBack) }
 
 ChoanoFrame :: (message: AppMessage) -> bool {
+    App.SetProfileAvailable(true)
     frame := ReadAppUiHost()
     Runtime.frame_now = frame.now
     area := Rectangle.{0.0, cast(float32)frame.top, cast(float32)frame.width,
@@ -29,5 +30,9 @@ ChoanoFrame :: (message: AppMessage) -> bool {
     if Progress.ProgressPump(frame.now, Game.game.player_stage, message.time) {
         Game.StartGame(cast(u32)(frame.now * 1000.0)); App.PauseClock()
     }
-    return App.Frame(frame.session, area) == 0
+    ok := App.Frame(frame.session, area) == 0
+    if App.TakeProfileRequest() { unused Runtime.Service("entity.profile", "open"); App.PauseClock() }
+    return ok
 }
+
+ChoanoBack :: (message: AppMessage) -> bool { unused message; return App.NavigateBack() }

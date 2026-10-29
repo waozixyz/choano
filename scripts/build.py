@@ -48,7 +48,9 @@ def web():
         '--source', 'src/web/runtime.zi', '--entry', 'runtime:main',
         '--linked', ROOT / 'build/entity.zx')
     # The browser renderer and Web Audio load the same replacement PNG/WAV files.
-    shutil.copytree(ROOT / 'assets', output / 'assets', dirs_exist_ok=True)
+    if (output / 'assets').exists():
+        shutil.rmtree(output / 'assets')
+    shutil.copytree(ROOT / 'assets', output / 'assets')
     for item in (ROOT / 'src/web').iterdir():
         if item.suffix in {'.html', '.js', '.css'}:
             shutil.copyfile(item, output / item.name)

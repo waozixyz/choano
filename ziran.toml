@@ -40,3 +40,7 @@ ref = "master"
 [dependencies.entity]
 git = "https://github.com/waozixyz/entity.git"
 ref = "master"
+
+[dependencies.game2d]
+git = "https://github.com/kryonlabs/game2d.git"
+ref = "master"
