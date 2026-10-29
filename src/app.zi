@@ -20,6 +20,8 @@
 #import "std/number_text"
 #import "std/text_buffer"
 Trig :: #import "std/math";
+#import "entity/achievement_toast"
+Trophy :: #import "mingcute/mingcute_regular_trophy";
 
 #import "game"
 #import "sprites"
@@ -34,6 +36,7 @@ Shell :: #import "shell";
     #import "sound"
 }
 
+toast: AchievementToast;
 view: Rectangle;
 view_scale: float32 = 1.0;
 GameBounds :: (rect: Rectangle) -> Rectangle {
@@ -94,7 +97,10 @@ AnimationFrame :: (animation: float64, count: s32) -> s32 {
 
 PaintOrganism :: (session: Session, kind: string, side: string, stage: s32, frame: s32,
     bounds: Rectangle, key: u64) {
-    source := OrganismSource(kind, stage, frame)
+    PaintCell(session, "assets/choano/organisms-hd.png", OrganismSource(kind, stage, frame), side, bounds, key)
+}
+// One cell of SHEET fitted into BOUNDS, mirrored when it faces left.
+PaintCell :: (session: Session, sheet: string, source: Rectangle, side: string, bounds: Rectangle, key: u64) {
     fitted := bounds
     if source.width > source.height {
         fitted.height = bounds.height * source.height / source.width
@@ -106,26 +112,38 @@ PaintOrganism :: (session: Session, kind: string, side: string, stage: s32, fram
     if side == "left" {
         points: [4]Vector2 = .[.{fitted.x + fitted.width, fitted.y}, .{fitted.x, fitted.y},
             .{fitted.x + fitted.width, fitted.y + fitted.height}, .{fitted.x, fitted.y + fitted.height}]
-        unused Image(session, ImageProps.{.key = key, .asset_path = "assets/choano/organisms-hd.png",
+        unused Image(session, ImageProps.{.key = key, .asset_path = sheet,
             .bounds = fitted, .source = source, .smooth = true,
             .mesh = ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
     } else {
-        unused Image(session, ImageProps.{.key = key, .asset_path = "assets/choano/organisms-hd.png",
+        unused Image(session, ImageProps.{.key = key, .asset_path = sheet,
             .bounds = fitted, .source = source, .smooth = true, .fit = ImageFit.ImageFitStretch})
     }
 }
-// The amoeba floats in its rest pose: a slow bob and breath, and a lean
+// The player floats in its rest pose: a slow bob and breath, and a lean
 // into its swim. The swim poses' stretching tails made it lurch about.
 DrawPlayer :: (session: Session, side: string, stage: s32, animation: float64,
     velocity_y: float32, x: float32, y: float32, key: u64) {
     size := cast(float32)StageSize(stage)
-    source := OrganismSource("player", stage, 0)
+    if game.mode == MODE_FISH {
+        Float(session, FISH_SHEET, FishSource(0), side, size * FISH_LENGTH, animation,
+            velocity_y / FISH_SPEED, .04, x, y, key)
+    } else {
+        Float(session, "assets/choano/organisms-hd.png", OrganismSource("player", stage, 0), side, size,
+            animation, velocity_y / PLAYER_SPEED, .04, x, y, key)
+    }
+}
+// Fish are drawn longer than the square they collide with.
+FISH_LENGTH :: 1.3;
+// Draws SOURCE WIDTH wide at x, y, bobbing by BOB of its width, breathing,
+// and tilted by LEAN (-1 to 1) towards its heading.
+Float :: (session: Session, sheet: string, source: Rectangle, side: string, size: float32, animation: float64,
+    lean: float32, bob: float32, x: float32, y: float32, key: u64) {
     breath := cast(float32)Trig.Sin(animation * 4.4)
     width := size * (1.0 + breath * .03)
     height := size * source.height / source.width * (1.0 - breath * .03)
-    y += cast(float32)Trig.Sin(animation * 2.6) * size * .04
+    y += cast(float32)Trig.Sin(animation * 2.6) * size * bob
     flip: float32 = ifx side == "left" then -1.0 else 1.0
-    lean := velocity_y / PLAYER_SPEED
     if lean > 1.0 { lean = 1.0 }
     if lean < -1.0 { lean = -1.0 }
     angle := cast(float64)(lean * .3 * flip)
@@ -139,9 +157,29 @@ DrawPlayer :: (session: Session, side: string, stage: s32, animation: float64,
         points[index] = Vector2.{view.x + (x + across * cosine - along * sine) * view_scale,
             view.y + (y + across * sine + along * cosine) * view_scale}
     }
-    unused Image(session, ImageProps.{.key = key, .asset_path = "assets/choano/organisms-hd.png",
+    unused Image(session, ImageProps.{.key = key, .asset_path = sheet,
         .bounds = GameBounds(Rectangle.{x - width * .5, y - height * .5, width, height}), .source = source,
         .smooth = true, .mesh = ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
+}
+DrawSea :: (session: Session) {
+    unused Image(session, ImageProps.{.key = cast(u64)1, .asset_path = "assets/choano/fish/sea.png",
+        .bounds = view, .fit = ImageFit.ImageFitStretch, .smooth = true})
+    for index: cast(s32)0..game.enemy_count - 1 {
+        enemy := game.enemies[index]
+        key := cast(u64)(2000 + index)
+        if enemy.kind == KIND_JELLY {
+            Float(session, FISH_SHEET, FishSource(FISH_JELLY), "right", 30.0, enemy.animation, 0.0, .08,
+                enemy.x, enemy.y, key)
+        } else if enemy.kind == KIND_PEARL {
+            Float(session, FISH_SHEET, FishSource(FISH_PEARL), "right", 13.0, enemy.animation * 2.0, 0.0, .1,
+                enemy.x, enemy.y, key)
+        } else {
+            side := ifx enemy.velocity_x < 0.0 then "left" else "right"
+            Float(session, FISH_SHEET, FishStageSource(enemy.stage), side,
+                cast(float32)StageSize(enemy.stage) * FISH_LENGTH, enemy.animation, enemy.velocity_y / 40.0, .03,
+                enemy.x, enemy.y, key)
+        }
+    }
 }
 DrawSprite :: (session: Session, kind: string, side: string, stage: s32, animation: float64,
     x: float32, y: float32, key: u64) {
@@ -177,6 +215,19 @@ DrawGame :: (session: Session, bounds: Rectangle) {
     view = Rectangle.{bounds.x + (bounds.width - 500.0 * view_scale) * .5,
         bounds.y + (bounds.height - 420.0 * view_scale) * .5, 500.0 * view_scale, 420.0 * view_scale}
     path_buffer_index = 0
+    if game.mode == MODE_FISH {
+        DrawSea(session)
+    } else {
+        DrawDish(session)
+    }
+    // A bitten fish blinks while it is safe.
+    if game.safe_timer > 0.0 && Trig.Sin(game.elapsed * 25.0) < 0.0 { return }
+    side := ifx game.player_facing == 0 then "left" else "right"
+    DrawPlayer(session, side, game.player_stage, game.player_animation, game.player_velocity_y,
+        game.player_x, game.player_y, cast(u64)1000)
+}
+
+DrawDish :: (session: Session) {
     unused Image(session, ImageProps.{.key = cast(u64)1, .asset_path = "assets/choano/background-inside.png",
         .bounds = view, .fit = ImageFit.ImageFitStretch, .smooth = false})
     for index: cast(s32)0..game.enemy_count - 1 {
@@ -189,17 +240,16 @@ DrawGame :: (session: Session, bounds: Rectangle) {
                 enemy.x, enemy.y, cast(u64)(2000 + index))
         }
     }
-    side := ifx game.player_facing == 0 then "left" else "right"
-    DrawPlayer(session, side, game.player_stage, game.player_animation, game.player_velocity_y,
-        game.player_x, game.player_y, cast(u64)1000)
 }
 
 // The score, lives and the next danger sit in the top bar, as in an arcade
 // game, leaving the dish clear.
 DrawHud :: (session: Session, bar: Rectangle) {
     middle := bar.y + bar.height * .5
-    PaintOrganism(session, "player", "right", STAGE_FIRST, 0,
-        Rectangle.{bar.x + 90.0, middle - 12.0, 24.0, 24.0}, cast(u64)3020)
+    fish := game.mode == MODE_FISH
+    life := Rectangle.{bar.x + 90.0, middle - 12.0, 24.0, 24.0}
+    if fish { PaintCell(session, FISH_SHEET, FishSource(0), "right", life, cast(u64)3020) }
+    else { PaintOrganism(session, "player", "right", STAGE_FIRST, 0, life, cast(u64)3020) }
     lives := game.lives
     if lives < 0 { lives = 0 }
     lives_digits: [12]u8
@@ -222,9 +272,9 @@ DrawHud :: (session: Session, bar: Rectangle) {
     right := bar.x + bar.width
     HudText(session, "AVOID", Rectangle.{right - 104.0, bar.y, 56.0, bar.height}, cast(u64)3000, 12,
         TextAlign.TextAlignEnd)
-    frame := AnimationFrame(game.elapsed, 3)
-    PaintOrganism(session, "enemy", "right", avoid_stage, frame,
-        Rectangle.{right - 42.0, middle - 15.0, 30.0, 30.0}, cast(u64)3002)
+    danger := Rectangle.{right - 42.0, middle - 15.0, 30.0, 30.0}
+    if fish { PaintCell(session, FISH_SHEET, FishStageSource(avoid_stage), "right", danger, cast(u64)3002) }
+    else { PaintOrganism(session, "enemy", "right", avoid_stage, AnimationFrame(game.elapsed, 3), danger, cast(u64)3002) }
 }
 
 HudText :: (session: Session, text: string, bounds: Rectangle, key: u64, size: s32, align: TextAlign) {
@@ -264,6 +314,25 @@ UsePalette :: (session: Session) {
 SetProfileAvailable :: (available: bool) { Shell.profile_available = available }
 TakeProfileRequest :: () -> bool { return Shell.TakeProfile() }
 NavigationPage :: () -> s32 { return Shell.Page() }
+// Account progress that already reached full size unlocks Fish mode quietly
+// on this device too.
+AccountProgress :: (highest_stage: s32) {
+    if highest_stage >= PLAYER_STAGE_LAST { unused Shell.Unlock() }
+}
+// Account growth counts the amoeba dish only.
+AmoebaStage :: () -> s32 { return ifx game.mode == MODE_AMOEBA then game.player_stage else 0 }
+// The first full-size amoeba earns an achievement and unlocks Fish mode. A
+// host with Waozi achievements records and announces it; otherwise Choano
+// shows the same top-right toast itself. The run carries on either way.
+AwardFullSize :: (now: float64) {
+    if game.mode != MODE_AMOEBA || !Shell.Unlock() { return }
+    #if #defined(CHOANO_PORTABLE) {
+        answer := Clock.Service("entity.achievements",
+            "{\"metric\":\"xyz.waozi.choano.full_size\",\"source\":\"full-size\",\"amount\":1}")
+        if answer == "{\"status\":\"saved\"}" { return }
+    }
+    AchievementToastShow(*toast, "Achievement unlocked", "Full size! Fish mode unlocked", Trophy.Shape, now)
+}
 NavigateBack :: () -> bool { PauseClock(); return Shell.Back() }
 ProfileHeader :: (session: Session, viewport: Rectangle) -> bool {
     UsePalette(session)
@@ -288,14 +357,17 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     if Shell.WantsBoard() { DrawGame(session, area) }
     if Shell.HudVisible() { DrawHud(session, Shell.bar) }
     Shell.End(session, now, game.over)
+    unused AchievementToastDraw(session, *toast, AchievementToastProps.{.key = cast(u64)47000, .viewport = viewport,
+        .top = 52.0, .now = now, .fill = ColorFromPacked(0x0a2438f2), .border = ColorFromPacked(0x80cbd8ff),
+        .accent = ColorFromPacked(0xe0609aff)})
     if Shell.TakeStart() {
-        StartGame(cast(u32)Clock.Milliseconds())
+        StartGame(cast(u32)Clock.Milliseconds(), ifx Shell.FishRun() then MODE_FISH else MODE_AMOEBA)
         last_tick = now
         held_input = .{}
     }
     if !Shell.Playing() { last_tick = -1.0; return 0 }
     if (game.over && key == 257) || key == 82 || key == 114 {
-        StartGame(cast(u32)Clock.Milliseconds())
+        StartGame(cast(u32)Clock.Milliseconds(), game.mode)
         held_input = .{}
         Shell.ClearHeading()
     }
@@ -305,9 +377,12 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     if held { Shell.ClearHeading() }
     input.steer_x = Shell.heading_x
     input.steer_y = Shell.heading_y
+    // Shift or X dashes in Fish mode, as a tap does.
+    input.dash = Shell.TakeDash() || key == 340 || key == 344 || key == 88 || key == 120
     if last_tick < 0.0 { last_tick = now }
     if now >= last_tick {
         UpdateGame(input, now - last_tick)
+        if game.full_size { game.full_size = false; AwardFullSize(now) }
         PlayEvents(now)
         last_tick = now
     }

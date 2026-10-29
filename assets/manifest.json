@@ -1,5 +1,5 @@
 {
-  "sha256": "d93a0fa55bcbf4fa54a30eabb687e174fad40e88ddb79dfda6ce1787d5ce8670",
+  "sha256": "adb4943ca4bdbe65f8b79830a73131df300d189bdccc9f5bd0792abdb6178900",
   "files": {
     "assets/choano/angel-0.png": "c77b9944ec056e3d4670157a7ce509bc5af4d418e9653686504ddd66f009b35f",
     "assets/choano/angel-1.png": "629de76b9fd11a223e77328ef66a9b6e60452cef982a14559db683c023a8ea7e",
@@ -81,6 +81,10 @@
     "assets/choano/enemy-right-47-0.png": "670e12703432a102e6a3ab98d100a5f0bbd71d0bf56672b438e5c652281f7274",
     "assets/choano/enemy-right-47-1.png": "2c33914645eecb8cb2562e6206c02e47a0708764933da22747cf4183acb15e29",
     "assets/choano/enemy-right-47-2.png": "49f86ea72efac21501b8fc5618b63bb5b9fcaa47725d8c29fabf2a90d071cbac",
+    "assets/choano/fish/fish-hd.png": "d7cb46b428806729bb12a6c7c7f637258141237d95791a1f001700867a73ed7d",
+    "assets/choano/fish/sea.png": "c34278ef52051515e4f2708493dfaff1a25b03c769084cf240b88ad437f4eba7",
+    "assets/choano/fish/title-landscape.png": "0679a11a1fd0f6319802cf3aecafd53c9eb31a608f077335dd7771f58139979e",
+    "assets/choano/fish/title-portrait.png": "a5f31d42ff754edde1fd4586d4d6d23aebfc2189637d46293a3bb760ee2c7952",
     "assets/choano/icon.png": "a43552d889ddc86a6a27ca80566661ca7240b1552068c497a3e7e9360bd56c7e",
     "assets/choano/organisms-hd.png": "69196388a62c24c2464f79e0fc989137f236a27ed81848c87916884eddca28b8",
     "assets/choano/player-left-11-0.png": "60316bc93b8fa0d72e591a6b658f41f97e7726d2231d86884d69b05339cd876c",

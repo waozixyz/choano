@@ -35,7 +35,7 @@ for name, digest in files.items():
             assert len(set(raw)) > 1, name
             samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
             assert max(map(abs, samples)) <= .12 * 32767, 'Effect too loud: ' + name
-assert len([p for p in actual if p.endswith('.png')]) == 181
+assert len([p for p in actual if p.endswith('.png')]) == 185
 assert len([p for p in actual if p.endswith('.wav')]) == 6
 assert not (ROOT / 'assets/original').exists()
 for p in (ROOT / 'assets').rglob('*'):
@@ -44,7 +44,7 @@ catalog = json.loads((ROOT / 'catalog.json').read_text())
 assert catalog['id'] == 'xyz.waozi.choano' and catalog['module_api'] == 2
 assert (ROOT / catalog['source']).is_file() and (ROOT / catalog['preview']).is_file()
 assert '[dependencies.arcade]' not in (ROOT / 'ziran.toml').read_text()
-print('Choano local asset and package tests passed: 181 PNGs, 6 quiet WAVs.')
+print('Choano local asset and package tests passed: 185 PNGs, 6 quiet WAVs.')
 
 for name, minimum in [('organisms-hd.png',1254),('title-landscape.png',1024),('title-portrait.png',1024)]:
     with (ROOT / 'assets/choano' / name).open('rb') as handle:

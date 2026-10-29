@@ -70,9 +70,10 @@ main :: () -> s32 {
             keys := WebGetObject(WebModule, WebName("keys"))
             App.SetHeldInput(Held(keys, "left"), Held(keys, "right"), Held(keys, "up"), Held(keys, "down"))
             now := PageNow() / 1000.0
-            if Progress.ProgressPump(now, Game.game.player_stage, cast(s64)(WebAsNumber(WebCall0(WebGetObject(WebGlobal, WebName("Date")), WebName("now"))) / 1000.0)) {
-                Game.StartGame(cast(u32)PageNow()); App.PauseClock()
+            if Progress.ProgressPump(now, App.AmoebaStage(), cast(s64)(WebAsNumber(WebCall0(WebGetObject(WebGlobal, WebName("Date")), WebName("now"))) / 1000.0)) {
+                Game.StartGame(cast(u32)PageNow(), Game.game.mode); App.PauseClock()
             }
+            App.AccountProgress(Progress.HighestStage())
             unused App.Frame(session, viewport)
             if App.TakeProfileRequest() {
                 Entity.EntityHostReload()
@@ -84,6 +85,7 @@ main :: () -> s32 {
             WebSet(WebModule, WebName("choanoScore"), WebNumber(cast(float64)Game.game.score))
             WebSet(WebModule, WebName("choanoX"), WebNumber(cast(float64)Game.game.player_x))
             WebSet(WebModule, WebName("choanoY"), WebNumber(cast(float64)Game.game.player_y))
+            WebSet(WebModule, WebName("choanoMode"), WebNumber(cast(float64)Game.game.mode))
         }
         WebSet(WebModule, WebName("profileVisible"), WebBool(visible))
         if EndFrame(session) != FrameStatus.FrameOk { return 1 }

@@ -69,6 +69,14 @@
       "url": "https://github.com/kryonlabs/game2d.git"
     },
     {
+      "commit": "e8cc64d1731eecfab07e9fe55cc4fcd8368ae8fb",
+      "dependencies": {"daochi_client": "p7de54c8ad98fe034", "kryon": "pc051b826eca4a134", "monocypher": "p809b4d31a48625a3", "qrcode": "p0dfa70137405b096"},
+      "id": "pb85975f45ad5e9e0",
+      "name": "Entity",
+      "ref": "master",
+      "url": "https://github.com/waozixyz/entity.git"
+    },
+    {
       "commit": "ab77c24419ff33092193fd290ac8ea7291040d0c",
       "dependencies": {"raylib": "p5a77c9c35110e925"},
       "id": "pc051b826eca4a134",
@@ -85,16 +93,16 @@
       "url": "https://github.com/ziranlang/crypto.git"
     },
     {
-      "commit": "6d54b9a1e87052e947ef32db1712dfd302d66385",
-      "dependencies": {"daochi_client": "p7de54c8ad98fe034", "kryon": "pc051b826eca4a134", "monocypher": "p809b4d31a48625a3", "qrcode": "p0dfa70137405b096"},
-      "id": "pfed93ebbf687d016",
-      "name": "Entity",
+      "commit": "9cc6872f75447c3a24c16764f9829d0f58751cb0",
+      "dependencies": {},
+      "id": "pe1027b9d16704793",
+      "name": "mingcute",
       "ref": "master",
-      "url": "https://github.com/waozixyz/entity.git"
+      "url": "https://github.com/kryonlabs/mingcute.git"
     }
   ],
   "root": {
-    "dependencies": {"apps": "p9928fc15e7b93288", "entity": "pfed93ebbf687d016", "game2d": "pa0f683796dfa3993", "kryon": "pc051b826eca4a134"},
+    "dependencies": {"apps": "p9928fc15e7b93288", "entity": "pb85975f45ad5e9e0", "game2d": "pa0f683796dfa3993", "kryon": "pc051b826eca4a134", "mingcute": "pe1027b9d16704793"},
     "name": "Choano"
   },
   "toolchain": {

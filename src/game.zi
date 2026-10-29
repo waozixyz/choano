@@ -10,6 +10,28 @@ STAGE_LAST :: 10;
 PLAYER_STAGE_LAST :: 9;
 ENEMY_LIMIT :: 64;
 INITIAL_ENEMIES :: 6;
+// The amoeba dish and, once a player reaches full size there, the open sea.
+MODE_AMOEBA :: 0;
+MODE_FISH :: 1;
+// Fish mode: open water above the sand, swifter and floatier fish, a dash
+// with a cooldown, a moment's safety after a bite, stinging jellyfish and
+// drifting golden pearls.
+SEA_TOP :: 24.0;
+SEA_BOTTOM :: 372.0;
+FISH_SPEED :: 125.0;
+FISH_EASE :: 5.0;
+DASH_BOOST :: 2.2;
+DASH_SECONDS :: .35;
+DASH_COOLDOWN :: 1.2;
+SAFE_SECONDS :: 2.0;
+FISH_START :: 5;
+FISH_MOST :: 14;
+JELLY_STAGE :: 3;
+JELLY_MOST :: 2;
+PEARL_SCORE :: 25;
+KIND_FISH :: 0;
+KIND_JELLY :: 1;
+KIND_PEARL :: 2;
 PLAYER_SPEED :: 100.0;
 // How quickly the player's velocity eases towards its heading, per second.
 PLAYER_EASE :: 8.0;
@@ -33,6 +55,8 @@ Enemy :: struct {
     active: bool
     warning_timer: float64
     animation: float64
+    kind: s32
+    phase: float32
 }
 
 GameInput :: struct {
@@ -40,12 +64,15 @@ GameInput :: struct {
     right: bool
     up: bool
     down: bool
+    // Fish mode: a dash starts this frame, if it is ready.
+    dash: bool
     // A touch heading in any direction, up to unit length; keys win.
     steer_x: float32
     steer_y: float32
 }
 
 Game :: struct {
+    mode: s32
     started: bool
     over: bool
     player_x: float32
@@ -56,6 +83,13 @@ Game :: struct {
     player_moving: bool
     player_velocity_x: float32
     player_velocity_y: float32
+    // Set once a run reaches full size; the app takes it to award it.
+    full_size: bool
+    dash_timer: float64
+    dash_cooldown: float64
+    safe_timer: float64
+    jelly_timer: float64
+    pearl_timer: float64
     growth_progress: s32
     next_growth_threshold: s32
     growth_stages: s32
@@ -136,7 +170,7 @@ RandomSpeed :: () -> float32 {
 EdibleCount :: () -> s32 {
     count: s32 = 0
     for index: cast(s32)0..game.enemy_count - 1 {
-        if game.enemies[index].stage <= game.player_stage { count += 1 }
+        if game.enemies[index].kind == KIND_FISH && game.enemies[index].stage <= game.player_stage { count += 1 }
     }
     return count
 }
@@ -195,8 +229,9 @@ SpawnEnemy :: (forced_stage: s32) -> bool {
     return true
 }
 
-StartGame :: (seed: u32) {
+StartGame :: (seed: u32, mode: s32 = MODE_AMOEBA) {
     game = .{
+        .mode = mode,
         .player_x = DISH_CENTER_X,
         .player_y = DISH_CENTER_Y,
         .player_stage = STAGE_FIRST,
@@ -208,7 +243,13 @@ StartGame :: (seed: u32) {
     game.started = true
     if game.random == 0 { game.random = 1 }
     game.next_spawn_timer = 5.0 + cast(float64)RandomNext(4000) / 1000.0
-    while game.enemy_count < INITIAL_ENEMIES { unused SpawnEnemy(STAGE_FIRST) }
+    if mode == MODE_FISH {
+        game.jelly_timer = 14.0
+        game.pearl_timer = 8.0
+        while game.enemy_count < FISH_START { unused SpawnFish(STAGE_FIRST, true) }
+    } else {
+        while game.enemy_count < INITIAL_ENEMIES { unused SpawnEnemy(STAGE_FIRST) }
+    }
     game.event_count = 0
     QueueSound(SOUND_START)
 }
@@ -226,6 +267,7 @@ GrowPlayer :: () {
     if game.player_stage < PLAYER_STAGE_LAST {
         game.player_stage += 1
         game.next_growth_threshold = GrowthThreshold(game.player_stage)
+        if game.player_stage == PLAYER_STAGE_LAST { game.full_size = true }
     } else {
         game.next_growth_threshold = game.next_growth_threshold * 3 / 2
     }
@@ -248,16 +290,30 @@ MovePlayer :: (input: GameInput, delta: float64) {
         if length > 1.0 { target_x /= length; target_y /= length }
     }
     // The velocity eases towards the heading, so the amoeba glides.
-    ease := cast(float32)delta * PLAYER_EASE
+    fish := game.mode == MODE_FISH
+    speed: float32 = ifx fish then FISH_SPEED else PLAYER_SPEED
+    if fish && input.dash && game.dash_cooldown <= 0.0 {
+        game.dash_timer = DASH_SECONDS
+        game.dash_cooldown = DASH_COOLDOWN
+        if target_x == 0.0 && target_y == 0.0 {
+            // A dash from rest darts the way the fish faces.
+            target_x = ifx game.player_facing == 0 then -1.0 else 1.0
+        }
+        game.player_velocity_x = target_x * speed * DASH_BOOST
+        game.player_velocity_y = target_y * speed * DASH_BOOST
+    }
+    if game.dash_timer > 0.0 { speed *= DASH_BOOST }
+    ease := cast(float32)delta * (ifx fish then FISH_EASE else PLAYER_EASE)
     if ease > 1.0 { ease = 1.0 }
-    game.player_velocity_x += (target_x * PLAYER_SPEED - game.player_velocity_x) * ease
-    game.player_velocity_y += (target_y * PLAYER_SPEED - game.player_velocity_y) * ease
+    game.player_velocity_x += (target_x * speed - game.player_velocity_x) * ease
+    game.player_velocity_y += (target_y * speed - game.player_velocity_y) * ease
     game.player_x += game.player_velocity_x * cast(float32)delta
     game.player_y += game.player_velocity_y * cast(float32)delta
     if game.player_velocity_x < -8.0 { game.player_facing = 0 }
     if game.player_velocity_x > 8.0 { game.player_facing = 1 }
     size := cast(float32)StageSize(game.player_stage)
-    unused ClampPoint(*game.player_x, *game.player_y, size)
+    if fish { unused SeaClamp(*game.player_x, *game.player_y, size) }
+    else { unused ClampPoint(*game.player_x, *game.player_y, size) }
     game.player_moving = game.player_velocity_x * game.player_velocity_x +
         game.player_velocity_y * game.player_velocity_y > 25.0
     game.player_animation += delta
@@ -338,6 +394,7 @@ UpdateGame :: (input: GameInput, delta: float64) {
     if !game.started || game.over { return }
     if delta > .1 { delta = .1 }
     game.elapsed += delta
+    if game.mode == MODE_FISH { UpdateSea(input, delta); return }
     MovePlayer(input, delta)
     for index: cast(s32)0..game.enemy_count - 1 { MoveEnemy(index, delta) }
     ResolveCollisions()
@@ -346,5 +403,179 @@ UpdateGame :: (input: GameInput, delta: float64) {
     if game.next_spawn_timer <= 0.0 {
         unused SpawnEnemy(-1)
         game.next_spawn_timer = 5.0 + cast(float64)RandomNext(4000) / 1000.0
+    }
+}
+
+// Keeps a point of SIZE in the water between the surface and the sand.
+SeaClamp :: (x: *float32, y: *float32, size: float32) -> bool {
+    half := size * .5
+    clamped := false
+    if <<x < half { <<x = half; clamped = true }
+    if <<x > cast(float32)FIELD_WIDTH - half { <<x = cast(float32)FIELD_WIDTH - half; clamped = true }
+    if <<y < cast(float32)SEA_TOP + half { <<y = cast(float32)SEA_TOP + half; clamped = true }
+    if <<y > cast(float32)SEA_BOTTOM - half { <<y = cast(float32)SEA_BOTTOM - half; clamped = true }
+    return clamped
+}
+
+SeaY :: (size: float32) -> float32 {
+    room := cast(s32)(cast(float32)SEA_BOTTOM - cast(float32)SEA_TOP - size)
+    return cast(float32)SEA_TOP + size * .5 + cast(float32)RandomNext(room)
+}
+
+// A fish swims in from the left or right edge, or, at the start, already
+// somewhere in the water away from the player.
+SpawnFish :: (forced_stage: s32, inside: bool) -> bool {
+    if game.enemy_count >= ENEMY_LIMIT { return false }
+    stage := forced_stage
+    if stage < STAGE_FIRST { stage = StageForPopulation(EdibleCount(), FishCount()) }
+    if stage > STAGE_LAST { stage = STAGE_LAST }
+    size := cast(float32)StageSize(stage)
+    leftward := RandomNext(2) == 0
+    x: float32 = ifx leftward then cast(float32)FIELD_WIDTH + size else -size
+    y := SeaY(size)
+    if inside {
+        x = cast(float32)RandomNext(cast(s32)FIELD_WIDTH)
+        attempt: s32 = 0
+        while attempt < 32 && DistanceSquared(x, y, game.player_x, game.player_y) < 90.0 * 90.0 {
+            x = cast(float32)RandomNext(cast(s32)FIELD_WIDTH)
+            y = SeaY(size)
+            attempt += 1
+        }
+    }
+    speed := 28.0 + cast(float32)RandomNext(30) + cast(float32)(STAGE_LAST - stage) * 2.0
+    game.enemies[game.enemy_count] = .{.x = x, .y = y, .stage = stage,
+        .velocity_x = ifx leftward then -speed else speed, .active = true, .kind = KIND_FISH,
+        .phase = cast(float32)RandomNext(628) * .01, .animation = cast(float64)RandomNext(100) / 100.0}
+    game.enemy_count += 1
+    return true
+}
+
+// Jellyfish rise from below and pearls sink from the surface.
+SpawnDrifter :: (kind: s32) -> bool {
+    if game.enemy_count >= ENEMY_LIMIT { return false }
+    x := 40.0 + cast(float32)RandomNext(cast(s32)FIELD_WIDTH - 80)
+    jelly := kind == KIND_JELLY
+    game.enemies[game.enemy_count] = .{.x = x,
+        .y = ifx jelly then cast(float32)SEA_BOTTOM + 20.0 else cast(float32)SEA_TOP - 8.0,
+        .stage = ifx jelly then STAGE_LAST else 0, .velocity_y = ifx jelly then -14.0 else 20.0,
+        .active = true, .kind = kind, .phase = cast(float32)RandomNext(628) * .01}
+    game.enemy_count += 1
+    return true
+}
+
+FishCount :: () -> s32 {
+    count: s32 = 0
+    for index: cast(s32)0..game.enemy_count - 1 {
+        if game.enemies[index].kind == KIND_FISH { count += 1 }
+    }
+    return count
+}
+
+KindCount :: (kind: s32) -> s32 {
+    count: s32 = 0
+    for index: cast(s32)0..game.enemy_count - 1 {
+        if game.enemies[index].kind == kind { count += 1 }
+    }
+    return count
+}
+
+// Fish cross with a gentle wave; a hungry bigger fish nearby drifts towards
+// the player's depth. False once it has left the water.
+MoveSeaCreature :: (index: s32, delta: float64) -> bool {
+    enemy := *game.enemies[index]
+    enemy.animation += delta
+    wave := cast(float32)Math.Sin(enemy.animation * 1.6 + cast(float64)enemy.phase)
+    step := cast(float32)delta
+    if enemy.kind == KIND_FISH {
+        size := cast(float32)StageSize(enemy.stage)
+        enemy.velocity_y = wave * 10.0
+        across := enemy.x - game.player_x
+        if enemy.stage > game.player_stage && across * across < 150.0 * 150.0 {
+            enemy.velocity_y += ifx game.player_y > enemy.y then 22.0 else -22.0
+        }
+        enemy.x += enemy.velocity_x * step
+        enemy.y += enemy.velocity_y * step
+        if enemy.y < cast(float32)SEA_TOP + size * .5 { enemy.y = cast(float32)SEA_TOP + size * .5 }
+        if enemy.y > cast(float32)SEA_BOTTOM - size * .5 { enemy.y = cast(float32)SEA_BOTTOM - size * .5 }
+        return !(enemy.velocity_x < 0.0 && enemy.x < -size - 4.0) &&
+            !(enemy.velocity_x > 0.0 && enemy.x > cast(float32)FIELD_WIDTH + size + 4.0)
+    }
+    enemy.x += wave * 8.0 * step
+    enemy.y += enemy.velocity_y * step
+    if enemy.kind == KIND_JELLY { return enemy.y > cast(float32)SEA_TOP - 40.0 }
+    return enemy.y < cast(float32)SEA_BOTTOM - 4.0
+}
+
+LoseLife :: () {
+    game.lives -= 1
+    game.safe_timer = SAFE_SECONDS
+    QueueSound(SOUND_LOSE_LIFE)
+    if game.lives < 0 {
+        game.over = true
+        QueueSound(SOUND_GAME_OVER)
+    }
+}
+
+SeaCollisions :: () {
+    index: s32 = 0
+    while index < game.enemy_count && !game.over {
+        enemy := game.enemies[index]
+        player_size := cast(float32)StageSize(game.player_stage)
+        reach := player_size * .5
+        enemy_size: float32 = ifx enemy.kind == KIND_JELLY then 26.0 else 12.0
+        if enemy.kind == KIND_FISH { enemy_size = cast(float32)StageSize(enemy.stage) }
+        inset := enemy_size * .5 - COLLISION_INSET
+        if inset < 2.0 { inset = 2.0 }
+        if !RectanglesOverlap(game.player_x - reach, game.player_x + reach, game.player_y - reach, game.player_y + reach,
+            enemy.x - inset, enemy.x + inset, enemy.y - inset, enemy.y + inset) { index += 1; continue }
+        if enemy.kind == KIND_PEARL {
+            game.score += PEARL_SCORE
+            game.growth_progress += 2
+            QueueSound(SOUND_EAT)
+            RemoveEnemy(index)
+            GrowPlayer()
+            continue
+        }
+        if enemy.kind == KIND_FISH && enemy.stage <= game.player_stage {
+            game.score += enemy.stage * 10
+            game.growth_progress += enemy.stage
+            QueueSound(SOUND_EAT)
+            RemoveEnemy(index)
+            GrowPlayer()
+            continue
+        }
+        if game.safe_timer <= 0.0 { LoseLife() }
+        index += 1
+    }
+}
+
+UpdateSea :: (input: GameInput, delta: float64) {
+    if game.dash_timer > 0.0 { game.dash_timer -= delta }
+    if game.dash_cooldown > 0.0 { game.dash_cooldown -= delta }
+    if game.safe_timer > 0.0 { game.safe_timer -= delta }
+    MovePlayer(input, delta)
+    index: s32 = 0
+    while index < game.enemy_count {
+        if MoveSeaCreature(index, delta) { index += 1 } else { RemoveEnemy(index) }
+    }
+    SeaCollisions()
+    if game.over { return }
+    // More fish join as a run goes on.
+    wanted := FISH_START + cast(s32)(game.elapsed / 15.0)
+    if wanted > FISH_MOST { wanted = FISH_MOST }
+    game.next_spawn_timer -= delta
+    if game.next_spawn_timer <= 0.0 && FishCount() < wanted {
+        unused SpawnFish(-1, false)
+        game.next_spawn_timer = .6 + cast(float64)RandomNext(1000) / 1000.0
+    }
+    game.jelly_timer -= delta
+    if game.jelly_timer <= 0.0 {
+        if game.player_stage >= JELLY_STAGE && KindCount(KIND_JELLY) < JELLY_MOST { unused SpawnDrifter(KIND_JELLY) }
+        game.jelly_timer = 12.0 + cast(float64)RandomNext(8000) / 1000.0
+    }
+    game.pearl_timer -= delta
+    if game.pearl_timer <= 0.0 {
+        unused SpawnDrifter(KIND_PEARL)
+        game.pearl_timer = 9.0 + cast(float64)RandomNext(6000) / 1000.0
     }
 }

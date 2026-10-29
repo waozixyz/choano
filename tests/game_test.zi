@@ -79,6 +79,56 @@ main :: () -> s32 {
     for step: 0..119 { UpdateGame(.{}, 1.0 / 60.0) }
     if Expect(!game.player_moving, "the player glides to rest") != 0 { return 1 }
 
+    StartGame(97531)
+    game.player_stage = PLAYER_STAGE_LAST - 1
+    game.next_growth_threshold = GrowthThreshold(game.player_stage)
+    game.growth_progress = game.next_growth_threshold
+    GrowPlayer()
+    if Expect(game.player_stage == PLAYER_STAGE_LAST && game.full_size, "reaching full size is flagged for the award") != 0 { return 1 }
+    game.full_size = false
+    game.growth_progress = game.next_growth_threshold
+    GrowPlayer()
+    if Expect(!game.full_size, "growing past full size awards nothing again") != 0 { return 1 }
+
+    StartGame(4242, MODE_FISH)
+    if Expect(game.mode == MODE_FISH && game.enemy_count == FISH_START, "Fish mode starts with a few fish") != 0 { return 1 }
+    for index: cast(s32)0..game.enemy_count - 1 {
+        fish := game.enemies[index]
+        if Expect(fish.kind == KIND_FISH && fish.active && fish.stage == 1 && fish.velocity_x != 0.0 &&
+            DistanceSquared(fish.x, fish.y, game.player_x, game.player_y) >= 89.0 * 89.0, "starting fish swim away from the player") != 0 { return 1 }
+    }
+    game.enemy_count = 1
+    game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 1, .velocity_x = 20.0, .active = true, .kind = KIND_FISH}
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.score == 10 && game.enemy_count == 0, "a small fish is eaten") != 0 { return 1 }
+    game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 3, .velocity_x = 20.0, .active = true, .kind = KIND_FISH}
+    game.enemy_count = 1
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.lives == 1 && game.safe_timer > 0.0, "a bigger fish bites once") != 0 { return 1 }
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.lives == 1, "a bite leaves a moment of safety") != 0 { return 1 }
+    game.enemy_count = 1
+    game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 0, .velocity_y = 20.0, .active = true, .kind = KIND_PEARL}
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.score == 10 + PEARL_SCORE && game.enemy_count == 0, "a golden pearl scores") != 0 { return 1 }
+    game.enemies[0] = .{.x = -60.0, .y = 200.0, .stage = 1, .velocity_x = -30.0, .active = true, .kind = KIND_FISH}
+    game.enemy_count = 1
+    game.next_spawn_timer = 99.0
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.enemy_count == 0, "a fish that swims out leaves") != 0 { return 1 }
+
+    StartGame(4243, MODE_FISH)
+    game.enemy_count = 0
+    UpdateGame(.{.right = true, .dash = true}, 1.0 / 60.0)
+    if Expect(game.player_velocity_x > cast(float32)FISH_SPEED * 1.5, "a dash darts ahead") != 0 { return 1 }
+    for step: 0..29 { UpdateGame(.{.right = true}, 1.0 / 60.0) }
+    cruising := game.player_velocity_x
+    UpdateGame(.{.right = true, .dash = true}, 1.0 / 60.0)
+    if Expect(game.player_velocity_x < cruising * 1.2, "a dash needs its cooldown") != 0 { return 1 }
+    game.player_y = 500.0
+    unused SeaClamp(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage))
+    if Expect(game.player_y <= cast(float32)SEA_BOTTOM, "the fish stays above the sand") != 0 { return 1 }
+
     StartGame(54321)
     game.enemies[0].warning_timer = 0.0
     game.enemies[0].active = false

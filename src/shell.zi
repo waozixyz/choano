@@ -33,9 +33,33 @@ profile_available: bool;
 profile_requested: bool;
 start_requested: bool;
 save_failed: bool;
+// Reaching full size unlocks Fish mode, picked on the title screen; a run
+// keeps the mode it started in.
+fish_unlocked: bool;
+fish: bool;
+run_fish: bool;
+// In Fish mode a tap dashes instead of stopping.
+dash_requested: bool;
 area: Rectangle;
 
-Save :: () { save_failed = !Prefs.Save(state.controls_selected, state.controls_mode == Nav.GAME_PAD, muted) }
+Save :: () {
+    save_failed = !Prefs.Save(Prefs.Preferences.{.chosen = state.controls_selected,
+        .pad = state.controls_mode == Nav.GAME_PAD, .muted = muted, .fish_unlocked = fish_unlocked, .fish = fish})
+}
+// True the first time; later calls, as from account progress, change nothing.
+Unlock :: () -> bool {
+    if fish_unlocked { return false }
+    fish_unlocked = true
+    Save()
+    return true
+}
+Pick :: (value: bool) {
+    if value == fish || (value && !fish_unlocked) { return }
+    fish = value
+    Save()
+}
+FishRun :: () -> bool { return run_fish }
+TakeDash :: () -> bool { result := dash_requested; dash_requested = false; return result }
 Start :: () { if Nav.GameNavigationPlay(*state) { start_requested = true } }
 Choose :: (mode: s32) {
     if Nav.GameNavigationChoose(*state, mode) { start_requested = true }
@@ -44,7 +68,7 @@ Choose :: (mode: s32) {
 }
 TakeStart :: () -> bool {
     result := start_requested; start_requested = false
-    if result { ClearHeading(); stick.active = false }
+    if result { ClearHeading(); stick.active = false; run_fish = fish }
     return result
 }
 ClearHeading :: () { heading_x = 0.0; heading_y = 0.0 }
@@ -84,16 +108,18 @@ HudVisible :: () -> bool { return state.running && state.page == Nav.GAME_PLAYIN
 Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64) -> Rectangle {
     if !loaded {
         loaded = true
-        chosen, pad, sound := Prefs.Load()
-        unused chosen
+        saved := Prefs.Load()
         // Swipe until the player picks the pad in Settings.
         state.controls_selected = true
-        state.controls_mode = ifx pad then Nav.GAME_PAD else Nav.GAME_SWIPE
-        muted = sound
+        state.controls_mode = ifx saved.pad then Nav.GAME_PAD else Nav.GAME_SWIPE
+        muted = saved.muted
+        fish_unlocked = fish_unlocked || saved.fish_unlocked
+        fish = fish_unlocked && saved.fish
     }
     if key == 256 { unused Back() }
     else if key == 32 && state.page == Nav.GAME_PLAYING { Nav.GameNavigationPause(*state) }
     else if key == 257 && state.page == Nav.GAME_TITLE { Start() }
+    else if (key == 263 || key == 262) && state.page == Nav.GAME_TITLE { Pick(key == 262) }
     else if state.page == Nav.GAME_CONTROLS && (key == 49 || key == 50) { Choose(key - 49) }
     else if key == 77 || key == 109 { muted = !muted; Save() }
     playing := HudVisible()
@@ -122,8 +148,23 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64) -> Rect
     return area
 }
 
+// Amoeba or Fish, side by side above Play. Fish stays greyed out, saying how
+// to earn it, until a run reaches full size.
+ModePicker :: (session: Session, bounds: Rectangle) {
+    half := (bounds.width - 8.0) * .5
+    if Mode(session, cast(u64)50120, "Amoeba", "", !fish, false, Rectangle.{bounds.x, bounds.y, half, bounds.height}) { Pick(false) }
+    if Mode(session, cast(u64)50121, "Fish", ifx fish_unlocked then "" else "Reach full size", fish, !fish_unlocked,
+        Rectangle.{bounds.x + half + 8.0, bounds.y, half, bounds.height}) { Pick(true) }
+}
+Mode :: (session: Session, key: u64, text: string, detail: string, selected: bool, locked: bool, bounds: Rectangle) -> bool {
+    return Button(session, ButtonProps.{.key = key, .id = cast(s32)key, .bounds = bounds, .label = text,
+        .detail = detail, .selected = selected, .disabled = locked, .pill = true,
+        .emphasis = ifx selected then ButtonEmphasis.ButtonEmphasisFilled else ButtonEmphasis.ButtonEmphasisSoft}) != 0
+}
 Backdrop :: (session: Session) {
-    path := ifx area.height > area.width then "assets/choano/title-portrait.png" else "assets/choano/title-landscape.png"
+    portrait := area.height > area.width
+    path := ifx portrait then "assets/choano/title-portrait.png" else "assets/choano/title-landscape.png"
+    if fish { path = ifx portrait then "assets/choano/fish/title-portrait.png" else "assets/choano/fish/title-landscape.png" }
     unused Image(session, ImageProps.{.key = cast(u64)50100, .asset_path = path,
         .bounds = area, .fit = ImageFit.ImageFitContain, .smooth = true})
 }
@@ -151,10 +192,13 @@ End :: (session: Session, now: float64, over: bool) {
         y := area.y + area.height * .75
         if y + 56.0 > area.y + area.height { y = area.y + area.height - 64.0 }
         x := area.x + (area.width - width) * .5
-        if Action(session, cast(u64)50110, ifx state.running then "New game" else "Play", Rectangle.{x, y, width, 48.0}) { Start() }
-        if state.running && !over {
-            if Action(session, cast(u64)50111, "Continue", Rectangle.{x, y - 58.0, width, 48.0}) { Nav.GameNavigationResume(*state) }
+        resumable := state.running && !over && run_fish == fish
+        if Action(session, cast(u64)50110, ifx resumable then "New game" else "Play", Rectangle.{x, y, width, 48.0}) { Start() }
+        if resumable {
+            y -= 58.0
+            if Action(session, cast(u64)50111, "Continue", Rectangle.{x, y, width, 48.0}) { Nav.GameNavigationResume(*state) }
         }
+        ModePicker(session, Rectangle.{x, y - 62.0, width, 52.0})
     } else if state.page == Nav.GAME_CONTROLS {
         if !WantsBoard() { Backdrop(session) }
         choice := Controls.GameControlsChoice(session, Controls.GameControlsProps.{.key = cast(u64)51000,
@@ -202,7 +246,9 @@ End :: (session: Session, now: float64, over: bool) {
             .label = "Move", .now = now, .min_distance = 6.0})
         steer := Controls.GameStickSteer(*stick, gesture.down, gesture.at_x, gesture.at_y)
         if steer.steering { heading_x = steer.x; heading_y = steer.y }
-        if steer.tapped { ClearHeading() }
+        if steer.tapped {
+            if run_fish { dash_requested = true } else { ClearHeading() }
+        }
         Controls.GameStickIndicator(session, cast(u64)52020, stick, heading_x, heading_y)
         return
     }

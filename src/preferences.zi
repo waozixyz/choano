@@ -1,3 +1,4 @@
+#import "std/text_buffer"
 #if #defined(CHOANO_PORTABLE) {
     host_api :: #system_library "host_api";
     AppRecordHost :: (name: string) -> string #foreign host_api;
@@ -47,14 +48,38 @@
     Read :: () -> string { text, found := ReadEntireFile(Path()); return ifx found then text else "" }
     Write :: (value: string) -> bool { return CreateDirectories(Root()) && WriteEntireFile(Path(), value) }
 }
-Load :: () -> (chosen: bool, pad: bool, muted: bool) {
-    text := Read()
-    if text.count != 3 || text[0] != #char "1" || (text[1] != #char "s" && text[1] != #char "p" && text[1] != #char "u") ||
-        (text[2] != #char "0" && text[2] != #char "1") { return false, false, false }
-    return text[1] != #char "u", text[1] == #char "p", text[2] == #char "1"
+Preferences :: struct {
+    chosen: bool
+    pad: bool
+    muted: bool
+    // Reaching full size unlocks Fish mode; fish is the mode last picked.
+    fish_unlocked: bool
+    fish: bool
 }
-Save :: (chosen: bool, pad: bool, muted: bool) -> bool {
-    if !chosen { return Write(ifx muted then "1u1" else "1u0") }
-    if pad { return Write(ifx muted then "1p1" else "1p0") }
-    return Write(ifx muted then "1s1" else "1s0")
+// "1", the controls (s, p or u for unchosen), sound muted, then Fish mode
+// unlocked and picked; three-character files predate Fish mode.
+Load :: () -> Preferences {
+    text := Read()
+    value: Preferences
+    if (text.count != 3 && text.count != 5) || text[0] != #char "1" ||
+        (text[1] != #char "s" && text[1] != #char "p" && text[1] != #char "u") { return value }
+    for index: 2..text.count - 1 {
+        if text[index] != #char "0" && text[index] != #char "1" { return value }
+    }
+    value.chosen = text[1] != #char "u"
+    value.pad = text[1] == #char "p"
+    value.muted = text[2] == #char "1"
+    if text.count == 5 {
+        value.fish_unlocked = text[3] == #char "1"
+        value.fish = value.fish_unlocked && text[4] == #char "1"
+    }
+    return value
+}
+Save :: (value: Preferences) -> bool {
+    text: [6]u8 = .[#char "1", #char "u", #char "0", #char "0", #char "0", cast(u8)0]
+    if value.chosen { text[1] = ifx value.pad then #char "p" else #char "s" }
+    if value.muted { text[2] = #char "1" }
+    if value.fish_unlocked { text[3] = #char "1" }
+    if value.fish_unlocked && value.fish { text[4] = #char "1" }
+    return Write(TextUntilNul(text[:]))
 }

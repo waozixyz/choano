@@ -44,3 +44,7 @@ ref = "master"
 [dependencies.game2d]
 git = "https://github.com/kryonlabs/game2d.git"
 ref = "master"
+
+[dependencies.mingcute]
+git = "https://github.com/kryonlabs/mingcute.git"
+ref = "master"

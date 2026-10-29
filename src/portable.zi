@@ -27,9 +27,10 @@ ChoanoFrame :: (message: AppMessage) -> bool {
     if key == 264 || key == 83 { App.SetHeldInput(false, false, false, true) }
     if key == 32 { App.SetHeldInput(false, false, false, false) }
     if key == 80 { unused Runtime.Service("entity.profile", "open"); App.PauseClock() }
-    if Progress.ProgressPump(frame.now, Game.game.player_stage, message.time) {
-        Game.StartGame(cast(u32)(frame.now * 1000.0)); App.PauseClock()
+    if Progress.ProgressPump(frame.now, App.AmoebaStage(), message.time) {
+        Game.StartGame(cast(u32)(frame.now * 1000.0), Game.game.mode); App.PauseClock()
     }
+    App.AccountProgress(Progress.HighestStage())
     ok := App.Frame(frame.session, area) == 0
     if App.TakeProfileRequest() { unused Runtime.Service("entity.profile", "open"); App.PauseClock() }
     return ok
