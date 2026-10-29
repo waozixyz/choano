@@ -9,6 +9,9 @@
 - Open on an illustrated title screen, with all navigation inside the app and a full-screen browser canvas.
 - Start from the title screen with Play; choose swipe steering or a direction pad in Settings and keep that choice between visits.
 - Swipe to set a heading: Choano keeps swimming that way until the next swipe or key press.
+- See where a swipe began, your finger and the heading while steering by touch.
+- Swim with steady player animation that keeps its size and eyes in place, resting when still.
+- Open the Android app on Choano's title art instead of a system splash icon.
 - Render organisms from their high-resolution artwork and remove the browser header and instructional footer.
 
 - Swim, eat and grow in Choano's native desktop and browser editions, with replacement artwork and sound effects.

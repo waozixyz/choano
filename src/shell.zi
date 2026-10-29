@@ -179,6 +179,7 @@ End :: (session: Session, now: float64, over: bool) -> s32 {
             .label = "Move", .now = now, .min_distance = 6.0})
         turned := Controls.GameSwipeDirection(*swipe, gesture.down, gesture.at_x, gesture.at_y)
         if turned >= 0 { heading = turned }
+        Controls.GameSwipeIndicator(session, cast(u64)52020, swipe, gesture.at_x, gesture.at_y, heading)
         return heading
     }
     swipe.active = false

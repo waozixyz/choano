@@ -5,7 +5,7 @@
         android:label="Choano"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="true"
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        android:theme="@style/ChoanoTheme">
 
         <activity
             android:name=".MainActivity"

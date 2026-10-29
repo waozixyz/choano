@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="startup_background">#051120</color>
+    <!-- Choano's title art, as on the title screen, until the first frame. -->
+    <style name="ChoanoTheme" parent="android:style/Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@drawable/startup_background</item>
+    </style>
+</resources>

@@ -81,7 +81,7 @@ FramePath :: (kind: string, side: string, stage: s32, frame: s32) -> string {
 }
 
 FrameCount :: (kind: string, stage: s32) -> s32 {
-    if kind == "player" && stage > STAGE_FIRST { return 4 }
+    if kind == "player" { return 4 }
     return 3
 }
 
@@ -112,6 +112,21 @@ PaintOrganism :: (session: Session, kind: string, side: string, stage: s32, fram
         unused Image(session, ImageProps.{.key = key, .asset_path = "assets/choano/organisms-hd.png",
             .bounds = fitted, .source = source, .smooth = true, .fit = ImageFit.ImageFitStretch})
     }
+}
+// The swim poses differ in length; one scale for all of them and a fixed
+// front keep the eyes still while the tail stretches behind.
+DrawPlayer :: (session: Session, side: string, stage: s32, animation: float64, moving: bool,
+    x: float32, y: float32, key: u64) {
+    size := cast(float32)StageSize(stage)
+    frame := ifx moving then AnimationFrame(animation * .75, 4) else 0
+    source := OrganismSource("player", stage, frame)
+    rest := OrganismSource("player", stage, 0)
+    scale := size / rest.width
+    width := source.width * scale
+    height := source.height * scale
+    left := ifx side == "left" then x - size * .5 else x + size * .5 - width
+    bounds := GameBounds(Rectangle.{left, y - height * .5, width, height})
+    PaintOrganism(session, "player", side, stage, frame, bounds, key)
 }
 DrawSprite :: (session: Session, kind: string, side: string, stage: s32, animation: float64,
     x: float32, y: float32, key: u64) {
@@ -180,7 +195,7 @@ DrawGame :: (session: Session, bounds: Rectangle) {
         }
     }
     side := ifx game.player_facing == 0 then "left" else "right"
-    DrawSprite(session, "player", side, game.player_stage, game.player_animation,
+    DrawPlayer(session, side, game.player_stage, game.player_animation, game.player_moving,
         game.player_x, game.player_y, cast(u64)1000)
     avoid_stage := game.player_stage + 1
     if avoid_stage > STAGE_LAST { avoid_stage = STAGE_LAST }

@@ -48,6 +48,7 @@ Game :: struct {
     player_stage: s32
     player_facing: s32
     player_animation: float64
+    player_moving: bool
     growth_progress: s32
     next_growth_threshold: s32
     growth_stages: s32
@@ -240,7 +241,8 @@ MovePlayer :: (input: GameInput, delta: float64) {
     if delta_x > 0.0 { game.player_facing = 1 }
     size := cast(float32)StageSize(game.player_stage)
     unused ClampPoint(*game.player_x, *game.player_y, size)
-    if delta_x != 0.0 || delta_y != 0.0 { game.player_animation += delta }
+    game.player_moving = delta_x != 0.0 || delta_y != 0.0
+    if game.player_moving { game.player_animation += delta }
 }
 
 MoveEnemy :: (index: s32, delta: float64) {

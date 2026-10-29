@@ -58,9 +58,11 @@ android {
         }
     }
 
-    // Choano's art and chimes and the launcher icon, staged by scripts/android.py.
+    // Choano's art and chimes, the launcher icon and the startup art, staged
+    // by scripts/android.py; the startup theme stays in packaging/android/res.
     sourceSets.main.assets.srcDir "${rootProject.projectDir}/../build/android/assets"
     sourceSets.main.res.srcDir "${rootProject.projectDir}/../build/android/res"
+    sourceSets.main.res.srcDir "${rootProject.projectDir}/../packaging/android/res"
 
     buildTypes {
         release {

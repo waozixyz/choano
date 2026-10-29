@@ -113,6 +113,9 @@ def build(edition, abis=ABIS):
     if res.exists():
         shutil.rmtree(res)
     launcher_icons(res)
+    # The startup screen shows the title art, as the title screen does.
+    (res / 'drawable-nodpi').mkdir()
+    shutil.copyfile(ROOT / 'assets/choano/title-portrait.png', res / 'drawable-nodpi/startup_art.png')
     name, code = version()
     command = ['sh', ROOT / 'droid/gradlew', '-p', ROOT / 'droid', '--no-daemon', '--max-workers=1',
                '-Pkryon.dir=' + str(kryon), '-Pziran.dir=' + str(compiler), '-Praylib.dir=' + str(raylib / 'src'),

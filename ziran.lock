@@ -19,6 +19,14 @@
       "url": "https://github.com/open-quantum-safe/liboqs.git"
     },
     {
+      "commit": "9706d237e89d5e3eb1cc3f8a1d340ab7c460adf5",
+      "dependencies": {"kryon": "pc051b826eca4a134"},
+      "id": "p4128a2fcbef0579b",
+      "name": "Game2D",
+      "ref": "master",
+      "url": "https://github.com/kryonlabs/game2d.git"
+    },
+    {
       "commit": "fafa2cea97d0cb379d832086ba45a989fa6f9c8e",
       "dependencies": {},
       "id": "p5a77c9c35110e925",
@@ -61,14 +69,6 @@
       "url": "https://github.com/waozixyz/apps.git"
     },
     {
-      "commit": "fd0b86eb60819f7a3589a3351918fa496ed91192",
-      "dependencies": {"kryon": "pc051b826eca4a134"},
-      "id": "pbcd084582e91ea47",
-      "name": "Game2D",
-      "ref": "master",
-      "url": "https://github.com/kryonlabs/game2d.git"
-    },
-    {
       "commit": "ab77c24419ff33092193fd290ac8ea7291040d0c",
       "dependencies": {"raylib": "p5a77c9c35110e925"},
       "id": "pc051b826eca4a134",
@@ -94,7 +94,7 @@
     }
   ],
   "root": {
-    "dependencies": {"apps": "p9928fc15e7b93288", "entity": "pfed93ebbf687d016", "game2d": "pbcd084582e91ea47", "kryon": "pc051b826eca4a134"},
+    "dependencies": {"apps": "p9928fc15e7b93288", "entity": "pfed93ebbf687d016", "game2d": "p4128a2fcbef0579b", "kryon": "pc051b826eca4a134"},
     "name": "Choano"
   },
   "toolchain": {
