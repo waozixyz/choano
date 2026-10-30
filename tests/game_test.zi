@@ -9,6 +9,7 @@ Expect :: (condition: bool, message: string) -> s32 {
 main :: () -> s32 {
     StartGame(12345)
     if Expect(game.started, "game starts immediately") != 0 { return 1 }
+    if Expect(!SharkAlert(), "Amoeba mode has no shark music cue") != 0 { return 1 }
     if Expect(game.enemy_count == INITIAL_ENEMIES, "original initial enemy count") != 0 { return 1 }
     if Expect(game.lives == 2 && game.player_stage == 1 && game.score == 0 &&
         game.next_growth_threshold == 14, "original initial state") != 0 { return 1 }
@@ -96,6 +97,8 @@ main :: () -> s32 {
         fish := game.enemies[index]
         if Expect(fish.kind == KIND_FISH && fish.active && fish.stage == 1 && fish.velocity_x != 0.0 &&
             DistanceSquared(fish.x, fish.y, game.player_x, game.player_y) >= 89.0 * 89.0, "starting fish swim away from the player") != 0 { return 1 }
+        if Expect(fish.species >= 0 && fish.species < FISH_SPECIES &&
+            (index == 0 || fish.species != game.enemies[index - 1].species), "starting fish look different from each other") != 0 { return 1 }
     }
     game.enemy_count = 1
     game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 1, .velocity_x = 20.0, .active = true, .kind = KIND_FISH}
@@ -132,11 +135,22 @@ main :: () -> s32 {
     StartGame(4244, MODE_FISH)
     game.enemy_count = 0
     game.school_timer = 99.0
+    game.animal_timer = 99.0
     game.shark_timer = .001
     UpdateGame(.{}, 1.0 / 60.0)
-    if Expect(SharkAlert() && game.shark_warning > 0.0 && KindCount(KIND_SHARK) == 0, "a shark's fin warns first") != 0 { return 1 }
-    for step: 0..159 { UpdateGame(.{}, 1.0 / 60.0) }
-    if Expect(KindCount(KIND_SHARK) == 1 && SharkAlert(), "the shark hunts after its warning") != 0 { return 1 }
+    if Expect(SharkAlert() && game.shark_warning > 0.0 && KindCount(KIND_SHARK) == 0,
+        "shark music leads without a shark") != 0 { return 1 }
+    shark_wait_frames := 0
+    no_shark_during_lead_in := true
+    for step: 0..159 {
+        shark_wait_frames += 1
+        UpdateGame(.{}, 1.0 / 60.0)
+        if game.shark_warning > 0.0 && KindCount(KIND_SHARK) > 0 { no_shark_during_lead_in = false }
+        if KindCount(KIND_SHARK) > 0 { break }
+    }
+    if Expect(no_shark_during_lead_in && shark_wait_frames >= 150 && game.shark_warning == 0.0 &&
+        KindCount(KIND_SHARK) == 1 && SharkAlert(),
+        "the shark hunts when its lead-in expires") != 0 { return 1 }
     shark := 0
     while game.enemies[shark].kind != KIND_SHARK { shark += 1 }
     game.enemies[shark].x = game.player_x + 300.0
@@ -153,7 +167,8 @@ main :: () -> s32 {
     game.enemies[0].x = cast(float32)FIELD_WIDTH + cast(float32)SHARK_LENGTH
     game.enemies[0].velocity_x = cast(float32)SHARK_SPEED
     UpdateGame(.{}, 1.0 / 60.0)
-    if Expect(KindCount(KIND_SHARK) == 0 && game.score == score && !SharkAlert(), "a shark that bit leaves without a bonus") != 0 { return 1 }
+    if Expect(game.shark_warning == 0.0 && KindCount(KIND_SHARK) == 0 && game.score == score && !SharkAlert(),
+        "shark music stops when the shark departs") != 0 { return 1 }
     game.shark_timer = 99.0
     game.enemy_count = 0
     unused SpawnShark()
@@ -175,6 +190,111 @@ main :: () -> s32 {
     if Expect(game.frenzy == 3 && game.score == SARDINE_SCORE * (1 + 2 + 3), "quick bites build a frenzy") != 0 { return 1 }
     for step: 0..119 { UpdateGame(.{}, 1.0 / 60.0) }
     if Expect(game.frenzy == 0, "a frenzy cools down") != 0 { return 1 }
+
+    // Seahorse, lobster and starfish arrive in turn without waiting for growth.
+    StartGame(4246, MODE_FISH)
+    game.enemy_count = 0
+    game.lives = 99
+    game.next_spawn_timer = 999.0
+    game.school_timer = 999.0
+    game.shark_timer = 999.0
+    game.pearl_timer = 999.0
+    game.jelly_timer = 999.0
+    arrivals: [3]s32
+    arrival_times: [3]float64
+    arrived: s32 = 0
+    most: s32 = 0
+    for step: 0..1799 {
+        next := game.animal_next
+        UpdateGame(.{}, 1.0 / 60.0)
+        if game.animal_next != next && arrived < 3 {
+            arrivals[arrived] = next
+            arrival_times[arrived] = game.elapsed
+            arrived += 1
+        }
+        if SeaAnimalCount() > most { most = SeaAnimalCount() }
+    }
+    if Expect(arrived == 3 && arrival_times[0] <= 3.0, "a first sea animal arrives within three seconds") != 0 { return 1 }
+    if Expect(arrivals[0] == KIND_SEAHORSE && arrivals[1] == KIND_LOBSTER && arrivals[2] == KIND_STARFISH,
+        "seahorse, lobster and starfish take turns") != 0 { return 1 }
+    if Expect(arrival_times[1] - arrival_times[0] >= 5.9 && arrival_times[2] - arrival_times[1] <= 9.1,
+        "sea animals arrive every six to nine seconds") != 0 { return 1 }
+    if Expect(most >= 1 && most <= ANIMAL_MOST, "only a few sea animals swim at once") != 0 { return 1 }
+
+    StartGame(4247, MODE_FISH)
+    game.enemy_count = 0
+    game.player_x = 480.0
+    game.player_y = cast(float32)SEA_TOP + 10.0
+    game.animal_timer = 999.0
+    game.next_spawn_timer = 999.0
+    for kind: cast(s32)KIND_SEAHORSE..KIND_STARFISH {
+        if Expect(SpawnSeaAnimal(kind), "a sea animal spawns") != 0 { return 1 }
+        game.enemies[game.enemy_count - 1].x = 100.0
+        game.enemies[game.enemy_count - 1].y = 200.0
+    }
+    if Expect(game.enemy_count == 3 && game.enemies[0].kind == KIND_SEAHORSE && game.enemies[1].kind == KIND_LOBSTER &&
+        game.enemies[2].kind == KIND_STARFISH, "each sea animal keeps its kind") != 0 { return 1 }
+    highest: [3]float32 = .[0.0, 0.0, 0.0]
+    lowest: [3]float32 = .[999.0, 999.0, 999.0]
+    for step: 0..119 {
+        UpdateGame(.{}, 1.0 / 60.0)
+        for index: 0..2 {
+            y := game.enemies[index].y
+            if y > highest[index] { highest[index] = y }
+            if y < lowest[index] { lowest[index] = y }
+        }
+    }
+    seahorse := game.enemies[0]
+    lobster := game.enemies[1]
+    starfish := game.enemies[2]
+    sand := cast(float32)SEA_BOTTOM
+    if Expect(highest[0] - lowest[0] > 10.0 && highest[0] < sand - 20.0, "a seahorse bobs in open water") != 0 { return 1 }
+    if Expect(lobster.y == sand - cast(float32)StageSize(lobster.stage) * .5 && highest[1] - lowest[1] < .01 &&
+        (lobster.x - 100.0) * lobster.velocity_x > 0.0, "a lobster crawls along the sand") != 0 { return 1 }
+    starfish_moved := starfish.x - 100.0
+    if starfish_moved < 0.0 { starfish_moved = -starfish_moved }
+    if Expect(highest[2] <= sand && lowest[2] > sand - cast(float32)StageSize(starfish.stage) * .5 - 16.0 &&
+        starfish_moved > 10.0 && starfish_moved < 40.0, "a starfish drifts slowly near the sand") != 0 { return 1 }
+    game.enemy_count = 1
+    game.enemies[0] = .{.x = -60.0, .y = 200.0, .stage = 1, .velocity_x = -22.0, .active = true, .kind = KIND_SEAHORSE}
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.enemy_count == 0, "a sea animal that swims out leaves") != 0 { return 1 }
+
+    StartGame(4248, MODE_FISH)
+    game.animal_timer = 999.0
+    game.next_spawn_timer = 999.0
+    game.enemy_count = 1
+    game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 1, .velocity_x = 20.0, .active = true, .kind = KIND_SEAHORSE}
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.score == 10 && game.growth_progress == 1 && game.frenzy == 1 && game.enemy_count == 0,
+        "a small seahorse is eaten like a fish") != 0 { return 1 }
+    game.enemy_count = 1
+    game.player_y = cast(float32)SEA_BOTTOM - cast(float32)StageSize(game.player_stage) * .5
+    game.enemies[0] = .{.x = game.player_x, .y = SandY(KIND_LOBSTER, cast(float32)StageSize(3)), .stage = 3,
+        .velocity_x = 30.0, .active = true, .kind = KIND_LOBSTER}
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.lives == 1 && game.safe_timer > 0.0 && game.enemy_count == 1, "a bigger lobster bites") != 0 { return 1 }
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.lives == 1, "a lobster bite leaves a moment of safety") != 0 { return 1 }
+    game.enemy_count = 0
+    for kind: cast(s32)KIND_SEAHORSE..KIND_STARFISH { unused SpawnSeaAnimal(kind) }
+    game.animal_timer = 0.0
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(SeaAnimalCount() == ANIMAL_MOST, "no sea animal joins a full roster") != 0 { return 1 }
+    game.enemy_count = ENEMY_LIMIT
+    if Expect(!SpawnSeaAnimal(KIND_STARFISH) && game.enemy_count == ENEMY_LIMIT, "sea animals respect the enemy limit") != 0 { return 1 }
+    game.enemy_count = 0
+    if Expect(!SpawnSeaAnimal(KIND_FISH) && !SpawnSeaAnimal(KIND_SHARK), "only sea animal kinds spawn as sea animals") != 0 { return 1 }
+
+    StartGame(4249)
+    game.lives = 99
+    if Expect(!SpawnSeaAnimal(KIND_LOBSTER), "Amoeba mode has no sea animals") != 0 { return 1 }
+    for step: 0..1199 { UpdateGame(.{}, 1.0 / 60.0) }
+    amoebas_only := true
+    for index: cast(s32)0..game.enemy_count - 1 {
+        if game.enemies[index].kind != KIND_FISH || game.enemies[index].species != 0 { amoebas_only = false }
+    }
+    if Expect(amoebas_only && game.enemy_count > 0, "Amoeba mode keeps only amoebas") != 0 { return 1 }
 
     StartGame(54321)
     game.enemies[0].warning_timer = 0.0

@@ -61,9 +61,9 @@
       "url": "https://github.com/waozixyz/apps.git"
     },
     {
-      "commit": "dd018ecb0b380a53fafd2845e24f8422f494c35f",
+      "commit": "c5e6b73a192fa52cb7abd95948b31e8bbb4df688",
       "dependencies": {"kryon": "pc051b826eca4a134"},
-      "id": "pa0f683796dfa3993",
+      "id": "p4b3db9a313192f2f",
       "name": "Game2D",
       "ref": "master",
       "url": "https://github.com/kryonlabs/game2d.git"
@@ -102,7 +102,7 @@
     }
   ],
   "root": {
-    "dependencies": {"apps": "p9928fc15e7b93288", "entity": "pb85975f45ad5e9e0", "game2d": "pa0f683796dfa3993", "kryon": "pc051b826eca4a134", "mingcute": "pe1027b9d16704793"},
+    "dependencies": {"apps": "p9928fc15e7b93288", "entity": "pb85975f45ad5e9e0", "game2d": "p4b3db9a313192f2f", "kryon": "pc051b826eca4a134", "mingcute": "pe1027b9d16704793"},
     "name": "Choano"
   },
   "toolchain": {

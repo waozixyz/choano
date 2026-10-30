@@ -4,6 +4,11 @@ Swim, eat and grow in a microscopic world. Eat equal or smaller amoebas,
 avoid larger ones, and stay inside the petri dish. Spawn warnings give you
 time to move; cumulative growth earns extra lives. An illustrated title screen opens the game, with native in-app navigation.
 
+Reaching full size unlocks Fish mode in the open sea. Fish of many kinds,
+seahorses, lobsters and starfish are food at your size or smaller and bite
+when bigger. Dash past jellyfish, collect golden pearls, feast on sardine
+schools, and swim clear when tense music announces a shark.
+
 [Play in your browser](https://choano.waozi.xyz/)
 · [Source](https://github.com/waozixyz/choano)
 

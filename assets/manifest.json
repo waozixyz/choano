@@ -1,5 +1,5 @@
 {
-  "sha256": "8bad58c1570f7415b52b2ab8cd7b9cafba1ae1ac1bf9568fe08cce77e360cfe0",
+  "sha256": "ef7b239aec695b4e43796749a093bc06ca639384f12709df780c1fcf58e6fbf1",
   "files": {
     "assets/choano/achievement-locales/cs.json": "a8e0c13f6f2aa0dc86e177659c7152978384d595d5e849cd6f4d0eaf04bf3d5c",
     "assets/choano/achievement-locales/de.json": "30158adb2327c1012737d64ff3c381ca6c49768179bdcfd54df86737c4346bd9",
@@ -97,6 +97,7 @@
     "assets/choano/enemy-right-47-2.png": "49f86ea72efac21501b8fc5618b63bb5b9fcaa47725d8c29fabf2a90d071cbac",
     "assets/choano/fish/fish-hd.png": "d7cb46b428806729bb12a6c7c7f637258141237d95791a1f001700867a73ed7d",
     "assets/choano/fish/hunters-hd.png": "24250bf02d3fc7ba30f9f8707e35d44989b2a8c1d9216e524731a66ad95f747c",
+    "assets/choano/fish/sea-animals-hd.png": "a35328ff90625fc82ec2244d958915a8cd8d075565185a682a667d8267d55dec",
     "assets/choano/fish/sea.png": "c34278ef52051515e4f2708493dfaff1a25b03c769084cf240b88ad437f4eba7",
     "assets/choano/fish/title-landscape.png": "0679a11a1fd0f6319802cf3aecafd53c9eb31a608f077335dd7771f58139979e",
     "assets/choano/fish/title-portrait.png": "a5f31d42ff754edde1fd4586d4d6d23aebfc2189637d46293a3bb760ee2c7952",

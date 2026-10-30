@@ -12,6 +12,11 @@
     {
       "file": "assets/choano/organisms-hd.png",
       "source": "Original high-resolution Choano generated sprite master; copied as a binary file without reduction. Frame source rectangles are in src/sprites.zi."
+    },
+    {
+      "file": "assets/choano/fish/sea-animals-hd.png",
+      "prompt": "Use-case: stylized-concept game sprite asset. Create one transparent RGBA sprite sheet for Choano, a polished friendly cartoon underwater eat-and-grow game. Exactly THREE completely separate full-body animals in a single horizontal row of three equal square cells: LEFT a golden yellow SEAHORSE in side profile facing RIGHT with curled tail; CENTER a coral orange LOBSTER in side profile facing RIGHT, readable pincers and segmented tail; RIGHT a peach pink five-armed STARFISH, frontal with two small expressive eyes. Match clean rounded hand-painted 2D game art: dark navy contour, soft saturated highlights, charming large eyes, clear silhouettes readable at 28 to 50 pixels. Each animal centered in its own cell with generous transparent padding, fully contained, no overlap, no shadow or floor. Transparent background throughout. No text, no labels, no borders, no grids, no water, no bubbles, no extra fish. Wide landscape sprite sheet, consistent visual quality.",
+      "source": "Generated for Choano with the built-in image_gen mode as one 2172 × 724 RGBA sheet and copied as a binary file without reduction. Seahorse, lobster and starfish source rectangles are in src/sprites.zi."
     }
   ]
 }

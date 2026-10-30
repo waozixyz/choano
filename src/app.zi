@@ -179,22 +179,24 @@ DrawSea :: (session: Session) {
             side := ifx enemy.velocity_x < 0.0 then "left" else "right"
             Float(session, HUNTER_SHEET, HunterSource(HUNTER_SARDINE), side, cast(float32)SARDINE_SIZE * FISH_LENGTH,
                 enemy.animation, enemy.velocity_y / 40.0, .03, enemy.x, enemy.y, key)
+        } else if SeaAnimal(enemy.kind) {
+            source := AnimalSource(enemy.kind - KIND_SEAHORSE)
+            side := ifx enemy.kind == KIND_STARFISH || enemy.velocity_x >= 0.0 then "right" else "left"
+            // The starfish turns slowly about; the others lean into their bob.
+            lean := enemy.velocity_y / 60.0
+            if enemy.kind == KIND_STARFISH { lean = cast(float32)Trig.Sin(enemy.animation * .8 + cast(float64)enemy.phase) }
+            Float(session, ANIMAL_SHEET, source, side,
+                FitWidth(source, cast(float32)StageSize(enemy.stage) * FISH_LENGTH), enemy.animation, lean,
+                ifx enemy.kind == KIND_SEAHORSE then .02 else .01, enemy.x, enemy.y, key)
         } else if enemy.kind == KIND_PEARL {
             Float(session, FISH_SHEET, FishSource(FISH_PEARL), "right", 13.0, enemy.animation * 2.0, 0.0, .1,
                 enemy.x, enemy.y, key)
         } else {
             side := ifx enemy.velocity_x < 0.0 then "left" else "right"
-            Float(session, FISH_SHEET, FishStageSource(enemy.stage), side,
+            Float(session, FISH_SHEET, FishSource(4 + enemy.species % FISH_SPECIES), side,
                 cast(float32)StageSize(enemy.stage) * FISH_LENGTH, enemy.animation, enemy.velocity_y / 40.0, .03,
                 enemy.x, enemy.y, key)
         }
-    }
-    // The fin cuts the water where the shark will come in.
-    if game.shark_warning > 0.0 && Trig.Sin(game.elapsed * 14.0) > -.4 {
-        side := ifx game.shark_leftward then "left" else "right"
-        x: float32 = ifx game.shark_leftward then cast(float32)FIELD_WIDTH - 30.0 else 30.0
-        Float(session, HUNTER_SHEET, HunterSource(HUNTER_FIN), side, 44.0, game.elapsed, 0.0, .05,
-            x, game.shark_y, cast(u64)1990)
     }
 }
 DrawSprite :: (session: Session, kind: string, side: string, stage: s32, animation: float64,
@@ -294,7 +296,7 @@ DrawHud :: (session: Session, bar: Rectangle) {
     avoid_stage := game.player_stage + 1
     if avoid_stage > STAGE_LAST { avoid_stage = STAGE_LAST }
     right := bar.x + bar.width
-    shark := SharkAlert()
+    shark := KindCount(KIND_SHARK) > 0
     HudText(session, ifx shark then "SHARK!" else "AVOID", Rectangle.{right - 104.0, bar.y, 56.0, bar.height},
         cast(u64)3000, 12, TextAlign.TextAlignEnd)
     danger := Rectangle.{right - 42.0, middle - 15.0, 30.0, 30.0}

@@ -63,6 +63,20 @@ HunterSource :: (index: s32) -> Rectangle {
     return cells[index]
 }
 
+// A seahorse, a lobster and a starfish, facing right, from their own sheet.
+ANIMAL_SHEET :: "assets/choano/fish/sea-animals-hd.png";
+AnimalSource :: (index: s32) -> Rectangle {
+    cells: [3]Rectangle = .[.{169.0, 33.0, 403.0, 653.0}, .{689.0, 91.0, 802.0, 522.0}, .{1508.0, 49.0, 633.0, 600.0}]
+    if index < 0 || index > 2 { return cells[0] }
+    return cells[index]
+}
+// The width that makes SOURCE's longer side LONGEST, so upright cells keep
+// their height in bounds.
+FitWidth :: (source: Rectangle, longest: float32) -> float32 {
+    if source.height > source.width { return longest * source.width / source.height }
+    return longest
+}
+
 FishStageSource :: (stage: s32) -> Rectangle {
     index := stage - 1
     if index < 0 { index = 0 }

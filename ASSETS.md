@@ -1,6 +1,6 @@
 # Choano assets
 
-Choano ships 181 replacement PNG images and 6 replacement PCM WAV sounds.
+Choano ships 187 replacement PNG images and 7 replacement PCM WAV sounds.
 The artwork was generated and assembled for Choano; the sound effects were
 synthesized for Choano. No original Moeboid artwork, audio, executable, DLL,
 or extracted game payload is distributed in this repository or its builds.
@@ -19,4 +19,6 @@ The title screen has newly generated landscape and portrait artwork. Prompts
 and source roles are recorded in `assets/ARTWORK.json`. Organisms render
 from the full 1254 × 1254 generated atlas through per-frame source rectangles,
 with mirroring handled by the standard Kryon Image mesh. Their game-space
-sizes and collision rules remain unchanged.
+sizes and collision rules remain unchanged. Fish mode's seahorse, lobster and
+starfish come from one generated sheet, `assets/choano/fish/sea-animals-hd.png`,
+recorded with its prompt in `assets/ARTWORK.json`.

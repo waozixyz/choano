@@ -34,8 +34,18 @@ KIND_JELLY :: 1;
 KIND_PEARL :: 2;
 KIND_SHARK :: 3;
 KIND_SARDINE :: 4;
-// Now and then a shark hunts: its fin shows at the edge first, then it
-// sweeps across, swallowing fish in its way.
+// Seahorses bob through the water, lobsters crawl over the sand and
+// starfish drift just above it; like fish, smaller ones are food and bigger
+// ones bite. One arrives soon after the start, then one every few seconds.
+KIND_SEAHORSE :: 5;
+KIND_LOBSTER :: 6;
+KIND_STARFISH :: 7;
+ANIMAL_FIRST :: 2.5;
+ANIMAL_MOST :: 3;
+// Regular fish wear one of eight looks, whatever their size.
+FISH_SPECIES :: 8;
+// Now and then a shark hunts: tense music starts first, then it sweeps
+// across, swallowing fish in its way.
 SHARK_FIRST :: 18.0;
 SHARK_WARNING :: 2.5;
 SHARK_LENGTH :: 150.0;
@@ -73,6 +83,7 @@ Enemy :: struct {
     animation: float64
     kind: s32
     phase: float32
+    species: s32
 }
 
 GameInput :: struct {
@@ -112,6 +123,9 @@ Game :: struct {
     shark_leftward: bool
     shark_bit: bool
     school_timer: float64
+    animal_timer: float64
+    animal_next: s32
+    fish_species: s32
     frenzy: s32
     frenzy_timer: float64
     growth_progress: s32
@@ -272,6 +286,9 @@ StartGame :: (seed: u32, mode: s32 = MODE_AMOEBA) {
         game.pearl_timer = 8.0
         game.shark_timer = SHARK_FIRST
         game.school_timer = 10.0
+        game.animal_timer = ANIMAL_FIRST
+        game.animal_next = KIND_SEAHORSE
+        game.fish_species = cast(s32)RandomNext(FISH_SPECIES)
         while game.enemy_count < FISH_START { unused SpawnFish(STAGE_FIRST, true) }
     } else {
         while game.enemy_count < INITIAL_ENEMIES { unused SpawnEnemy(STAGE_FIRST) }
@@ -469,9 +486,12 @@ SpawnFish :: (forced_stage: s32, inside: bool) -> bool {
         }
     }
     speed := 28.0 + cast(float32)RandomNext(30) + cast(float32)(STAGE_LAST - stage) * 2.0
+    // Each new fish looks different from the one before it.
+    game.fish_species = (game.fish_species + 1 + cast(s32)RandomNext(FISH_SPECIES - 1)) % FISH_SPECIES
     game.enemies[game.enemy_count] = .{.x = x, .y = y, .stage = stage,
         .velocity_x = ifx leftward then -speed else speed, .active = true, .kind = KIND_FISH,
-        .phase = cast(float32)RandomNext(628) * .01, .animation = cast(float64)RandomNext(100) / 100.0}
+        .phase = cast(float32)RandomNext(628) * .01, .animation = cast(float64)RandomNext(100) / 100.0,
+        .species = game.fish_species}
     game.enemy_count += 1
     return true
 }
@@ -489,7 +509,7 @@ SpawnDrifter :: (kind: s32) -> bool {
     return true
 }
 
-// The shark enters at the depth its fin showed, from that side.
+// The shark enters at the depth chosen during its musical lead-in.
 SpawnShark :: () -> bool {
     if game.enemy_count >= ENEMY_LIMIT { return false }
     length := cast(float32)SHARK_LENGTH
@@ -519,6 +539,37 @@ SpawnSchool :: () {
     }
 }
 
+SeaAnimal :: (kind: s32) -> bool { return kind == KIND_SEAHORSE || kind == KIND_LOBSTER || kind == KIND_STARFISH }
+
+// Where a sea animal of SIZE keeps to: lobsters on the sand, starfish just
+// above it.
+SandY :: (kind: s32, size: float32) -> float32 {
+    if kind == KIND_LOBSTER { return cast(float32)SEA_BOTTOM - size * .5 }
+    return cast(float32)SEA_BOTTOM - size * .5 - 10.0
+}
+
+// A seahorse, lobster or starfish enters from one side, smaller than the
+// player or a size or two bigger.
+SpawnSeaAnimal :: (kind: s32) -> bool {
+    if game.mode != MODE_FISH || !SeaAnimal(kind) || game.enemy_count >= ENEMY_LIMIT { return false }
+    stage := cast(s32)RandomNext(game.player_stage + 2) + 1
+    if stage > STAGE_LAST { stage = STAGE_LAST }
+    size := cast(float32)StageSize(stage)
+    leftward := RandomNext(2) == 0
+    speed: float32 = ifx kind == KIND_LOBSTER then 34.0 else ifx kind == KIND_SEAHORSE then 22.0 else 15.0
+    y := ifx kind == KIND_SEAHORSE then SeaY(size) else SandY(kind, size)
+    game.enemies[game.enemy_count] = .{.x = ifx leftward then cast(float32)FIELD_WIDTH + size else -size,
+        .y = y, .stage = stage, .velocity_x = ifx leftward then -speed else speed, .active = true, .kind = kind,
+        .phase = cast(float32)RandomNext(628) * .01}
+    game.enemy_count += 1
+    return true
+}
+
+SeaAnimalCount :: () -> s32 {
+    return KindCount(KIND_SEAHORSE) + KindCount(KIND_LOBSTER) + KindCount(KIND_STARFISH)
+}
+
+// The music can precede the shark itself.
 SharkAlert :: () -> bool { return game.mode == MODE_FISH && !game.over && (game.shark_warning > 0.0 || KindCount(KIND_SHARK) > 0) }
 
 // The shark's body, a long low box.
@@ -575,6 +626,29 @@ MoveSeaCreature :: (index: s32, delta: float64) -> bool {
         half := cast(float32)SHARK_LENGTH * .5
         return !(enemy.velocity_x < 0.0 && enemy.x < -half - 4.0) &&
             !(enemy.velocity_x > 0.0 && enemy.x > cast(float32)FIELD_WIDTH + half + 4.0)
+    }
+    if SeaAnimal(enemy.kind) {
+        size := cast(float32)StageSize(enemy.stage)
+        if enemy.kind == KIND_SEAHORSE {
+            // Bobs up and down while slowly rising.
+            enemy.velocity_y = wave * 30.0 - 5.0
+            enemy.x += enemy.velocity_x * step
+            enemy.y += enemy.velocity_y * step
+            if enemy.y < cast(float32)SEA_TOP + size * .5 { enemy.y = cast(float32)SEA_TOP + size * .5 }
+            if enemy.y > cast(float32)SEA_BOTTOM - size * .5 { enemy.y = cast(float32)SEA_BOTTOM - size * .5 }
+        } else if enemy.kind == KIND_LOBSTER {
+            // Scuttles along the sand in stops and starts.
+            enemy.velocity_y = 0.0
+            enemy.x += enemy.velocity_x * (.2 + .8 * wave * wave) * step
+            enemy.y = SandY(enemy.kind, size)
+        } else {
+            // Drifts slowly, rising and settling a little.
+            enemy.velocity_y = wave * 3.0
+            enemy.x += enemy.velocity_x * step
+            enemy.y = SandY(enemy.kind, size) + wave * 4.0
+        }
+        return !(enemy.velocity_x < 0.0 && enemy.x < -size - 4.0) &&
+            !(enemy.velocity_x > 0.0 && enemy.x > cast(float32)FIELD_WIDTH + size + 4.0)
     }
     if enemy.kind == KIND_SARDINE {
         enemy.velocity_y = wave * 24.0
@@ -640,7 +714,8 @@ SeaCollisions :: () {
         player_size := cast(float32)StageSize(game.player_stage)
         reach := player_size * .5
         enemy_size: float32 = ifx enemy.kind == KIND_JELLY then 26.0 else 12.0
-        if enemy.kind == KIND_FISH { enemy_size = cast(float32)StageSize(enemy.stage) }
+        eats := enemy.kind == KIND_FISH || SeaAnimal(enemy.kind)
+        if eats { enemy_size = cast(float32)StageSize(enemy.stage) }
         if enemy.kind == KIND_SARDINE { enemy_size = cast(float32)SARDINE_SIZE + 4.0 }
         inset := enemy_size * .5 - COLLISION_INSET
         if inset < 2.0 { inset = 2.0 }
@@ -668,7 +743,7 @@ SeaCollisions :: () {
             GrowPlayer()
             continue
         }
-        if enemy.kind == KIND_FISH && enemy.stage <= game.player_stage {
+        if eats && enemy.stage <= game.player_stage {
             Feed()
             game.score += enemy.stage * 10
             if game.frenzy > 1 { game.score += SARDINE_SCORE * game.frenzy }
@@ -725,6 +800,15 @@ UpdateSea :: (input: GameInput, delta: float64) {
     if game.school_timer <= 0.0 {
         SpawnSchool()
         game.school_timer = 14.0 + cast(float64)RandomNext(8000) / 1000.0
+    }
+    // Seahorse, lobster and starfish take turns, a few at most at once.
+    game.animal_timer -= delta
+    if game.animal_timer <= 0.0 {
+        game.animal_timer = 1.0
+        if SeaAnimalCount() < ANIMAL_MOST && SpawnSeaAnimal(game.animal_next) {
+            game.animal_next = ifx game.animal_next == KIND_STARFISH then KIND_SEAHORSE else game.animal_next + 1
+            game.animal_timer = 6.0 + cast(float64)RandomNext(3000) / 1000.0
+        }
     }
     if game.shark_warning > 0.0 {
         game.shark_warning -= delta

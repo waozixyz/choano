@@ -4,8 +4,9 @@
 
 - Earn a Full size achievement and unlock Fish mode, chosen on the title screen.
 - Swim through open water in Fish mode: eat smaller fish, dash, dodge jellyfish and collect golden pearls.
-- Watch for a shark's fin in Fish mode: a hunting shark brings tense music and swallows fish in its way; outlast it for a bonus.
+- Hear tense music precede a shark in Fish mode: it arrives only after the lead-in, swallows fish in its way, and rewards outlasting it.
 - Feast on passing sardine schools in Fish mode, building a frenzy with quick bites.
+- Meet bobbing seahorses, crawling lobsters and drifting starfish in Fish mode from the first seconds, among fish of many looks.
 - Play Choano on Android phones and tablets, steering with swipes or the direction pad.
 - Use six quiet, short event chimes without a background beat or spawn thumps.
 - Keep forming bubbles beneath the player and open without a loading message.
@@ -13,7 +14,7 @@
 - Open on an illustrated title screen, with all navigation inside the app and a full-screen browser canvas.
 - Start from the title screen with Play; choose swipe steering or a direction pad in Settings and keep that choice between visits.
 - Drag anywhere to swim in any direction: Choano glides that way after you let go, and a tap stops.
-- See where a drag began, your finger and the heading while steering by touch.
+- See the touch anchor, finger and heading clearly over the dish with a dark backing and bright rim.
 - Float smoothly: the player bobs gently, leans into its swim and eases to a stop.
 - Keep the score, lives and the next danger in a game-style top bar.
 - Open the Android app on Choano's title art instead of a system splash icon.
