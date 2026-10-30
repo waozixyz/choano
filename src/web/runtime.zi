@@ -93,6 +93,7 @@ main :: () -> s32 {
             WebSet(WebModule, WebName("choanoX"), WebNumber(cast(float64)Game.game.player_x))
             WebSet(WebModule, WebName("choanoY"), WebNumber(cast(float64)Game.game.player_y))
             WebSet(WebModule, WebName("choanoMode"), WebNumber(cast(float64)Game.game.mode))
+            WebSet(WebModule, WebName("choanoDishFrame"), WebBool(Game.game.dish_frame_enabled))
         }
         WebSet(WebModule, WebName("profileVisible"), WebBool(visible))
         if EndFrame(session) != FrameStatus.FrameOk { return 1 }

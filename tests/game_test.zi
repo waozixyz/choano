@@ -59,6 +59,120 @@ TouchCoast :: (mode: s32) -> s32 {
         "a released touch stays at rest without new input")
 }
 
+Near :: (value: float32, expected: float32) -> bool {
+    difference := value - expected
+    if difference < 0.0 { difference = -difference }
+    return difference <= .01
+}
+
+DishFrameTests :: () -> s32 {
+    StartGame(8642)
+    if Expect(!game.dish_frame_enabled && game.dish_half_height == cast(float32)DISH_RADIUS &&
+        game.dish_corner_radius == 0.0, "the default dish is the original circle") != 0 { return 1 }
+
+    SetDishFrame(300.0, 32.0, true)
+    game.player_x = cast(float32)DISH_CENTER_X + 194.0
+    game.player_y = cast(float32)DISH_CENTER_Y - 286.0
+    corner_x := game.player_x; corner_y := game.player_y
+    if Expect(!ClampPoint(*corner_x, *corner_y, cast(float32)StageSize(game.player_stage)),
+        "the full rounded rectangle reaches outside the old circle") != 0 { return 1 }
+    if Expect(DistanceSquared(corner_x, corner_y, cast(float32)DISH_CENTER_X, cast(float32)DISH_CENTER_Y) >
+        cast(float32)(DISH_RADIUS * DISH_RADIUS), "upper corners are not ellipse corners") != 0 { return 1 }
+
+    game.player_x = cast(float32)DISH_CENTER_X
+    game.player_y = -100.0
+    if Expect(ClampPoint(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage)),
+        "the tall straight edge clamps") != 0 { return 1 }
+    if Expect(game.player_x == cast(float32)DISH_CENTER_X &&
+        Near(game.player_y, cast(float32)DISH_CENTER_Y - 294.5), "the rectangle keeps its straight height") != 0 { return 1 }
+
+    game.player_x = 450.0
+    game.player_y = -100.0
+    if Expect(ClampPoint(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage)),
+        "a point outside a rounded corner clamps") != 0 { return 1 }
+    if Expect(Near(game.player_x, cast(float32)DISH_CENTER_X + 191.30) &&
+        Near(game.player_y, cast(float32)DISH_CENTER_Y - 289.63), "rounded collision projects to the corner arc") != 0 { return 1 }
+
+    game.enemy_count = 0
+    spawned: s32 = 0
+    for index: 0..39 {
+        if !SpawnEnemy(STAGE_FIRST) { break }
+        spawned += 1
+    }
+    if Expect(spawned > 12, "the taller dish samples many safe spawns") != 0 { return 1 }
+    for index: cast(s32)0..spawned - 1 {
+        test_x := game.enemies[index].x; test_y := game.enemies[index].y
+        if Expect(!ClampPoint(*test_x, *test_y, cast(float32)StageSize(game.enemies[index].stage)),
+            "sampled enemies fit the rounded dish") != 0 { return 1 }
+    }
+
+    StartGame(8643)
+    SetDishFrame(300.0, 24.0, true)
+    game.score = 123
+    game.lives = 7
+    game.elapsed = 12.5
+    game.next_spawn_timer = 3.25
+    game.player_velocity_x = 11.0
+    game.player_velocity_y = -6.0
+    game.coast_deceleration = 13.0
+    game.player_x = cast(float32)DISH_CENTER_X
+    game.player_y = cast(float32)DISH_CENTER_Y - 289.0
+    game.enemy_count = 1
+    game.enemies[0] = .{.x = cast(float32)DISH_CENTER_X, .y = cast(float32)DISH_CENTER_Y + 289.0,
+        .stage = STAGE_FIRST, .active = true}
+    SetDishFrame(260.0, 20.0, true)
+    if Expect(Near(game.player_y, cast(float32)DISH_CENTER_Y - 250.467) &&
+        Near(game.enemies[0].y, cast(float32)DISH_CENTER_Y + 250.467),
+        "shrinking reflows player and enemies about the center") != 0 { return 1 }
+    if Expect(game.score == 123 && game.lives == 7 && Near(cast(float32)game.elapsed, 12.5) &&
+        Near(cast(float32)game.next_spawn_timer, 3.25) && game.player_velocity_x == 11.0 &&
+        game.player_velocity_y == -6.0 && game.coast_deceleration == 13.0 && game.started && !game.over,
+        "resizing preserves play state and motion") != 0 { return 1 }
+
+    player_y := game.player_y
+    enemy_y := game.enemies[0].y
+    random := game.random
+    SetDishFrame(260.0, 20.0, true)
+    if Expect(game.player_y == player_y && game.enemies[0].y == enemy_y && game.random == random,
+        "an unchanged frame is a no-op") != 0 { return 1 }
+
+    SetDishFrame(340.0, 28.0, true)
+    if Expect(game.dish_half_height == 340.0 && game.dish_corner_radius == 28.0 &&
+        Near(game.player_y, cast(float32)DISH_CENTER_Y - 327.533), "expanding reflows the visible scene") != 0 { return 1 }
+
+    SetDishFrame(999.0, 999.0, false)
+    if Expect(!game.dish_frame_enabled && game.dish_half_height == cast(float32)DISH_RADIUS &&
+        game.dish_corner_radius == 0.0 && Near(game.player_y, cast(float32)DISH_CENTER_Y - 200.373),
+        "disabling ignores inactive dimensions and restores the circle") != 0 { return 1 }
+
+    for phase: 0..2 {
+        StartGame(cast(u32)(8644 + phase), MODE_AMOEBA)
+        if phase == 0 { game.started = false } else { game.over = true }
+        game.player_y = -1000.0
+        game.enemy_count = 1
+        game.enemies[0] = .{.x = cast(float32)DISH_CENTER_X, .y = -1000.0, .stage = STAGE_FIRST}
+        SetDishFrame(300.0 + cast(float32)(phase * 20), 24.0, true)
+        player_inside_x := game.player_x; player_inside_y := game.player_y
+        enemy_inside_x := game.enemies[0].x; enemy_inside_y := game.enemies[0].y
+        if Expect(!ClampPoint(*player_inside_x, *player_inside_y, cast(float32)StageSize(game.player_stage)) &&
+            !ClampPoint(*enemy_inside_x, *enemy_inside_y, cast(float32)StageSize(game.enemies[0].stage)) &&
+            game.player_y > -1000.0 && game.enemies[0].y > -1000.0,
+            "unstarted and finished scenes still use the configured frame") != 0 { return 1 }
+    }
+
+    SetDishFrame(320.0, 18.0, true)
+    StartGame(8645, MODE_FISH)
+    fish_x: float32 = 77.0; fish_y: float32 = 88.0
+    game.player_x = fish_x; game.player_y = fish_y
+    game.enemy_count = 1
+    game.enemies[0] = .{.x = 200.0, .y = 250.0, .kind = KIND_FISH, .active = true}
+    SetDishFrame(300.0, 24.0, true)
+    if Expect(game.player_x == fish_x && game.player_y == fish_y && game.enemies[0].x == 200.0 &&
+        game.enemies[0].y == 250.0 && game.dish_half_height == 300.0,
+        "Fish mode accepts frame configuration without moving fish") != 0 { return 1 }
+    return 0
+}
+
 main :: () -> s32 {
     StartGame(12345)
     if Expect(game.started, "game starts immediately") != 0 { return 1 }
@@ -139,6 +253,7 @@ main :: () -> s32 {
         if TouchTurns(mode) != 0 { return 1 }
         if TouchCoast(mode) != 0 { return 1 }
     }
+    if DishFrameTests() != 0 { return 1 }
 
     StartGame(97531)
     game.player_stage = PLAYER_STAGE_LAST - 1

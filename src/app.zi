@@ -24,6 +24,7 @@ Trig :: #import "std/math";
 Trophy :: #import "mingcute/mingcute_regular_trophy";
 
 #import "game"
+#import "playfield"
 #import "sprites"
 Shell :: #import "shell";
 #if #defined(CHOANO_PORTABLE) {
@@ -39,6 +40,7 @@ Shell :: #import "shell";
 toast: AchievementToast;
 view: Rectangle;
 view_scale: float32 = 1.0;
+field: Playfield;
 GameBounds :: (rect: Rectangle) -> Rectangle {
     return Rectangle.{view.x + rect.x * view_scale, view.y + rect.y * view_scale,
         rect.width * view_scale, rect.height * view_scale}
@@ -233,10 +235,10 @@ DrawBlob :: (session: Session, animation: float64, x: float32, y: float32, key: 
 }
 
 DrawGame :: (session: Session, bounds: Rectangle) {
-    view_scale = bounds.width / 500.0
-    if bounds.height / 420.0 < view_scale { view_scale = bounds.height / 420.0 }
-    view = Rectangle.{bounds.x + (bounds.width - 500.0 * view_scale) * .5,
-        bounds.y + (bounds.height - 420.0 * view_scale) * .5, 500.0 * view_scale, 420.0 * view_scale}
+    field = FitPlayfield(bounds, game.mode)
+    view = field.view
+    view_scale = field.scale
+    SetDishFrame(field.dish_half_height, field.dish_corner_radius, field.framed)
     path_buffer_index = 0
     if game.mode == MODE_FISH {
         DrawSea(session)
@@ -251,8 +253,20 @@ DrawGame :: (session: Session, bounds: Rectangle) {
 }
 
 DrawDish :: (session: Session) {
-    unused Image(session, ImageProps.{.key = cast(u64)1, .asset_path = "assets/choano/background-inside.png",
-        .bounds = view, .fit = ImageFit.ImageFitStretch, .smooth = false})
+    if field.framed {
+        // The dish's plain ground covers the whole area, a soft white rim
+        // rings the arena and the ground shows again inside it.
+        unused Image(session, ImageProps.{.key = cast(u64)1, .asset_path = "assets/choano/background-inside.png",
+            .bounds = field.area, .source = DishGround(), .fit = ImageFit.ImageFitCover, .smooth = true})
+        unused Box(session, BoxProps.{.key = cast(u64)3, .bounds = field.outer_frame,
+            .fill = ColorFromPacked(0xf5ffffe8), .radius = field.outer_radius})
+        unused Image(session, ImageProps.{.key = cast(u64)4, .asset_path = "assets/choano/background-inside.png",
+            .bounds = field.inner_playable, .source = DishGround(), .fit = ImageFit.ImageFitCover, .smooth = true,
+            .radius = field.inner_radius})
+    } else {
+        unused Image(session, ImageProps.{.key = cast(u64)1, .asset_path = "assets/choano/background-inside.png",
+            .bounds = view, .fit = ImageFit.ImageFitStretch, .smooth = false})
+    }
     for index: cast(s32)0..game.enemy_count - 1 {
         enemy := game.enemies[index]
         if !enemy.active {

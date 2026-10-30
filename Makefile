@@ -23,5 +23,7 @@ test:
 	ziran check --project --locked
 	ziran build --project --locked --target=c --exe --entry game_test:main -o build/game-test tests/game_test.zi
 	./build/game-test/game_test
+	ziran build --project --locked --target=c --exe --entry playfield_test:main -o build/playfield-test tests/playfield_test.zi
+	./build/playfield-test/playfield_test
 	ziran build --project --locked --target=c --define CHOANO_PROGRESS_TEST --exe --entry progress_test:main -o build/progress-test tests/progress_test.zi
 	./build/progress-test/progress_test

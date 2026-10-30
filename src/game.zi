@@ -154,6 +154,9 @@ Game :: struct {
     lives: s32
     next_spawn_timer: float64
     elapsed: float64
+    dish_frame_enabled: bool
+    dish_half_height: float32
+    dish_corner_radius: float32
     enemy_count: s32
     enemies: [ENEMY_LIMIT]Enemy
     random: u32
@@ -162,7 +165,8 @@ Game :: struct {
 }
 
 // StartGame initializes every run, including the portable VM instance.
-game: Game;
+// Portable record initializers require literal field values.
+game: Game = .{.dish_half_height = 208.0};
 
 StageSize :: (index: s32) -> s32 { return index * 4 + 7 }
 
@@ -205,7 +209,82 @@ DistanceSquared :: (first_x: float32, first_y: float32, second_x: float32, secon
     return delta_x * delta_x + delta_y * delta_y
 }
 
+SetDishFrame :: (half_height: float32, corner_radius: float32, enabled: bool) {
+    requested_height := half_height
+    if requested_height < cast(float32)DISH_RADIUS { requested_height = cast(float32)DISH_RADIUS }
+    requested_corner := corner_radius
+    if requested_corner < 0.0 { requested_corner = 0.0 }
+    if requested_corner > cast(float32)DISH_RADIUS { requested_corner = cast(float32)DISH_RADIUS }
+    if requested_corner > requested_height { requested_corner = requested_height }
+    if !enabled {
+        requested_height = cast(float32)DISH_RADIUS
+        requested_corner = 0.0
+    }
+    if game.dish_frame_enabled == enabled && game.dish_half_height == requested_height &&
+        game.dish_corner_radius == requested_corner { return }
+
+    old_half_height := game.dish_half_height
+    if !game.dish_frame_enabled { old_half_height = cast(float32)DISH_RADIUS }
+    game.dish_frame_enabled = enabled
+    game.dish_half_height = requested_height
+    game.dish_corner_radius = requested_corner
+    if game.mode == MODE_FISH { return }
+
+    scale := requested_height / old_half_height
+    game.player_y = cast(float32)DISH_CENTER_Y + (game.player_y - cast(float32)DISH_CENTER_Y) * scale
+    player_size := cast(float32)StageSize(game.player_stage)
+    unused ClampPoint(*game.player_x, *game.player_y, player_size)
+    for index: cast(s32)0..game.enemy_count - 1 {
+        enemy_size := cast(float32)StageSize(game.enemies[index].stage)
+        game.enemies[index].y = cast(float32)DISH_CENTER_Y +
+            (game.enemies[index].y - cast(float32)DISH_CENTER_Y) * scale
+        unused ClampPoint(*game.enemies[index].x, *game.enemies[index].y, enemy_size)
+    }
+}
+
 ClampPoint :: (x: *float32, y: *float32, size: float32) -> bool {
+    if game.dish_frame_enabled {
+        half_size := size * .5
+        half_width := cast(float32)DISH_RADIUS - half_size
+        half_height := game.dish_half_height - half_size
+        if half_width <= 0.0 || half_height <= 0.0 {
+            original_x := <<x
+            original_y := <<y
+            <<x = cast(float32)DISH_CENTER_X
+            <<y = cast(float32)DISH_CENTER_Y
+            return <<x != original_x || <<y != original_y
+        }
+        corner := game.dish_corner_radius - half_size
+        if corner < 0.0 { corner = 0.0 }
+        core_width := half_width - corner
+        if core_width < 0.0 { core_width = 0.0 }
+        core_height := half_height - corner
+        if core_height < 0.0 { core_height = 0.0 }
+        offset_x := <<x - cast(float32)DISH_CENTER_X
+        if offset_x < 0.0 { offset_x = -offset_x }
+        offset_y := <<y - cast(float32)DISH_CENTER_Y
+        if offset_y < 0.0 { offset_y = -offset_y }
+        nearest_x := offset_x
+        if nearest_x > core_width { nearest_x = core_width }
+        nearest_y := offset_y
+        if nearest_y > core_height { nearest_y = core_height }
+        corner_x := offset_x - nearest_x
+        corner_y := offset_y - nearest_y
+        corner_length := cast(float32)Math.Sqrt(cast(float64)(corner_x * corner_x + corner_y * corner_y))
+        if corner_length <= corner { return false }
+        if corner_length > 0.0 {
+            nearest_x += corner_x * corner / corner_length
+            nearest_y += corner_y * corner / corner_length
+        }
+        sign_x: float32 = 1.0
+        if <<x < cast(float32)DISH_CENTER_X { sign_x = -1.0 }
+        sign_y: float32 = 1.0
+        if <<y < cast(float32)DISH_CENTER_Y { sign_y = -1.0 }
+        <<x = cast(float32)DISH_CENTER_X + nearest_x * sign_x
+        <<y = cast(float32)DISH_CENTER_Y + nearest_y * sign_y
+        return true
+    }
+
     delta_x := <<x - cast(float32)DISH_CENTER_X
     delta_y := <<y - cast(float32)DISH_CENTER_Y
     distance_squared := delta_x * delta_x + delta_y * delta_y
@@ -260,16 +339,30 @@ SpawnEnemy :: (forced_stage: s32) -> bool {
     if stage < STAGE_FIRST { stage = StageForPopulation(EdibleCount(), game.enemy_count) }
     if stage > STAGE_LAST { stage = STAGE_LAST }
     size := cast(float32)StageSize(stage)
-    maximum := cast(float32)DISH_RADIUS - size * .5
     attempt: s32 = 0
     x := cast(float32)DISH_CENTER_X
     y := cast(float32)DISH_CENTER_Y
     placed := false
-    while attempt < 64 && !placed {
-        x = cast(float32)DISH_CENTER_X + cast(float32)RandomNext(cast(s32)(maximum * 2.0)) - maximum
-        y = cast(float32)DISH_CENTER_Y + cast(float32)RandomNext(cast(s32)(maximum * 2.0)) - maximum
-        placed = DistanceSquared(x, y, cast(float32)DISH_CENTER_X, cast(float32)DISH_CENTER_Y) <= maximum * maximum && CanPlaceEnemy(x, y, size)
-        attempt += 1
+    if !game.dish_frame_enabled {
+        maximum := cast(float32)DISH_RADIUS - size * .5
+        while attempt < 64 && !placed {
+            x = cast(float32)DISH_CENTER_X + cast(float32)RandomNext(cast(s32)(maximum * 2.0)) - maximum
+            y = cast(float32)DISH_CENTER_Y + cast(float32)RandomNext(cast(s32)(maximum * 2.0)) - maximum
+            placed = DistanceSquared(x, y, cast(float32)DISH_CENTER_X, cast(float32)DISH_CENTER_Y) <= maximum * maximum && CanPlaceEnemy(x, y, size)
+            attempt += 1
+        }
+    } else {
+        half_size := size * .5
+        half_width := cast(float32)DISH_RADIUS - half_size
+        half_height := game.dish_half_height - half_size
+        if half_width <= 0.0 || half_height <= 0.0 { return false }
+        while attempt < 64 && !placed {
+            x = cast(float32)DISH_CENTER_X + cast(float32)RandomNext(cast(s32)(half_width * 2.0)) - half_width
+            y = cast(float32)DISH_CENTER_Y + cast(float32)RandomNext(cast(s32)(half_height * 2.0)) - half_height
+            test_x := x; test_y := y
+            placed = !ClampPoint(*test_x, *test_y, size) && CanPlaceEnemy(x, y, size)
+            attempt += 1
+        }
     }
     if !placed { return false }
     game.enemies[game.enemy_count] = .{
@@ -287,6 +380,9 @@ SpawnEnemy :: (forced_stage: s32) -> bool {
 }
 
 StartGame :: (seed: u32, mode: s32 = MODE_AMOEBA) {
+    frame_enabled := game.dish_frame_enabled
+    frame_height := game.dish_half_height
+    frame_corner := game.dish_corner_radius
     game = .{
         .mode = mode,
         .player_x = DISH_CENTER_X,
@@ -297,6 +393,9 @@ StartGame :: (seed: u32, mode: s32 = MODE_AMOEBA) {
         .next_spawn_timer = 5.0,
         .random = seed
     }
+    game.dish_frame_enabled = frame_enabled
+    game.dish_half_height = frame_height
+    game.dish_corner_radius = frame_corner
     game.started = true
     if game.random == 0 { game.random = 1 }
     game.next_spawn_timer = 5.0 + cast(float64)RandomNext(4000) / 1000.0

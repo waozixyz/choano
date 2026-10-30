@@ -1,0 +1,77 @@
+#import "kryon/geometry"
+#import "game"
+
+// Where the board sits in the play area. The world maps to the screen at one
+// scale along both axes, so creatures stay round and a drag steers the way
+// it points.
+Playfield :: struct {
+    // The play area the board was fitted to.
+    area: Rectangle
+    // The 500 by 420 world on screen; its top-left is the world's origin.
+    view: Rectangle
+    origin: Vector2
+    scale: float32
+    // A portrait amoeba dish textures the whole area and rings the ground
+    // the creatures use with a soft white rim, clear of the screen's edges.
+    framed: bool
+    outer_frame: Rectangle
+    outer_radius: float32
+    inner_playable: Rectangle
+    inner_radius: float32
+    // The game's rounded-rectangle arena in world units, matching
+    // inner_playable: half as tall as it, with its corners' radius.
+    dish_half_height: float32
+    dish_corner_radius: float32
+}
+
+FRAME_INSET :: 8.0;
+FRAME_RADIUS :: 28.0;
+PLAYABLE_INSET :: 20.0;
+PLAYABLE_RADIUS :: 16.0;
+// The plain ground inside the artwork's printed dish, clear of its rim, in
+// the 500 by 420 picture's pixels.
+DishGround :: () -> Rectangle {
+    return Rectangle.{125.0, 92.0, 240.0, 234.0}
+}
+
+Inset :: (rect: Rectangle, amount: float32) -> Rectangle {
+    return Rectangle.{rect.x + amount, rect.y + amount, rect.width - amount * 2.0, rect.height - amount * 2.0}
+}
+
+// The most radius a rectangle's corners take.
+CornerRadius :: (rect: Rectangle, radius: float32) -> float32 {
+    most := radius
+    if rect.width * .5 < most { most = rect.width * .5 }
+    if rect.height * .5 < most { most = rect.height * .5 }
+    return most
+}
+
+// A portrait amoeba dish fills the area: the arena's width spans the ground
+// inside the rim and it grows down the screen as a rounded rectangle about
+// the dish's centre. Landscape, the sea and areas too small for a rim keep
+// the whole field fitted and centred.
+FitPlayfield :: (bounds: Rectangle, mode: s32) -> Playfield {
+    width := cast(float32)FIELD_WIDTH
+    height := cast(float32)FIELD_HEIGHT
+    inner := Inset(bounds, PLAYABLE_INSET)
+    if mode == MODE_AMOEBA && bounds.height > bounds.width && inner.width > 0.0 && inner.height > 0.0 {
+        outer := Inset(bounds, FRAME_INSET)
+        scale := inner.width / (cast(float32)DISH_RADIUS * 2.0)
+        origin := Vector2.{inner.x + inner.width * .5 - cast(float32)DISH_CENTER_X * scale,
+            inner.y + inner.height * .5 - cast(float32)DISH_CENTER_Y * scale}
+        inner_radius := CornerRadius(inner, PLAYABLE_RADIUS)
+        return Playfield.{.area = bounds, .view = .{origin.x, origin.y, width * scale, height * scale},
+            .origin = origin, .scale = scale, .framed = true,
+            .outer_frame = outer, .outer_radius = CornerRadius(outer, FRAME_RADIUS),
+            .inner_playable = inner, .inner_radius = inner_radius,
+            .dish_half_height = inner.height / (2.0 * scale), .dish_corner_radius = inner_radius / scale}
+    }
+    scale := bounds.width / width
+    if bounds.height / height < scale { scale = bounds.height / height }
+    if scale != scale || scale < 0.0 { scale = 0.0 }
+    view := Rectangle.{bounds.x + (bounds.width - width * scale) * .5,
+        bounds.y + (bounds.height - height * scale) * .5, width * scale, height * scale}
+    return Playfield.{.area = bounds, .view = view, .origin = .{view.x, view.y}, .scale = scale,
+        .outer_frame = view, .inner_playable = view,
+        .dish_half_height = cast(float32)DISH_RADIUS, .dish_corner_radius = 0.0}
+}

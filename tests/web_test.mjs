@@ -96,7 +96,7 @@ try{
  const diagonal=await evaluate('[Module.choanoX,Module.choanoY]');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(100);await command('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:330,y:240}]});await delay(400);
  const [dx,dy]=await evaluate('[Module.choanoX,Module.choanoY]').then(([x,y])=>[x-diagonal[0],y-diagonal[1]]);if(!(dy>8&&dx>4&&Math.abs(dy/dx-4/3)<.2))throw Error(`A held diagonal did not steer freely: ${dx},${dy}`);
  await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await coast('diagonal swipe');
- await turns('Amoeba landscape',300,200);
+ await turns('Amoeba landscape',300,200);if(await evaluate('Module.choanoDishFrame')!==false)throw Error('The landscape dish took the portrait rim');
  await press('Escape','Escape',27);await until('Module.choanoPage===2');const paused=await evaluate('Module.choanoX');await delay(350);if(await evaluate('Module.choanoX')!==paused)throw Error('Pause advanced the game');
  await downloadsHidden('while paused');
  await click(size.w-48,26);await until('Module.choanoPage===3');await click(size.w/2,52+(size.h-52-194)/2+38);await until('Module.choanoPage===4');
@@ -114,11 +114,15 @@ try{
  await press('Enter','Enter',13);await until('Module.choanoPage===1');
  // Swipe steering again, in portrait, then Fish mode as if earned.
  const prefer=async text=>{await evaluate(`(Module.FS.writeFile('/kryon-apps/choano/preferences.v1','${text}'),new Promise(r=>Module.FS.syncfs(false,r)))`);await command('Page.reload');await until('Module.choanoReady && Module.choanoPage===0');await delay(300);await press('Enter','Enter',13);await until('Module.choanoPage===1');await delay(200)};
- await prefer('1s110');if(await evaluate('Module.choanoMode')!==0)throw Error('Amoeba mode did not start');await turns('Amoeba portrait',195,400);
- await prefer('1s111');if(await evaluate('Module.choanoMode')!==1)throw Error('Fish mode did not start once earned');await turns('Fish portrait',195,400);
+ // A tall phone textures the whole area and rims the arena; the sea keeps its shape.
+ await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+ await prefer('1s110');if(await evaluate('Module.choanoMode')!==0)throw Error('Amoeba mode did not start');
+ if(await evaluate('Module.choanoDishFrame')!==true)throw Error('The portrait dish has no rimmed arena');
+ await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.portrait-game.png');await turns('Amoeba portrait',195,400);
+ await prefer('1s111');if(await evaluate('Module.choanoMode')!==1)throw Error('Fish mode did not start once earned');if(await evaluate('Module.choanoDishFrame')!==false)throw Error('Fish mode kept the dish rim');await turns('Fish portrait',195,400);
  await command('Emulation.clearDeviceMetricsOverride');await delay(350);await press('r','KeyR',82);await delay(200);await turns('Fish landscape',300,200);
  if(missing.length)throw Error('Missing assets: '+missing.join(', '));if(errors.length)throw Error(errors.join('\n'));
- console.log('Choano local browser tests passed: app title/chrome, title-only Downloads to the latest release, locked Fish mode, choice, keyboard/click no start/held free touch steering/clean turns after long drags in Amoeba and Fish, landscape and portrait/release glide/tap no start/pad, pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
+ console.log('Choano local browser tests passed: app title/chrome, title-only Downloads to the latest release, locked Fish mode, choice, keyboard/click no start/held free touch steering/clean turns after long drags in Amoeba and Fish, landscape and portrait/round landscape and rimmed portrait dish/release glide/tap no start/pad, pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
 }finally{
  const exited=!browser.pid||browser.exitCode!==null?Promise.resolve():new Promise(r=>browser.once('exit',r));
  if(socket?.readyState===WebSocket.OPEN)await command('Browser.close').catch(()=>{});

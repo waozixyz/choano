@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-30
+
+- Fill portrait screens with a playable Amoeba field and a soft white rim that keeps creatures away from the screen edges.
 - Find the Android, Linux and Windows downloads from Downloads on the website's title screen.
 
 ## [0.1.1] - 2026-10-30
