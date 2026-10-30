@@ -100,6 +100,7 @@ main :: () -> s32 {
         }
         WebSet(WebModule, WebName("profileVisible"), WebBool(visible))
         if EndFrame(session) != FrameStatus.FrameOk { return 1 }
+        CanvasCursor(session)
         unused EndCanvasFrame()
         if PageNow() - saved > 1000.0 { unused BundleStorageSync(false); saved = PageNow() }
         WebEnd(scope)

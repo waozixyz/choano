@@ -7,3 +7,33 @@ Makan atau dimakan
 [choano_fish_unlock]
 Capai ukuran penuh di Amoeba untuk membuka Ikan
 ---
+[choano_shop]
+Toko
+---
+[choano_settings]
+Pengaturan
+---
+[choano_settings_controls]
+Kontrol
+---
+[choano_settings_swipe]
+Geser
+---
+[choano_settings_pad]
+Tombol arah
+---
+[choano_settings_sound]
+Suara
+---
+[choano_settings_sound_on]
+Aktif
+---
+[choano_settings_sound_off]
+Nonaktif
+---
+[choano_settings_done]
+Selesai
+---
+[choano_settings_save_error]
+Pengaturan gagal disimpan
+---

@@ -7,3 +7,33 @@ Friss oder wirst gefressen
 [choano_fish_unlock]
 Erreiche die volle Größe als Amöbe, um Fisch freizuschalten
 ---
+[choano_shop]
+Shop
+---
+[choano_settings]
+Einstellungen
+---
+[choano_settings_controls]
+Steuerung
+---
+[choano_settings_swipe]
+Wischen
+---
+[choano_settings_pad]
+Steuerkreuz
+---
+[choano_settings_sound]
+Ton
+---
+[choano_settings_sound_on]
+An
+---
+[choano_settings_sound_off]
+Aus
+---
+[choano_settings_done]
+Fertig
+---
+[choano_settings_save_error]
+Speichern fehlgeschlagen
+---

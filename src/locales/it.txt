@@ -7,3 +7,33 @@ Mangia o vieni mangiato
 [choano_fish_unlock]
 Raggiungi la dimensione massima in Ameba per sbloccare Pesce
 ---
+[choano_shop]
+Negozio
+---
+[choano_settings]
+Impostazioni
+---
+[choano_settings_controls]
+Comandi
+---
+[choano_settings_swipe]
+Scorrimento
+---
+[choano_settings_pad]
+Pad direzionale
+---
+[choano_settings_sound]
+Audio
+---
+[choano_settings_sound_on]
+Attivo
+---
+[choano_settings_sound_off]
+Disattivo
+---
+[choano_settings_done]
+Fatto
+---
+[choano_settings_save_error]
+Salvataggio non riuscito
+---

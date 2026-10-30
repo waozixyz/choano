@@ -187,6 +187,7 @@
     "assets/choano/player-right-47-1.png": "b0710717afff85a99ea35792da6dfcd2b8209b36c05839c419182cdeb2a7d0df",
     "assets/choano/player-right-47-2.png": "d70710ded563f6e16ac21448f01105f79c57f016621ab837eb4bebdc535ebf62",
     "assets/choano/player-right-47-3.png": "ecc10709dd44aac72fee88db5e70d2db18951ba88630a8f854c47f3222d20d59",
+    "assets/choano/shop.png": "ab696861ad7597be6bea1e9415493ee79ae397cef53efe734c7ae729be331e67",
     "assets/choano/title-animation-0.png": "7dc462a2632e886a672a9a0b7e1f90be57eb4f8e52347d3fb32e6beca50329d6",
     "assets/choano/title-animation-1.png": "9c876d081d365a4ac71be7177bc28e1ac643064bcdef8bb5dc594128956ea92e",
     "assets/choano/title-animation-10.png": "520647d39fc21bc035a18d49a9c9ef001b1dd0c3acd0ceaa7f2f757747993680",
@@ -218,8 +219,7 @@
     "assets/choano/title-landscape.jpg": "1ca6e31c1062a7cca41bace4cf1bb221291988aea4a1dd61271899c2f5f28307",
     "assets/choano/title-logo.png": "7c628ed9f07cdf4b13266ef6ba7b10fc44e0bd64d93f50b6d03405520d3e147d",
     "assets/choano/title-portrait.jpg": "47b07722c474a67ee4a06b7644a3aff211503674391e363c17eb06a34ce60d6c",
-    "assets/choano/title-screen.png": "0aaacd2526d9dcbf585309833c276e53ef9641e44bcad7d6555334ac950875b6",
-    "assets/choano/wardrobe.png": "cc2f39ff9967c3f32ec178fc189c199eebf0e44e9984080278ead48eb61e3357"
+    "assets/choano/title-screen.png": "0aaacd2526d9dcbf585309833c276e53ef9641e44bcad7d6555334ac950875b6"
   },
-  "sha256": "55bc155a57c43c1b1ce815251b88004f7448ee01c465aa2bb1b584e99a52af99"
+  "sha256": "2802e7bd764da3fa4793c17917a03dbd59509df28a51050a83acb26e1df2461d"
 }

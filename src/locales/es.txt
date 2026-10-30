@@ -7,3 +7,33 @@ Come o sé comido
 [choano_fish_unlock]
 Alcanza el tamaño máximo en Ameba para desbloquear Pez
 ---
+[choano_shop]
+Tienda
+---
+[choano_settings]
+Ajustes
+---
+[choano_settings_controls]
+Controles
+---
+[choano_settings_swipe]
+Deslizar
+---
+[choano_settings_pad]
+Cruceta
+---
+[choano_settings_sound]
+Sonido
+---
+[choano_settings_sound_on]
+Activado
+---
+[choano_settings_sound_off]
+Desactivado
+---
+[choano_settings_done]
+Listo
+---
+[choano_settings_save_error]
+No se guardaron los ajustes
+---

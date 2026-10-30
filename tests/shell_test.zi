@@ -25,6 +25,12 @@ main :: () -> s32 {
     layouts: [4]Rectangle = .[.{0.0, 0.0, 720.0, 1560.0}, .{0.0, 0.0, 1560.0, 720.0},
         .{0.0, 0.0, 900.0, 628.0}, .{18.0, 28.0, 376.0, 800.0}]
     for bounds: layouts {
+        settings := Shell.SettingsLayoutFor(bounds)
+        if !Expect(Inside(settings.panel, bounds) && Inside(settings.swipe, settings.panel) &&
+            Inside(settings.pad, settings.panel) && Inside(settings.sound_on, settings.panel) &&
+            Inside(settings.sound_off, settings.panel) && Inside(settings.done, settings.panel) &&
+            Clear(settings.swipe, settings.pad) && Clear(settings.pad, settings.sound_off) &&
+            Clear(settings.sound_on, settings.done), "Settings choices fit without overlap") { return 1 }
         for resumable: 0..1 {
             layout := Shell.TitleLayoutFor(bounds, resumable == 1)
             backdrop := Shell.TitleBackdropBounds(bounds)
@@ -68,6 +74,9 @@ main :: () -> s32 {
                 "Play keeps its gap") { return 1 }
         }
     }
+    compact := Shell.SettingsLayoutFor(Rectangle.{20.0, 16.0, 760.0, 320.0})
+    if !Expect(Inside(compact.done, compact.panel) && Clear(compact.sound_off, compact.done) &&
+        compact.swipe.height >= 44.0, "Settings fits a short landscape viewport") { return 1 }
     if !Expect(Shell.ButtonWidth("i") == 140.0 && Shell.ButtonWidth("Continue") >= 140.0 &&
         Shell.ButtonWidth("A very long button label that must stop stretching") == 320.0,
         "buttons hug labels and clamp between 140 and 320") { return 1 }

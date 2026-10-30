@@ -187,10 +187,23 @@ for name in ('shell.zi', 'app.zi', 'accessories.zi'):
     source = re.sub(r'//[^\n]*', '', (ROOT/'src'/name).read_text())
     for text in re.findall(r'"([^"\n]*)"', source):
         assert all(ord(c) in covered or c in '\n\t' for c in text), (name,text)
-for name in ('gear', 'wardrobe', 'lock'):
+for name in ('gear', 'shop', 'lock'):
     image = Image.open(ROOT/f'assets/choano/{name}.png').convert('RGBA')
     assert image.size == (1024,1024)
     assert all(image.getpixel(point)[3] == 0 for point in ((0,0),(1023,0),(0,1023),(1023,1023)))
+    alpha = image.getchannel('A')
+    # A white plate inside transparent corners is still a plate: keep every
+    # outer edge transparent, with padding, and require a cut-out silhouette.
+    left, top, right, bottom = alpha.getbbox()
+    assert min(left, top, 1024-right, 1024-bottom) >= 24, name
+    histogram = alpha.histogram()
+    assert histogram[0] > 1024*1024*.25, name
+    assert sum(histogram[200:]) > sum(histogram[1:])*.9, name
+
+for path in (ROOT/'src/locales').glob('*.txt'):
+    values = dict(re.findall(r'\[([^\]]+)\]\n([^\n]+)\n---', path.read_text()))
+    for key in ('choano_shop', 'choano_settings', *('choano_settings_'+name for name in ('controls','swipe','pad','sound','sound_on','sound_off','done','save_error'))):
+        assert values[key] and values[key] in (ROOT/'src/ui_strings.zi').read_text(), (path, key)
 
 for path in (ROOT/'assets/choano/achievement-locales').glob('*.json'):
     text = json.loads(path.read_text())['choano_fish_unlock']

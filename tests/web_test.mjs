@@ -105,8 +105,25 @@ try{
  };
  await until('globalThis.Module?.choanoReady && Module.choanoPage===0');await delay(400);
  if(!await evaluate('Module.FS.stat("/assets/choano/organisms-hd.png").size>1000000'))throw Error('High-resolution organisms not loaded');
+ if(!await evaluate('Module.FS.stat("/assets/choano/shop.png").size>10000'))throw Error('Illustrated Shop is not bundled');
  if(!await evaluate('document.querySelectorAll("header,footer,button,#loading").length===0 && Module.canvas.clientWidth===innerWidth && Module.canvas.clientHeight===innerHeight'))throw Error('HTML app chrome remains');
  await shot(process.env.CHOANO_SCREENSHOT);
+ // Exercise the real image control, including its paint and browser cursor.
+ const shopPixels=async()=> (await command('Page.captureScreenshot',{format:'png',clip:{x:0,y:0,width:68,height:64,scale:1}})).data;
+ const normalShop=await shopPixels();
+ await command('Input.dispatchMouseEvent',{type:'mouseMoved',x:34,y:26});await delay(150);
+ if(await evaluate('getComputedStyle(Module.canvas).cursor')!=='pointer')throw Error('Shop hover did not show a pointer cursor');
+ const hoverShop=await shopPixels();
+ if(hoverShop===normalShop)throw Error('Shop hover did not change its picture');
+ await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.shop-hover.png');
+ await command('Input.dispatchMouseEvent',{type:'mousePressed',x:34,y:26,button:'left',clickCount:1});await delay(150);
+ if(await shopPixels()===hoverShop)throw Error('Shop press did not change its picture');
+ await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.shop-press.png');
+ await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:34,y:26,button:'left',clickCount:1});
+ await until('Module.choanoWardrobeOpen');
+ await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.shop.png');
+ await press('Escape','Escape',27);await until('!Module.choanoWardrobeOpen');
+ await command('Input.dispatchMouseEvent',{type:'mouseMoved',x:200,y:200});await delay(100);
  await downloadsOpen('landscape title');await wardrobe(true);
  const lockedSize=await dimensions();
  await click(lockedSize.w/2+80,lockedSize.h-98);
@@ -137,8 +154,15 @@ try{
  await turns('Amoeba landscape',300,200);if(await evaluate('Module.choanoDishFrame')!==false)throw Error('The landscape dish took the portrait rim');
  await press('Escape','Escape',27);await until('Module.choanoPage===2');const paused=await evaluate('Module.choanoX');await delay(350);if(await evaluate('Module.choanoX')!==paused)throw Error('Pause advanced the game');
  await downloadsHidden('while paused');
- await click(actionCenter(size.w,'Settings'),26);await until('Module.choanoPage===3');await click(size.w/2,52+(size.h-52-212)/2+42);await until('Module.choanoPage===4');
- await press('2','Digit2',50);await until('Module.choanoPage===3');await press('Escape','Escape',27);await until('Module.choanoPage===2');await press('Escape','Escape',27);await until('Module.choanoPage===1');
+ await click(actionCenter(size.w,'Settings'),26);await until('Module.choanoPage===3');
+ const settingsChoice=async(right,row)=>{
+  const {w,h}=await dimensions(),pw=Math.min(480,w-32),ph=Math.min(344,h-24),compact=ph<328;
+  await click(w/2+(right?1:-1)*(pw-40)/4,(h-ph)/2+(row?(compact?156:200):(compact?78:108))+(compact?22:24));
+ };
+ await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.settings.png');
+ await settingsChoice(true,0);if(await evaluate('Module.choanoPage')!==3)throw Error('Control choice left Settings');
+ await settingsChoice(true,1);await until('Module.muted');await settingsChoice(false,1);await until('!Module.muted');
+ await press('Escape','Escape',27);await until('Module.choanoPage===2');await press('Escape','Escape',27);await until('Module.choanoPage===1');
  await press('Escape','Escape',27);await until('Module.choanoPage===2');await click(actionCenter(size.w,'Profile'),26);await until('Module.profileVisible');await press('Escape','Escape',27);await until('!Module.profileVisible');await delay(150);await press('Escape','Escape',27);await until('Module.choanoPage===1');await delay(150);
  await press('r','KeyR',82);await until('Math.abs(Module.choanoX-245)<1');
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.game.png');

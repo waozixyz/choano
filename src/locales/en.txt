@@ -7,3 +7,33 @@ Eat or be eaten
 [choano_fish_unlock]
 Reach full size in Amoeba to unlock Fish
 ---
+[choano_shop]
+Shop
+---
+[choano_settings]
+Settings
+---
+[choano_settings_controls]
+Controls
+---
+[choano_settings_swipe]
+Swipe
+---
+[choano_settings_pad]
+Direction pad
+---
+[choano_settings_sound]
+Sound
+---
+[choano_settings_sound_on]
+On
+---
+[choano_settings_sound_off]
+Off
+---
+[choano_settings_done]
+Done
+---
+[choano_settings_save_error]
+Could not save settings
+---

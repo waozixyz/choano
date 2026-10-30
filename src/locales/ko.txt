@@ -7,3 +7,33 @@ Choano
 [choano_fish_unlock]
 아메바에서 최대 크기에 도달하면 물고기가 잠금 해제됩니다
 ---
+[choano_shop]
+상점
+---
+[choano_settings]
+설정
+---
+[choano_settings_controls]
+조작
+---
+[choano_settings_swipe]
+스와이프
+---
+[choano_settings_pad]
+방향 패드
+---
+[choano_settings_sound]
+소리
+---
+[choano_settings_sound_on]
+켜기
+---
+[choano_settings_sound_off]
+끄기
+---
+[choano_settings_done]
+완료
+---
+[choano_settings_save_error]
+설정을 저장하지 못했습니다
+---

@@ -1,6 +1,6 @@
 #import "std/byte_text_linux"
 #import "std/c_string"
-// The Fish explanation follows the host language, with English fallback.
+// UI names and the Fish explanation follow the host language, with English fallback.
 #if #defined(PLATFORM_WEB) {
     #import "std/web"
 } else #if #defined(ANDROID_BUILD) {
@@ -43,4 +43,148 @@ FishUnlock :: (language: string) -> string {
     if code == "ko" { return "아메바에서 최대 크기에 도달하면 물고기가 잠금 해제됩니다" }
     if code == "zh" { return "在变形虫模式中长到最大体型即可解锁鱼类模式" }
     return "Reach full size in Amoeba to unlock Fish"
+}
+
+Shop :: (language: string) -> string {
+    code := language
+    if code.count > 2 { code = code[0:2] }
+    if code == "es" { return "Tienda" }
+    if code == "pt" { return "Loja" }
+    if code == "fr" { return "Boutique" }
+    if code == "de" { return "Shop" }
+    if code == "it" { return "Negozio" }
+    if code == "cs" { return "Obchod" }
+    if code == "id" { return "Toko" }
+    if code == "ru" { return "Магазин" }
+    if code == "ja" { return "ショップ" }
+    if code == "ko" { return "상점" }
+    if code == "zh" { return "商店" }
+    return "Shop"
+}
+
+Settings :: (language: string) -> string {
+    code := language
+    if code.count > 2 { code = code[0:2] }
+    if code == "es" { return "Ajustes" }
+    if code == "pt" { return "Configurações" }
+    if code == "fr" { return "Paramètres" }
+    if code == "de" { return "Einstellungen" }
+    if code == "it" { return "Impostazioni" }
+    if code == "cs" { return "Nastavení" }
+    if code == "id" { return "Pengaturan" }
+    if code == "ru" { return "Настройки" }
+    if code == "ja" { return "設定" }
+    if code == "ko" { return "설정" }
+    if code == "zh" { return "设置" }
+    return "Settings"
+}
+
+SettingsCopy :: struct {
+    controls: string
+    swipe: string
+    pad: string
+    sound: string
+    sound_on: string
+    sound_off: string
+    done: string
+    save_error: string
+}
+
+SettingsLabels :: (language: string) -> SettingsCopy {
+    code := language
+    if code.count > 2 { code = code[0:2] }
+    if code == "es" {
+        return SettingsCopy.{
+            .controls = "Controles", .swipe = "Deslizar",
+            .pad = "Cruceta", .sound = "Sonido",
+            .sound_on = "Activado", .sound_off = "Desactivado",
+            .done = "Listo", .save_error = "No se guardaron los ajustes"
+        }
+    }
+    if code == "pt" {
+        return SettingsCopy.{
+            .controls = "Controles", .swipe = "Deslizar",
+            .pad = "Direcional", .sound = "Som",
+            .sound_on = "Ligado", .sound_off = "Desligado",
+            .done = "Pronto", .save_error = "Não foi possível salvar"
+        }
+    }
+    if code == "fr" {
+        return SettingsCopy.{
+            .controls = "Commandes", .swipe = "Glisser",
+            .pad = "Croix directionnelle", .sound = "Son",
+            .sound_on = "Activé", .sound_off = "Désactivé",
+            .done = "Terminé", .save_error = "Impossible d’enregistrer"
+        }
+    }
+    if code == "de" {
+        return SettingsCopy.{
+            .controls = "Steuerung", .swipe = "Wischen",
+            .pad = "Steuerkreuz", .sound = "Ton",
+            .sound_on = "An", .sound_off = "Aus",
+            .done = "Fertig", .save_error = "Speichern fehlgeschlagen"
+        }
+    }
+    if code == "it" {
+        return SettingsCopy.{
+            .controls = "Comandi", .swipe = "Scorrimento",
+            .pad = "Pad direzionale", .sound = "Audio",
+            .sound_on = "Attivo", .sound_off = "Disattivo",
+            .done = "Fatto", .save_error = "Salvataggio non riuscito"
+        }
+    }
+    if code == "cs" {
+        return SettingsCopy.{
+            .controls = "Ovládání", .swipe = "Tažení",
+            .pad = "Směrový kříž", .sound = "Zvuk",
+            .sound_on = "Zapnuto", .sound_off = "Vypnuto",
+            .done = "Hotovo", .save_error = "Nastavení nelze uložit"
+        }
+    }
+    if code == "id" {
+        return SettingsCopy.{
+            .controls = "Kontrol", .swipe = "Geser",
+            .pad = "Tombol arah", .sound = "Suara",
+            .sound_on = "Aktif", .sound_off = "Nonaktif",
+            .done = "Selesai", .save_error = "Pengaturan gagal disimpan"
+        }
+    }
+    if code == "ru" {
+        return SettingsCopy.{
+            .controls = "Управление", .swipe = "Скольжение",
+            .pad = "Крестовина", .sound = "Звук",
+            .sound_on = "Вкл.", .sound_off = "Выкл.",
+            .done = "Готово", .save_error = "Не удалось сохранить"
+        }
+    }
+    if code == "ja" {
+        return SettingsCopy.{
+            .controls = "操作", .swipe = "スワイプ",
+            .pad = "方向パッド", .sound = "サウンド",
+            .sound_on = "オン", .sound_off = "オフ",
+            .done = "完了", .save_error = "設定を保存できませんでした"
+        }
+    }
+    if code == "ko" {
+        return SettingsCopy.{
+            .controls = "조작", .swipe = "스와이프",
+            .pad = "방향 패드", .sound = "소리",
+            .sound_on = "켜기", .sound_off = "끄기",
+            .done = "완료", .save_error = "설정을 저장하지 못했습니다"
+        }
+    }
+    if code == "zh" {
+        return SettingsCopy.{
+            .controls = "操作方式", .swipe = "滑动",
+            .pad = "方向键", .sound = "声音",
+            .sound_on = "开启", .sound_off = "关闭",
+            .done = "完成", .save_error = "无法保存设置"
+        }
+    }
+    return SettingsCopy.{
+        .controls = "Controls", .swipe = "Swipe",
+        .pad = "Direction pad", .sound = "Sound",
+        .sound_on = "On", .sound_off = "Off",
+        .done = "Done", .save_error = "Could not save settings"
+    }
 }

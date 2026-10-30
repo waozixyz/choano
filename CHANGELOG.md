@@ -4,6 +4,9 @@
 
 - Release movement keys to stop swimming in compatible game libraries, with the same diagonal steering as desktop.
 
+- Replace the Settings screen with a readable panel, direct control and sound choices, and a layout that fits both orientations.
+- Open the Shop from a clear illustrated stall, with transparent picture controls that brighten on hover and shrink when pressed.
+
 ## [0.1.3] - 2026-10-30
 
 - Load Choano correctly in Arcade by publishing its artwork and sound under the paths the game requests.

@@ -14,6 +14,7 @@ Words :: #import "ui_strings";
 #import "kryon/box_widget"
 #import "kryon/text_props"
 #import "kryon/text_widget"
+#import "kryon/text_measure"
 #import "kryon/text_align"
 #import "kryon/drawing_props"
 #import "kryon/image_props"
@@ -44,6 +45,17 @@ TitleLayout :: struct {
     mode: Rectangle
     continue_button: Rectangle
     play: Rectangle
+}
+
+SettingsLayout :: struct {
+    panel: Rectangle
+    controls: Rectangle
+    swipe: Rectangle
+    pad: Rectangle
+    sound: Rectangle
+    sound_on: Rectangle
+    sound_off: Rectangle
+    done: Rectangle
 }
 
 state: Nav.GameNavigation;
@@ -78,6 +90,7 @@ fish_lock_message: bool;
 // The Fish Dash button, beside the play area's touch controls.
 dash_requested: bool;
 area: Rectangle;
+full_area: Rectangle;
 
 Save :: () {
     save_failed = !Prefs.Save(Prefs.Preferences.{.chosen = state.controls_selected,
@@ -264,6 +277,11 @@ PlainButton :: (session: Session, key: u64, text: string, bounds: Rectangle,
     }
     if show_text {
         strong: [1]TextRange = .[.{0, cast(s32)text.count}]
+        measured := cast(float32)TextWidth(session, TextProps.{.text = text, .font = font, .strong = strong[:]})
+        if measured > label_bounds.width && measured > 0.0 {
+            font = cast(s32)(cast(float32)font * label_bounds.width / measured)
+            if font < 12 { font = 12 }
+        }
         unused WidgetPaletteUse(session, WidgetPalette.{.background = fill, .base = fill,
             .text = textColor, .selected = fill, .selected_text = textColor,
             .border = 0x10203f33, .danger = textColor, .warning = textColor, .success = textColor})
@@ -357,14 +375,14 @@ IconButton :: (session: Session, key: u64, bounds: Rectangle, path: string, labe
     }
     unused Image(session, ImageProps.{.key = key + 40000, .asset_path = path,
         .bounds = icon, .smooth = true, .alt_text = label,
-        .tint = ifx pressed then cast(u32)0xd8d8d8ff else 0,
+        .tint = ifx pressed then cast(u32)0xd8d8d8ff else ifx hovered then cast(u32)0xffffffff else cast(u32)0xf0f0f0ff,
         .fit = ImageFit.ImageFitContain})
     return Button(session, ButtonProps.{.key = key, .id = cast(s32)key, .bounds = bounds,
         .label = label, .invisible = true}) != 0
 }
 
 WardrobeIconButton :: (session: Session, key: u64, bounds: Rectangle) -> bool {
-    clicked := IconButton(session, key, bounds, "assets/choano/wardrobe.png", "Wardrobe")
+    clicked := IconButton(session, key, bounds, "assets/choano/shop.png", Words.Shop(Words.Language()))
     if wardrobe_unseen {
         unused Box(session, BoxProps.{.key = key + 2,
             .bounds = Rectangle.{bounds.x + bounds.width - 14.0, bounds.y + 4.0, 12.0, 12.0},
@@ -453,6 +471,7 @@ LoadPreferences :: () {
 
 Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64, full_viewport: Rectangle = .{}) -> Rectangle {
     LoadPreferences()
+    full_area = ifx full_viewport.width > 0.0 then full_viewport else viewport
     if key == 256 && wardrobe_open { wardrobe_open = false }
     else if key == 256 { unused Back() }
     else if key == 32 && state.page == Nav.GAME_PLAYING { Nav.GameNavigationPause(*state) }
@@ -460,6 +479,7 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64, full_vi
     else if (key == 263 || key == 262) && state.page == Nav.GAME_TITLE { Pick(key == 262) }
     else if state.page == Nav.GAME_CONTROLS && (key == 49 || key == 50) { Choose(key - 49) }
     else if key == 77 || key == 109 { muted = !muted; Save() }
+    if state.page == Nav.GAME_SETTINGS { area = viewport; return area }
     playing := HudVisible()
     settings_available := state.page != Nav.GAME_SETTINGS && state.page != Nav.GAME_CONTROLS && !playing
     // The home artwork carries the title; keep the action bar clear.
@@ -487,7 +507,7 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64, full_vi
     }
     if settings_available {
         settings_width: float32 = 52.0
-        if IconButton(session, cast(u64)50011, SettingsIconBounds(viewport), "assets/choano/gear.png", "Settings") {
+        if IconButton(session, cast(u64)50011, SettingsIconBounds(viewport), "assets/choano/gear.png", Words.Settings(Words.Language())) {
             Nav.GameNavigationSettings(*state)
         }
         right -= settings_width + 8.0
@@ -539,15 +559,74 @@ Mode :: (session: Session, key: u64, text: string, selected: bool, locked: bool,
     return PlainButton(session, key, text, bounds, ifx active then BUTTON_SELECTED else BUTTON_NORMAL,
         false, false, active, true, locked)
 }
-Backdrop :: (session: Session) {
-    if area.width <= 0.0 || area.height <= 0.0 { return }
-    portrait := area.height > area.width
+ArtworkBackdrop :: (session: Session, bounds: Rectangle) {
+    if bounds.width <= 0.0 || bounds.height <= 0.0 { return }
+    portrait := bounds.height > bounds.width
     path := ifx portrait then "assets/choano/title-portrait.jpg" else "assets/choano/title-landscape.jpg"
     if fish { path = ifx portrait then "assets/choano/fish/title-portrait.jpg" else "assets/choano/fish/title-landscape.jpg" }
     extension: u32 = ifx fish then cast(u32)0x06324dff else cast(u32)0x0d6b83ff
-    unused Box(session, BoxProps.{.key = cast(u64)50100, .bounds = area,
+    unused Box(session, BoxProps.{.key = cast(u64)50100, .bounds = bounds,
         .fill = ColorFromPacked(extension)})
-    TitleArtwork(session, area, path, portrait, cast(u64)50101)
+    TitleArtwork(session, bounds, path, portrait, cast(u64)50101)
+}
+Backdrop :: (session: Session) { ArtworkBackdrop(session, area) }
+
+SettingsLayoutFor :: (viewport: Rectangle) -> SettingsLayout {
+    width := viewport.width - 32.0
+    if width > 480.0 { width = 480.0 }
+    height: float32 = 344.0
+    if height > viewport.height - 24.0 { height = viewport.height - 24.0 }
+    panel := Rectangle.{viewport.x + (viewport.width - width) * .5,
+        viewport.y + (viewport.height - height) * .5, width, height}
+    compact := height < 328.0
+    first: float32 = ifx compact then 78.0 else 108.0
+    second: float32 = ifx compact then 156.0 else 200.0
+    row_height: float32 = ifx compact then 44.0 else 48.0
+    half := (width - 56.0) * .5
+    return SettingsLayout.{.panel = panel,
+        .controls = Rectangle.{panel.x + 24.0, panel.y + first - 28.0, width - 48.0, 24.0},
+        .swipe = Rectangle.{panel.x + 24.0, panel.y + first, half, row_height},
+        .pad = Rectangle.{panel.x + 32.0 + half, panel.y + first, half, row_height},
+        .sound = Rectangle.{panel.x + 24.0, panel.y + second - 28.0, width - 48.0, 24.0},
+        .sound_on = Rectangle.{panel.x + 24.0, panel.y + second, half, row_height},
+        .sound_off = Rectangle.{panel.x + 32.0 + half, panel.y + second, half, row_height},
+        .done = Rectangle.{panel.x + (width - 140.0) * .5, panel.y + height - 64.0, 140.0, 48.0}}
+}
+
+SettingsPage :: (session: Session) {
+    ArtworkBackdrop(session, full_area)
+    unused Box(session, BoxProps.{.key = cast(u64)50400, .bounds = full_area,
+        .fill = ColorFromPacked(0x071b3066)})
+    layout := SettingsLayoutFor(area)
+    panel := layout.panel
+    unused Box(session, BoxProps.{.key = cast(u64)50401,
+        .bounds = Rectangle.{panel.x, panel.y + 5.0, panel.width, panel.height},
+        .fill = ColorFromPacked(0x071b3055), .radius = 24.0})
+    unused Box(session, BoxProps.{.key = cast(u64)50402, .bounds = panel,
+        .fill = ColorFromPacked(0xf7f2e8ff), .radius = 24.0})
+    unused WidgetPaletteUse(session, WidgetPalette.{.text = 0x10203fff})
+    words := Words.SettingsLabels(Words.Language())
+    title := Words.Settings(Words.Language())
+    strong: [1]TextRange = .[.{0, cast(s32)title.count}]
+    unused Image(session, ImageProps.{.key = cast(u64)50403, .asset_path = "assets/choano/gear.png",
+        .bounds = Rectangle.{panel.x + 24.0, panel.y + 14.0, 40.0, 40.0},
+        .fit = ImageFit.ImageFitContain, .smooth = true})
+    unused Text(session, TextProps.{.key = cast(u64)50404, .text = title, .font = 26, .strong = strong[:],
+        .bounds = Rectangle.{panel.x + 76.0, panel.y + 14.0, panel.width - 100.0, 40.0},
+        .vertical_align = TextAlign.TextAlignCenter})
+    unused Text(session, TextProps.{.key = cast(u64)50405, .text = words.controls, .font = 16, .bounds = layout.controls})
+    unused Text(session, TextProps.{.key = cast(u64)50406,
+        .text = ifx save_failed then words.save_error else words.sound, .font = 16, .bounds = layout.sound})
+    if Mode(session, cast(u64)50410, words.swipe, state.controls_mode == Nav.GAME_SWIPE, false, layout.swipe) {
+        state.controls_mode = Nav.GAME_SWIPE; state.controls_selected = true; Save()
+    }
+    if Mode(session, cast(u64)50411, words.pad, state.controls_mode == Nav.GAME_PAD, false, layout.pad) {
+        state.controls_mode = Nav.GAME_PAD; state.controls_selected = true; Save()
+    }
+    if Mode(session, cast(u64)50412, words.sound_on, !muted, false, layout.sound_on) { muted = false; Save() }
+    if Mode(session, cast(u64)50413, words.sound_off, muted, false, layout.sound_off) { muted = true; Save() }
+    if PrimaryAction(session, cast(u64)50414, words.done, layout.done) { unused Back() }
+    unused WidgetPaletteRestore(session)
 }
 MenuBounds :: (count: s32) -> Rectangle {
     width := area.width - 48.0
@@ -596,17 +675,7 @@ End :: (session: Session, now: float64, over: bool) {
         if Row(session, bounds, 2, "Settings", false) { Nav.GameNavigationSettings(*state) }
         if Row(session, bounds, 3, "Title screen", false) { Nav.GameNavigationHome(*state) }
     } else if state.page == Nav.GAME_SETTINGS {
-        Backdrop(session)
-        bounds := MenuBounds(3)
-        Menu(session, bounds)
-        if Row(session, bounds, 0, ifx state.controls_mode == Nav.GAME_PAD then "Controls: Direction pad" else "Controls: Swipe", false) { Nav.GameNavigationControls(*state) }
-        if Row(session, bounds, 1, ifx muted then "Sound: Off" else "Sound: On", false) { muted = !muted; Save() }
-        if Row(session, bounds, 2, "Back", false) { unused Back() }
-        if save_failed {
-            unused Text(session, TextProps.{.key = cast(u64)50220, .text = "Could not save settings",
-                .bounds = Rectangle.{bounds.x, bounds.y + bounds.height + 8.0, bounds.width, 28.0}, .font = 14,
-                .align = TextAlign.TextAlignCenter})
-        }
+        SettingsPage(session)
     } else if over {
         bounds := MenuBounds(2)
         unused Text(session, TextProps.{.key = cast(u64)50230, .text = "Game over", .font = 26,
@@ -656,7 +725,8 @@ Wardrobe :: (session: Session) {
         area.y + (area.height - height) * .5, width, height}
     unused Box(session, BoxProps.{.key = cast(u64)50300, .bounds = bounds,
         .fill = ColorFromPacked(0x051922fa), .border = ColorFromPacked(0x80cbd8ff), .radius = 26.0})
-    unused Text(session, TextProps.{.key = cast(u64)50301, .text = "Wardrobe", .font = 24,
+    unused WidgetPaletteUse(session, WidgetPalette.{.text = 0xe6f3ffff})
+    unused Text(session, TextProps.{.key = cast(u64)50301, .text = Words.Shop(Words.Language()), .font = 24,
         .bounds = Rectangle.{bounds.x + 26.0, bounds.y + 14.0, width - 122.0, 32.0}})
     close_width := ButtonWidth("Close")
     if RoundAction(session, cast(u64)50302, "Close", Rectangle.{bounds.x + width - close_width - 16.0,
@@ -668,6 +738,7 @@ Wardrobe :: (session: Session) {
         card := Rectangle.{bounds.x + 16.0 + cast(float32)id * (card_width + 8.0), bounds.y + 68.0, card_width, height - 80.0}
         if AccessoryCard(session, id, card) { SelectAccessory(id) }
     }
+    unused WidgetPaletteRestore(session)
 }
 
 AccessoryCard :: (session: Session, id: s32, bounds: Rectangle) -> bool {
