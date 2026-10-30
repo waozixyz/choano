@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Load Choano correctly in Arcade by publishing its artwork and sound under the paths the game requests.
 - Add free-standing wardrobe and settings icons, and explain how to unlock Fish when its lock is tapped.
 
 - Fill the title window with the original artwork and a separate fitted logo; keep title actions above the art and Android controls inside safe insets.

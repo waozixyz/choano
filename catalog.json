@@ -15,7 +15,7 @@
   ],
   "entry": "portable:Main",
   "source": "src/portable.zi",
-  "assets": "assets",
+  "assets": "assets/choano",
   "locales": "src/locales",
   "locale_prefix": "choano_",
   "preview": "assets/choano/title-landscape.jpg"
