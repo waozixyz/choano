@@ -218,7 +218,9 @@ def windows_raylib():
     folder = WINDOWS / 'raylib'
     library = folder / 'raylib/libraylib.a'
     linking = ' '.join(mingw_library_flags())
-    identity = f'{source}\n{RAYLIB_FLAGS}\n{linking}'
+    gcc = windows_tool(MINGW + 'gcc')
+    gxx = windows_tool(MINGW + 'g++')
+    identity = f'{source}\n{gcc}\n{gxx}\n{RAYLIB_FLAGS}\n{linking}'
     if built(library, identity):
         return source, library
     if folder.exists():
@@ -227,7 +229,8 @@ def windows_raylib():
     toolchain = folder / 'mingw.cmake'
     toolchain.write_text(f'''set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
-set(CMAKE_C_COMPILER {windows_tool(MINGW + 'gcc')})
+set(CMAKE_C_COMPILER {gcc})
+set(CMAKE_CXX_COMPILER {gxx})
 set(CMAKE_RC_COMPILER {windows_tool(MINGW + 'windres')})
 set(CMAKE_AR {windows_tool(MINGW + 'ar')})
 set(CMAKE_RANLIB {windows_tool(MINGW + 'ranlib')})

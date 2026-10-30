@@ -6,6 +6,59 @@ Expect :: (condition: bool, message: string) -> s32 {
     return 1
 }
 
+// One held touch swims right, then points each other way in turn: every leg
+// must go where the finger points, with no sideways drift from the last one.
+TouchTurns :: (mode: s32) -> s32 {
+    StartGame(2468, mode)
+    for step: 0..29 { MovePlayer(.{.steer_x = 1.0}, 1.0 / 60.0) }
+    // Down, up, left, right, then the four diagonals.
+    d: float32 = .70710678
+    heading_x: [8]float32 = .[0.0, 0.0, -1.0, 1.0, d, -d, -d, d]
+    heading_y: [8]float32 = .[1.0, -1.0, 0.0, 0.0, d, -d, d, -d]
+    for index: 0..7 {
+        x := heading_x[index]; y := heading_y[index]
+        // Keep the leg clear of the dish edge and the open-water bounds.
+        game.player_x = cast(float32)DISH_CENTER_X; game.player_y = cast(float32)DISH_CENTER_Y
+        for step: 0..14 { MovePlayer(.{.steer_x = x, .steer_y = y}, 1.0 / 60.0) }
+        along := (game.player_x - cast(float32)DISH_CENTER_X) * x + (game.player_y - cast(float32)DISH_CENTER_Y) * y
+        across := (game.player_x - cast(float32)DISH_CENTER_X) * y - (game.player_y - cast(float32)DISH_CENTER_Y) * x
+        if across < 0.0 { across = -across }
+        if Expect(along > 8.0 && across < .01, "a held touch turns cleanly where it points") != 0 {
+            print("mode % heading % %: along % across %\n", mode, x, y, along, across)
+            return 1
+        }
+    }
+    return 0
+}
+
+TouchCoast :: (mode: s32) -> s32 {
+    StartGame(9753, mode)
+    game.player_x = cast(float32)DISH_CENTER_X
+    game.player_y = cast(float32)DISH_CENTER_Y
+    for step: 0..29 { MovePlayer(.{.steer_x = 1.0, .steer_y = 1.0}, 1.0 / 60.0) }
+    before_x := game.player_x; before_y := game.player_y
+    MovePlayer(.{}, 1.0 / 60.0)
+    first := (game.player_x - before_x) * (game.player_x - before_x) +
+        (game.player_y - before_y) * (game.player_y - before_y)
+    before_x = game.player_x; before_y = game.player_y
+    MovePlayer(.{}, 1.0 / 60.0)
+    second := (game.player_x - before_x) * (game.player_x - before_x) +
+        (game.player_y - before_y) * (game.player_y - before_y)
+    before_x = game.player_x; before_y = game.player_y
+    MovePlayer(.{}, 1.0 / 60.0)
+    third := (game.player_x - before_x) * (game.player_x - before_x) +
+        (game.player_y - before_y) * (game.player_y - before_y)
+    for step: 0..19 { MovePlayer(.{}, 1.0 / 60.0) }
+    if Expect(first > .5 && second < first && third < second, "a released touch glides to a finite stop") != 0 { return 1 }
+    if Expect(game.player_velocity_x == 0.0 && game.player_velocity_y == 0.0,
+        "a released touch reaches exact rest") != 0 { return 1 }
+    release_x := game.player_x; release_y := game.player_y
+    for step: 0..29 { MovePlayer(.{}, 1.0 / 60.0) }
+    moved_x := game.player_x - release_x; moved_y := game.player_y - release_y
+    return Expect(moved_x == 0.0 && moved_y == 0.0 && game.coast_deceleration == 0.0,
+        "a released touch stays at rest without new input")
+}
+
 main :: () -> s32 {
     StartGame(12345)
     if Expect(game.started, "game starts immediately") != 0 { return 1 }
@@ -75,17 +128,17 @@ main :: () -> s32 {
     if Expect(moved_x > 30.0 && moved_y < -40.0 && moved_y * .6 + moved_x * .8 > -1.0 && moved_y * .6 + moved_x * .8 < 1.0,
         "a touch heading swims in any direction") != 0 { return 1 }
     if Expect(game.player_facing == 1 && game.player_moving, "the player faces its swim") != 0 { return 1 }
-    UpdateGame(.{.left = true, .steer_x = 1.0, .stop = true}, 1.0 / 60.0)
+    UpdateGame(.{.left = true, .steer_x = 1.0}, 1.0 / 60.0)
     if Expect(game.player_velocity_x < 50.0 && game.player_velocity_x > 20.0,
         "keys win over the touch heading and its release") != 0 { return 1 }
     for step: 0..119 { UpdateGame(.{}, 1.0 / 60.0) }
     if Expect(!game.player_moving, "the player glides to rest") != 0 { return 1 }
     for step: 0..29 { UpdateGame(.{.steer_x = 1.0}, 1.0 / 60.0) }
     if Expect(game.player_moving, "a held touch swims") != 0 { return 1 }
-    stopped_x := game.player_x
-    UpdateGame(.{.stop = true}, 1.0 / 60.0)
-    if Expect(game.player_velocity_x == 0.0 && game.player_velocity_y == 0.0 && !game.player_moving &&
-        game.player_x == stopped_x, "letting go of a touch halts at once") != 0 { return 1 }
+    for mode: cast(s32)MODE_AMOEBA..MODE_FISH {
+        if TouchTurns(mode) != 0 { return 1 }
+        if TouchCoast(mode) != 0 { return 1 }
+    }
 
     StartGame(97531)
     game.player_stage = PLAYER_STAGE_LAST - 1

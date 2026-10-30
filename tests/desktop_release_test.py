@@ -29,6 +29,70 @@ def desktop_entry(path):
     return dict(line.split('=', 1) for line in path.read_text().splitlines() if '=' in line)
 
 
+class WindowsRaylibToolchainTest(unittest.TestCase):
+    def setUp(self):
+        self.scratch = SCRATCH / 'windows'
+        self.scratch.mkdir(parents=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.scratch)
+
+    def test_both_cross_compilers_are_selected_and_cached_by_identity(self):
+        source = self.scratch / 'raylib-source'
+        source.mkdir()
+        tools = {
+            'x86_64-w64-mingw32-gcc': '/cross/bin/x86_64-w64-mingw32-gcc',
+            'x86_64-w64-mingw32-g++': '/cross/bin/x86_64-w64-mingw32-g++',
+            'x86_64-w64-mingw32-windres': '/cross/bin/x86_64-w64-mingw32-windres',
+            'x86_64-w64-mingw32-ar': '/cross/bin/x86_64-w64-mingw32-ar',
+            'x86_64-w64-mingw32-ranlib': '/cross/bin/x86_64-w64-mingw32-ranlib',
+        }
+        commands = []
+
+        def tool(name):
+            return tools[name]
+
+        def package(name):
+            return source
+
+        def run(*args, **kwargs):
+            command = list(map(str, args))
+            commands.append(command)
+            if command[:2] == ['cmake', '-S']:
+                folder = Path(command[4])
+                toolchain = Path(command[5].split('=', 1)[1]).read_text()
+                self.assertIn('set(CMAKE_C_COMPILER /cross/bin/x86_64-w64-mingw32-gcc)', toolchain)
+                self.assertIn(f'set(CMAKE_CXX_COMPILER {tools["x86_64-w64-mingw32-g++"]})', toolchain)
+                (folder / 'CMakeCache.txt').write_text('configured')
+            elif command[:2] == ['cmake', '--build']:
+                folder = Path(command[2])
+                library = folder / 'raylib/libraylib.a'
+                library.parent.mkdir(parents=True)
+                library.write_bytes(b'raylib')
+
+        originals = (desktop.WINDOWS, desktop.windows_tool, desktop.package,
+                     desktop.mingw_library_flags, desktop.run)
+        desktop.WINDOWS, desktop.windows_tool, desktop.package = self.scratch, tool, package
+        desktop.mingw_library_flags, desktop.run = lambda: [], run
+        try:
+            desktop.windows_raylib()
+            self.assertEqual(len(commands), 2)
+            desktop.windows_raylib()
+            self.assertEqual(len(commands), 2, 'unchanged compilers reuse the raylib build')
+
+            tools['x86_64-w64-mingw32-g++'] = '/new-cross/bin/x86_64-w64-mingw32-g++'
+            desktop.windows_raylib()
+            self.assertEqual(len(commands), 4, 'a different C++ compiler forces reconfiguration')
+            self.assertIn('set(CMAKE_CXX_COMPILER /new-cross/bin/x86_64-w64-mingw32-g++)',
+                          (self.scratch / 'raylib/mingw.cmake').read_text())
+            stamp = (self.scratch / 'raylib/raylib/libraylib.a.source').read_text()
+            self.assertIn('/cross/bin/x86_64-w64-mingw32-gcc', stamp)
+            self.assertIn('/new-cross/bin/x86_64-w64-mingw32-g++', stamp)
+        finally:
+            (desktop.WINDOWS, desktop.windows_tool, desktop.package,
+             desktop.mingw_library_flags, desktop.run) = originals
+
+
 class DesktopReleaseTest(unittest.TestCase):
     def setUp(self):
         if SCRATCH.exists():

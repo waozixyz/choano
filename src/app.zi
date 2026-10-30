@@ -409,7 +409,6 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     // Touch steers only while held; keys win in MovePlayer.
     input.steer_x = Shell.heading_x
     input.steer_y = Shell.heading_y
-    input.stop = Shell.TakeStop()
     // Shift or X dashes in Fish mode, as the Dash button does.
     input.dash = Shell.TakeDash() || key == 340 || key == 344 || key == 88 || key == 120
     if last_tick < 0.0 { last_tick = now }

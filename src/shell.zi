@@ -25,9 +25,6 @@ stick: Controls.GameStick;
 // their touch area; inside the dead zone or after release it is zero.
 heading_x: float32;
 heading_y: float32;
-// Lifting a held touch asks the game to halt at once instead of gliding.
-touching: bool;
-stop_requested: bool;
 // The top bar; while playing, the app draws the score and lives in it.
 bar: Rectangle;
 loaded: bool;
@@ -63,12 +60,9 @@ Pick :: (value: bool) {
 }
 FishRun :: () -> bool { return run_fish }
 TakeDash :: () -> bool { result := dash_requested; dash_requested = false; return result }
-TakeStop :: () -> bool { result := stop_requested; stop_requested = false; return result }
-// This frame's touch heading; letting go of a held touch requests a stop.
+// This frame's touch heading. A release leaves it zero, letting the game coast.
 Touch :: (held: bool, x: float32, y: float32) {
     heading_x = x; heading_y = y
-    if touching && !held { stop_requested = true }
-    touching = held
 }
 Start :: () { if Nav.GameNavigationPlay(*state) { start_requested = true } }
 Choose :: (mode: s32) {
@@ -78,7 +72,7 @@ Choose :: (mode: s32) {
 }
 TakeStart :: () -> bool {
     result := start_requested; start_requested = false
-    if result { ClearHeading(); stick.active = false; touching = false; stop_requested = false; run_fish = fish }
+    if result { ClearHeading(); stick.active = false; run_fish = fish }
     return result
 }
 ClearHeading :: () { heading_x = 0.0; heading_y = 0.0 }
@@ -269,7 +263,10 @@ End :: (session: Session, now: float64, over: bool) {
         // swipe result is unused. A tap never leans, so it does not move.
         gesture := SwipeArea(session, SwipeAreaProps.{.key = cast(u64)52010, .bounds = area,
             .label = "Move", .now = now, .min_distance = 6.0})
-        steer := Controls.GameStickSteer(*stick, gesture.down, gesture.at_x, gesture.at_y)
+        // The heading points from where the press began, the centre that
+        // SwipeFeedback draws; a reach of 0 keeps that anchor from following
+        // a long drag, so pointing below the pad always swims down.
+        steer := Controls.GameStickSteer(*stick, gesture.down, gesture.at_x, gesture.at_y, 8.0, 0.0)
         Touch(gesture.down, steer.x, steer.y)
         if gesture.down && !run_fish {
             // A thin unfilled dark ring, just outside SwipeFeedback's 56-unit

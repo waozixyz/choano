@@ -27,7 +27,7 @@ Moeboid assets and binaries are excluded; see [asset provenance](ASSETS.md).
 
 Desktop and browser: hold arrow keys or WASD to swim. Enter after game over
 or R starts a fresh run. In Fish mode, X or Shift dashes. On touch screens hold and drag
-anywhere to swim that way; letting go stops, and a tap alone does nothing. Fish mode adds a
+anywhere to swim that way; letting go glides smoothly to a stop, and a tap alone does nothing. Fish mode adds a
 Dash button. Swipe steering is the default; choose the direction pad or
 turn sound off in the in-app Settings, also reachable from Pause. Profile pauses play and opens the shared Entity account UI;
 Back returns to the same run. Signing in is optional. Earned growth stages

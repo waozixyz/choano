@@ -128,7 +128,7 @@ jobs:
           fetch: true
           packages: >-
             build-essential cmake pkg-config zlib1g-dev python3-pil gcc-mingw-w64-x86-64-win32
-            binutils-mingw-w64-x86-64 nsis
+            g++-mingw-w64-x86-64-win32 binutils-mingw-w64-x86-64 nsis
       - name: Cross-build the Windows installer
         run: python3 scripts/desktop_release.py windows
       - name: Name the download

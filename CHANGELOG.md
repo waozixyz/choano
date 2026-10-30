@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-10-29
+## [0.1.0] - 2026-10-30
 
 - Cover the title screen with both mode's artwork, crop it cleanly at every
   orientation, and load four smaller JPEG title images.
@@ -21,8 +21,9 @@
 
 - Open on an illustrated title screen, with all navigation inside the app and a full-screen browser canvas.
 - Start from the title screen with Play; choose swipe steering or a direction pad in Settings and keep that choice between visits.
-- Hold and drag anywhere to swim in any direction; letting go stops at once, and a tap alone never starts swimming.
+- Hold and drag anywhere to swim in any direction; letting go glides smoothly to a stop, and a tap alone never starts swimming.
 - See the light touch pad from Shovey and Wurm under your finger, with a thin outline over the bright dish.
+- Swim exactly where your finger points from the touch pad's centre, turning cleanly without drifting sideways.
 - Dash in Fish mode with the Dash button, X or Shift.
 - Float smoothly: the player bobs gently, leans into its swim and eases to a stop.
 - Keep the score, lives and the next danger in a game-style top bar.

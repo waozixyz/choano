@@ -73,6 +73,7 @@ SARDINE_SCORE :: 5;
 FRENZY_SECONDS :: 1.5;
 FRENZY_MOST :: 8;
 PLAYER_SPEED :: 100.0;
+TOUCH_COAST_TIME :: 0.35;
 // How quickly the player's velocity eases towards its heading, per second.
 PLAYER_EASE :: 8.0;
 ENEMY_SPEED_SCALE :: 90.0;
@@ -110,8 +111,6 @@ GameInput :: struct {
     // A touch heading in any direction, up to unit length; keys win.
     steer_x: float32
     steer_y: float32
-    // A held touch was let go: the player halts at once unless keys steer.
-    stop: bool
 }
 
 Game :: struct {
@@ -126,6 +125,7 @@ Game :: struct {
     player_moving: bool
     player_velocity_x: float32
     player_velocity_y: float32
+    coast_deceleration: float32
     // Set once a run reaches full size; the app takes it to award it.
     full_size: bool
     dash_timer: float64
@@ -353,8 +353,7 @@ MovePlayer :: (input: GameInput, delta: float64) {
         if length > 1.0 { target_x /= length; target_y /= length }
     }
     keyed := input.left || input.right || input.up || input.down
-    if input.stop && !keyed { game.player_velocity_x = 0.0; game.player_velocity_y = 0.0 }
-    // The velocity eases towards the heading, so the amoeba glides.
+    // Keys ease the velocity towards their heading, so the amoeba glides.
     fish := game.mode == MODE_FISH
     speed: float32 = ifx fish then FISH_SPEED else PLAYER_SPEED
     if fish && input.dash && game.dash_cooldown <= 0.0 {
@@ -370,8 +369,38 @@ MovePlayer :: (input: GameInput, delta: float64) {
     if game.dash_timer > 0.0 { speed *= DASH_BOOST }
     ease := cast(float32)delta * (ifx fish then FISH_EASE else PLAYER_EASE)
     if ease > 1.0 { ease = 1.0 }
-    game.player_velocity_x += (target_x * speed - game.player_velocity_x) * ease
-    game.player_velocity_y += (target_y * speed - game.player_velocity_y) * ease
+    heading := cast(float32)Math.Sqrt(cast(float64)(target_x * target_x + target_y * target_y))
+    if !keyed && heading > 0.0 {
+        // A held touch turns at once and eases only its speed, so the
+        // player goes where the finger points instead of drifting sideways.
+        game.coast_deceleration = 0.0
+        current := cast(float32)Math.Sqrt(cast(float64)(game.player_velocity_x * game.player_velocity_x +
+            game.player_velocity_y * game.player_velocity_y))
+        current += (heading * speed - current) * ease
+        game.player_velocity_x = target_x / heading * current
+        game.player_velocity_y = target_y / heading * current
+    } else if !keyed {
+        current := cast(float32)Math.Sqrt(cast(float64)(game.player_velocity_x * game.player_velocity_x +
+            game.player_velocity_y * game.player_velocity_y))
+        if current > 0.0 && game.coast_deceleration == 0.0 {
+            game.coast_deceleration = current / cast(float32)TOUCH_COAST_TIME
+        }
+        if game.coast_deceleration > 0.0 {
+            slowed := current - game.coast_deceleration * cast(float32)delta
+            if slowed <= 0.0 {
+                game.player_velocity_x = 0.0
+                game.player_velocity_y = 0.0
+                game.coast_deceleration = 0.0
+            } else {
+                game.player_velocity_x *= slowed / current
+                game.player_velocity_y *= slowed / current
+            }
+        }
+    } else {
+        game.coast_deceleration = 0.0
+        game.player_velocity_x += (target_x * speed - game.player_velocity_x) * ease
+        game.player_velocity_y += (target_y * speed - game.player_velocity_y) * ease
+    }
     game.player_x += game.player_velocity_x * cast(float32)delta
     game.player_y += game.player_velocity_y * cast(float32)delta
     if game.player_velocity_x < -8.0 { game.player_facing = 0 }

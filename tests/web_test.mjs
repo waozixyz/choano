@@ -26,6 +26,39 @@ try{
 
  const press=async(key,code,vk)=>{await command('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:vk});await command('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:vk})};
  const click=async(x,y)=>{await command('Input.dispatchMouseEvent',{type:'mousePressed',x,y,button:'left',clickCount:1});await command('Input.dispatchMouseEvent',{type:'mouseReleased',x,y,button:'left',clickCount:1});await delay(120)};
+ const touch=(type,x,y)=>command('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y}]});
+ const where=()=>evaluate('[Module.choanoX,Module.choanoY]');
+ // One held contact drags far right, past the pad, then points each way from
+ // the pad's visible centre, where the press began: each leg must travel
+ // where it points, with no sideways drift, then coasts smoothly to rest.
+ const frames=async count=>{for(let index=0;index<count;index++)await evaluate('new Promise(resolve=>requestAnimationFrame(resolve))')};
+ const coast=async label=>{
+  const released=await where();await frames(6);
+  const first=await where();await frames(6);
+  const second=await where();await frames(6);
+  const third=await where();await frames(30);
+  const rest=await where();
+  await frames(6);const still=await where();
+  const step=(a,b)=>Math.hypot(b[0]-a[0],b[1]-a[1]);
+  const firstTravel=step(released,first),secondTravel=step(first,second),thirdTravel=step(second,third);
+  if(!(firstTravel>2&&secondTravel<firstTravel&&thirdTravel<secondTravel))throw Error(`${label}: release did not decelerate smoothly: ${firstTravel.toFixed(2)}, ${secondTravel.toFixed(2)}, ${thirdTravel.toFixed(2)}`);
+  const stillTravel=step(rest,still);
+  if(stillTravel>.1)throw Error(`${label}: release coast did not settle completely: ${firstTravel.toFixed(2)}, ${secondTravel.toFixed(2)}, ${thirdTravel.toFixed(2)}, ${step(third,rest).toFixed(2)}, ${stillTravel.toFixed(2)}`);
+  const before=await where();await command('Input.dispatchMouseEvent',{type:'mouseMoved',x:before[0],y:before[1]});await delay(200);
+  await command('Input.dispatchMouseEvent',{type:'mousePressed',x:before[0],y:before[1],button:'left',clickCount:1});await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:before[0],y:before[1],button:'left',clickCount:1});await delay(200);
+  if(Math.hypot(...(await where()).map((value,index)=>value-before[index]))>1)throw Error(label+': pointer movement or a click restarted the player');
+ };
+ const turns=async(label,ox,oy)=>{
+  await press('r','KeyR',82);await until('Math.abs(Module.choanoX-245)<1 && Math.abs(Module.choanoY-209)<1');await delay(100);
+  await touch('touchStart',ox,oy);await delay(80);for(const x of [ox+60,ox+120,ox+180]){await touch('touchMove',x,oy);await delay(60)}await delay(250);
+  const d=Math.SQRT1_2,legs=[['below the pad',0,1],['above the pad',0,-1],['left',-1,0],['right',1,0],['down-right',d,d],['up-left',-d,-d],['down-left',-d,d],['up-right',d,-d]];
+  for(const [name,x,y] of legs){
+   await touch('touchMove',ox+x*90,oy+y*90);await delay(40);const from=await where();await delay(300);const to=await where();
+   const along=(to[0]-from[0])*x+(to[1]-from[1])*y,across=Math.abs((to[0]-from[0])*y-(to[1]-from[1])*x);
+   if(!(along>8&&across<along*.12))throw Error(`${label}: pointing ${name} after a long drag swam ${along.toFixed(1)} along and ${across.toFixed(1)} sideways`);
+  }
+  await touch('touchEnd');await coast(label);
+ };
  const shot=async path=>{if(path){const result=await command('Page.captureScreenshot',{format:'png'});await writeFile(path,Buffer.from(result.data,'base64'))}};
  const dimensions=()=>evaluate('({w:Module.canvas.clientWidth,h:Module.canvas.clientHeight})');
  await until('globalThis.Module?.choanoReady && Module.choanoPage===0');await delay(400);
@@ -44,13 +77,13 @@ try{
  await command('Emulation.setTouchEmulationEnabled',{enabled:true});
  const swipeBefore=await evaluate('Module.choanoX');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(100);await command('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:360,y:200}]});await delay(300);
  const held=await evaluate('Module.choanoX');if(held-swipeBefore<8)throw Error('Touch steering did not swim right');await delay(250);if(await evaluate('Module.choanoX')-held<8)throw Error('A held touch stopped swimming');
- await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(120);const released=await evaluate('Module.choanoX');await delay(300);if(Math.abs(await evaluate('Module.choanoX')-released)>1)throw Error('Releasing the touch did not stop');
+ await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await coast('right swipe');
  const tapped=await evaluate('[Module.choanoX,Module.choanoY]');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(80);await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(400);
  if(await evaluate(`Math.hypot(Module.choanoX-${tapped[0]},Module.choanoY-${tapped[1]})`)>1)throw Error('A tap started swimming');
  const diagonal=await evaluate('[Module.choanoX,Module.choanoY]');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(100);await command('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:330,y:240}]});await delay(400);
  const [dx,dy]=await evaluate('[Module.choanoX,Module.choanoY]').then(([x,y])=>[x-diagonal[0],y-diagonal[1]]);if(!(dy>8&&dx>4&&Math.abs(dy/dx-4/3)<.2))throw Error(`A held diagonal did not steer freely: ${dx},${dy}`);
- await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(120);const settled=await evaluate('[Module.choanoX,Module.choanoY]');await delay(250);
- if(await evaluate(`Math.hypot(Module.choanoX-${settled[0]},Module.choanoY-${settled[1]})`)>1)throw Error('Releasing the diagonal did not stop');
+ await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await coast('diagonal swipe');
+ await turns('Amoeba landscape',300,200);
  await press('Escape','Escape',27);await until('Module.choanoPage===2');const paused=await evaluate('Module.choanoX');await delay(350);if(await evaluate('Module.choanoX')!==paused)throw Error('Pause advanced the game');
  await click(size.w-48,26);await until('Module.choanoPage===3');await click(size.w/2,52+(size.h-52-194)/2+38);await until('Module.choanoPage===4');
  await press('2','Digit2',50);await until('Module.choanoPage===3');await press('Escape','Escape',27);await until('Module.choanoPage===2');await press('Escape','Escape',27);await until('Module.choanoPage===1');
@@ -64,8 +97,13 @@ try{
  await command('Page.reload');await until('Module.choanoReady && Module.choanoPage===0');await delay(300);await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.portrait.png');
  if(!await evaluate('Module.muted'))throw Error('Sound preference was not retained');
  await press('Enter','Enter',13);await until('Module.choanoPage===1');
+ // Swipe steering again, in portrait, then Fish mode as if earned.
+ const prefer=async text=>{await evaluate(`(Module.FS.writeFile('/kryon-apps/choano/preferences.v1','${text}'),new Promise(r=>Module.FS.syncfs(false,r)))`);await command('Page.reload');await until('Module.choanoReady && Module.choanoPage===0');await delay(300);await press('Enter','Enter',13);await until('Module.choanoPage===1');await delay(200)};
+ await prefer('1s110');if(await evaluate('Module.choanoMode')!==0)throw Error('Amoeba mode did not start');await turns('Amoeba portrait',195,400);
+ await prefer('1s111');if(await evaluate('Module.choanoMode')!==1)throw Error('Fish mode did not start once earned');await turns('Fish portrait',195,400);
+ await command('Emulation.clearDeviceMetricsOverride');await delay(350);await press('r','KeyR',82);await delay(200);await turns('Fish landscape',300,200);
  if(missing.length)throw Error('Missing assets: '+missing.join(', '));if(errors.length)throw Error(errors.join('\n'));
- console.log('Choano local browser tests passed: app title/chrome, locked Fish mode, choice, keyboard/click no start/held free touch steering/release stop/tap no start/pad, pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
+ console.log('Choano local browser tests passed: app title/chrome, locked Fish mode, choice, keyboard/click no start/held free touch steering/clean turns after long drags in Amoeba and Fish, landscape and portrait/release glide/tap no start/pad, pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
 }finally{
  const exited=!browser.pid||browser.exitCode!==null?Promise.resolve():new Promise(r=>browser.once('exit',r));
  if(socket?.readyState===WebSocket.OPEN)await command('Browser.close').catch(()=>{});
