@@ -93,7 +93,12 @@ try{
   if(opened.length!==1||opened[0].href!=='https://github.com/waozixyz/choano/releases/latest'||opened[0].target!=='_blank'||!opened[0].rel.includes('noopener'))throw Error(label+': Downloads did not open the latest release in a new tab: '+JSON.stringify(opened));
   if(!await evaluate('Module.choanoPage===0 && !Module.profileVisible && document.querySelectorAll("a").length===0'))throw Error(label+': Downloads left the title screen or a link behind');
  };
- const downloadsHidden=async label=>{if((await download()).length)throw Error('Downloads shows '+label)};
+ const downloadsHidden=async label=>{
+  // The title Downloads position becomes Profile on paused screens. Probe
+  // the unused center of the bar without activating another real action.
+  await click((await dimensions()).w/2,26);
+  if((await evaluate('caught.splice(0)')).length)throw Error('Downloads shows '+label);
+ };
  await until('globalThis.Module?.choanoReady && Module.choanoPage===0');await delay(400);
  if(!await evaluate('Module.FS.stat("/assets/choano/organisms-hd.png").size>1000000'))throw Error('High-resolution organisms not loaded');
  if(!await evaluate('document.querySelectorAll("header,footer,button,#loading").length===0 && Module.canvas.clientWidth===innerWidth && Module.canvas.clientHeight===innerHeight'))throw Error('HTML app chrome remains');
