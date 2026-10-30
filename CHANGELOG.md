@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Enlarge the Amoeba game on portrait screens while keeping its safety rim and responsive fit.
+
 ## [0.1.2] - 2026-10-30
 
 - Fill portrait screens with a playable Amoeba field and a soft white rim that keeps creatures away from the screen edges.

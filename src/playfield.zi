@@ -26,8 +26,8 @@ Playfield :: struct {
 
 FRAME_INSET :: 8.0;
 FRAME_RADIUS :: 28.0;
-PLAYABLE_INSET :: 20.0;
-PLAYABLE_RADIUS :: 16.0;
+PLAYABLE_INSET :: 12.0;
+PLAYABLE_RADIUS :: 12.0;
 // The plain ground inside the artwork's printed dish, clear of its rim, in
 // the 500 by 420 picture's pixels.
 DishGround :: () -> Rectangle {
