@@ -20,6 +20,11 @@ Math :: #import "std/math";
 #import "kryon/widget_palette"
 #import "kryon/direction_pad"
 #import "kryon/joystick"
+#if !#defined(CHOANO_PORTABLE) {
+    #import "kryon/tree"
+    #import "kryon/tree_input"
+    #import "kryon/widget_kind"
+}
 
 BAR_HEIGHT :: 52.0;
 
@@ -68,6 +73,7 @@ accessories_owned: s32;
 accessories_stage: s32;
 wardrobe_unseen: bool;
 wardrobe_open: bool;
+fish_lock_message: bool;
 // The Fish Dash button, beside the play area's touch controls.
 dash_requested: bool;
 area: Rectangle;
@@ -203,6 +209,10 @@ TitleLogoBounds :: (viewport: Rectangle) -> Rectangle {
 }
 
 WardrobeIconBounds :: (viewport: Rectangle) -> Rectangle {
+    return Rectangle.{viewport.x + 8.0, viewport.y, 52.0, 52.0}
+}
+
+SettingsIconBounds :: (viewport: Rectangle) -> Rectangle {
     return Rectangle.{viewport.x + viewport.width - 60.0, viewport.y, 52.0, 52.0}
 }
 
@@ -219,8 +229,8 @@ PlainButton :: (session: Session, key: u64, text: string, bounds: Rectangle,
         bounds.x += (bounds.width - width) * .5
         bounds.width = width
     }
-    fill := ifx disabled then BUTTON_DISABLED.fill else style.fill
-    textColor := ifx disabled then BUTTON_DISABLED.text else style.text
+    fill := ifx disabled || show_lock then BUTTON_DISABLED.fill else style.fill
+    textColor := ifx disabled || show_lock then BUTTON_DISABLED.text else style.text
     radius := ButtonRadius(bounds.height)
     shadowColor := (fill & 0xffffff00) | 0x33
     unused Box(session, BoxProps.{.key = key + 20000,
@@ -246,20 +256,10 @@ PlainButton :: (session: Session, key: u64, text: string, bounds: Rectangle,
         }
     }
     if show_lock {
-        x := bounds.x + 16.0
-        y := bounds.y + bounds.height * .5
-        unused Box(session, BoxProps.{.key = key + 11000,
-            .bounds = Rectangle.{x + 2.0, y - 11.0, 10.0, 13.0},
-            .fill = ColorFromPacked(textColor), .radius = 5.0})
-        unused Box(session, BoxProps.{.key = key + 11001,
-            .bounds = Rectangle.{x + 4.0, y - 9.0, 6.0, 10.0},
-            .fill = ColorFromPacked(fill), .radius = 3.0})
-        unused Box(session, BoxProps.{.key = key + 11002,
-            .bounds = Rectangle.{x, y - 2.0, 14.0, 12.0},
-            .fill = ColorFromPacked(textColor), .radius = 3.0})
-        unused Box(session, BoxProps.{.key = key + 11003,
-            .bounds = Rectangle.{x + 6.0, y + 1.0, 2.0, 5.0},
-            .fill = ColorFromPacked(fill), .radius = 1.0})
+        unused Image(session, ImageProps.{.key = key + 11000,
+            .asset_path = "assets/choano/lock.png", .alt_text = "Locked",
+            .bounds = Rectangle.{bounds.x + 8.0, bounds.y + 12.0, 28.0, 28.0},
+            .fit = ImageFit.ImageFitContain, .smooth = true})
     }
     if show_text {
         strong: [1]TextRange = .[.{0, cast(s32)text.count}]
@@ -321,23 +321,49 @@ RoundAction :: (session: Session, key: u64, text: string, bounds: Rectangle) -> 
     return PlainButton(session, key, text, bounds, BUTTON_NORMAL, false, false)
 }
 
-WardrobeIconButton :: (session: Session, key: u64, bounds: Rectangle) -> bool {
-    unused Box(session, BoxProps.{.key = key + 30000, .bounds = bounds,
-        .fill = ColorFromPacked(0xf7f2e8ff), .border = ColorFromPacked(0x10203fff),
-        .radius = bounds.height * .5})
-    item := WearingAccessory()
-    source := Accessories.SourceContentBounds(item)
-    icon := Rectangle.{bounds.x + 8.0, bounds.y + 8.0, bounds.width - 16.0, bounds.height - 16.0}
-    unused Image(session, ImageProps.{.key = key + 1, .asset_path = Accessories.PreviewAssetPath(item),
-        .bounds = icon, .source = source, .smooth = true, .alt_text = "Wardrobe",
+IconButton :: (session: Session, key: u64, bounds: Rectangle, path: string, label: string) -> bool {
+    pressed := false
+    focused := false
+    #if !#defined(CHOANO_PORTABLE) {
+        previous := TreePrevious(session, TreeCurrentParent(session), key, cast(s32)WidgetKind.WidgetKindButton)
+        pressed = TreePressedAt(session, previous)
+        focused = TreeFocusVisibleAt(session, previous)
+    }
+    icon := bounds
+    if pressed {
+        icon.x += bounds.width * .04
+        icon.y += bounds.height * .04
+        icon.width *= .92
+        icon.height *= .92
+    }
+    if focused {
+        unused Box(session, BoxProps.{.key = key + 30000, .bounds = bounds,
+            .border = ColorFromPacked(0xffd8ee99), .radius = 26.0})
+    }
+    for layer: 0..2 {
+        shadow := icon
+        shadow.x += cast(float32)layer - 1.0
+        shadow.y += 2.0 + cast(float32)layer
+        unused Image(session, ImageProps.{.key = key + 31000 + cast(u64)layer,
+            .asset_path = path, .bounds = shadow, .fit = ImageFit.ImageFitContain,
+            .tint = 0x00000022, .smooth = true})
+    }
+    unused Image(session, ImageProps.{.key = key + 1, .asset_path = path,
+        .bounds = icon, .smooth = true, .alt_text = label,
+        .tint = ifx pressed then cast(u32)0xd8d8d8ff else 0,
         .fit = ImageFit.ImageFitContain})
+    return Button(session, ButtonProps.{.key = key, .id = cast(s32)key, .bounds = bounds,
+        .label = label, .invisible = true}) != 0
+}
+
+WardrobeIconButton :: (session: Session, key: u64, bounds: Rectangle) -> bool {
+    clicked := IconButton(session, key, bounds, "assets/choano/wardrobe.png", "Wardrobe")
     if wardrobe_unseen {
         unused Box(session, BoxProps.{.key = key + 2,
-            .bounds = Rectangle.{bounds.x + bounds.width - 18.0, bounds.y + 4.0, 12.0, 12.0},
+            .bounds = Rectangle.{bounds.x + bounds.width - 14.0, bounds.y + 4.0, 12.0, 12.0},
             .fill = ColorFromPacked(0xa82361ff), .border = ColorFromPacked(0xffffffff), .radius = 6.0})
     }
-    return Button(session, ButtonProps.{.key = key, .id = cast(s32)key, .bounds = bounds,
-        .label = "Wardrobe", .invisible = true}) != 0
+    return clicked
 }
 
 TitleBackdrop :: (session: Session, viewport: Rectangle) {
@@ -429,11 +455,10 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64, full_vi
             wardrobe_open = true
             wardrobe_unseen = false
         }
-        right -= 60.0
     }
     if settings_available {
-        settings_width := ActionButtonWidth("Settings")
-        if Action(session, cast(u64)50011, "Settings", Rectangle.{right - settings_width, action_y, settings_width, 52.0}) {
+        settings_width: float32 = 52.0
+        if IconButton(session, cast(u64)50011, SettingsIconBounds(viewport), "assets/choano/gear.png", "Settings") {
             Nav.GameNavigationSettings(*state)
         }
         right -= settings_width + 8.0
@@ -465,18 +490,20 @@ ModePicker :: (session: Session, bounds: Rectangle) {
     if Mode(session, cast(u64)50120, "Amoeba", !fish, false,
         Rectangle.{bounds.x, bounds.y, half, bounds.height}) { Pick(false) }
     if Mode(session, cast(u64)50121, "Fish", fish, !fish_unlocked,
-        Rectangle.{bounds.x + half, bounds.y, half, bounds.height}) { Pick(true) }
-    if !fish_unlocked {
-        unused Text(session, TextProps.{.key = cast(u64)50122, .text = "Reach full size",
-            .bounds = Rectangle.{bounds.x, bounds.y + bounds.height, bounds.width, 10.0},
-            .font = 10, .align = TextAlign.TextAlignCenter})
+        Rectangle.{bounds.x + half, bounds.y, half, bounds.height}) {
+        if fish_unlocked { Pick(true) } else { fish_lock_message = true }
+    }
+    if !fish_unlocked && fish_lock_message {
+        unused Text(session, TextProps.{.key = cast(u64)50122, .text = "Reach full size in Amoeba to unlock Fish",
+            .bounds = Rectangle.{bounds.x, bounds.y + bounds.height, bounds.width, 16.0},
+            .font = 13, .align = TextAlign.TextAlignCenter})
     }
 }
 
 Mode :: (session: Session, key: u64, text: string, selected: bool, locked: bool, bounds: Rectangle) -> bool {
     active := selected && !locked
     return PlainButton(session, key, text, bounds, ifx active then BUTTON_SELECTED else BUTTON_NORMAL,
-        locked, false, active, true, locked)
+        false, false, active, true, locked)
 }
 Backdrop :: (session: Session) {
     if area.width <= 0.0 || area.height <= 0.0 { return }

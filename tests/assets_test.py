@@ -125,7 +125,7 @@ for name, digest in files.items():
             assert len(set(raw)) > 1, name
             samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
             assert max(map(abs, samples)) <= .12 * 32767, 'Effect too loud: ' + name
-assert len([p for p in actual if p.endswith('.png')]) == 188
+assert len([p for p in actual if p.endswith('.png')]) == 191
 assert len([p for p in actual if p.endswith('.jpg')]) == 4
 assert len([p for p in actual if p.endswith('.wav')]) == 7
 assert not (ROOT / 'assets/original').exists()

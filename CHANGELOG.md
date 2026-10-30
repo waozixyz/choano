@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Add free-standing wardrobe and settings icons, and explain how to unlock Fish when its lock is tapped.
+
 - Fill the title window with the original artwork and a separate fitted logo; keep title actions above the art and Android controls inside safe insets.
 - Preserve saved sound, mode, and accessory progress before merging account growth.
 - Use readable solid pills and an equipped-accessory wardrobe icon on the title and beside Pause.

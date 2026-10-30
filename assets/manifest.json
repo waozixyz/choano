@@ -104,8 +104,10 @@
     "assets/choano/fish/title-landscape.jpg": "51a690065647f47616ce181004399404313c7bf3110099fe912c3304a4546838",
     "assets/choano/fish/title-portrait.jpg": "cdcc998bcf761cf591348b32021c034a2861f7ad5a2267d8786ab7248615788b",
     "assets/choano/fish/turtle-hd.png": "99876e53ae7c1081f575173682b8764a92ff2aeb7ead318dbddc6debe74d173e",
+    "assets/choano/gear.png": "11e762aae3fcf1f843577ae82edf123add93d81aa6b5c8d129a6c2d8582f6593",
     "assets/choano/icon.png": "a43552d889ddc86a6a27ca80566661ca7240b1552068c497a3e7e9360bd56c7e",
     "assets/choano/icons/xyz.waozi.choano.full_size.shape": "c00e893b89afae749a30ac4bdb5c50b4a7d58f4211f11280d083c2bc76c31d51",
+    "assets/choano/lock.png": "af0569e04839eda8de5ee6717a1c043fc5b2e6580392f30bf5d41b0bad791571",
     "assets/choano/organisms-hd.png": "69196388a62c24c2464f79e0fc989137f236a27ed81848c87916884eddca28b8",
     "assets/choano/player-left-11-0.png": "60316bc93b8fa0d72e591a6b658f41f97e7726d2231d86884d69b05339cd876c",
     "assets/choano/player-left-11-1.png": "26c1cf454bc28f4f2b474a626e3179655d7eb81922d08f264012ba9406706be9",
@@ -212,7 +214,8 @@
     "assets/choano/title-landscape.jpg": "d1fc93aa345157fd24f11e9ad604ad4c46439fb8e77cd9ae92f97b1df1b8a8e7",
     "assets/choano/title-logo.png": "7c628ed9f07cdf4b13266ef6ba7b10fc44e0bd64d93f50b6d03405520d3e147d",
     "assets/choano/title-portrait.jpg": "71ba8222009858966f544cfa7d14724da39896c9b25aa7959150445669b32e83",
-    "assets/choano/title-screen.png": "0aaacd2526d9dcbf585309833c276e53ef9641e44bcad7d6555334ac950875b6"
+    "assets/choano/title-screen.png": "0aaacd2526d9dcbf585309833c276e53ef9641e44bcad7d6555334ac950875b6",
+    "assets/choano/wardrobe.png": "cc2f39ff9967c3f32ec178fc189c199eebf0e44e9984080278ead48eb61e3357"
   },
-  "sha256": "39aa13642646a874dbb528a867f1b7ee52ef178b9415a196a66f805be3d7a491"
+  "sha256": "5d834e186f1589ef99bee915ed6cf35662d72093aaf1a1c2089a585291135e8e"
 }

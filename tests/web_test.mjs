@@ -64,8 +64,10 @@ try{
  // Match shell.zi's compact top action geometry.
  const actionWidth=text=>Math.max(72,24+[...text].reduce((sum,c)=>sum+(' iIljtfr.,:'.includes(c)||c==="'"?5:'mwWM'.includes(c)?16:10),0));
  const actionCenter=(width,label,title=false)=>{
-  let right=width-8-(title?60:0);
-  for(const text of ['Settings',...(title?['Downloads']:[]),'Profile']){
+  let right=width-8;
+  if(label==='Settings')return width-34;
+  right-=60;
+  for(const text of [...(title?['Downloads']:[]),'Profile']){
    if(text===label)return right-actionWidth(text)/2;
    right-=actionWidth(text)+8;
   }
@@ -73,7 +75,7 @@ try{
  };
  const wardrobe=async title=>{
   const {w}=await dimensions();
-  await click(title?w-34:16+actionWidth('Pause')+26,26);
+  await click(title?34:16+actionWidth('Pause')+26,26);
   await until('Module.choanoWardrobeOpen');
   if(await evaluate('Module.choanoPage')!==(title?0:2))throw Error('Wardrobe did not preserve title/pause play');
   const position=await where();await delay(350);
