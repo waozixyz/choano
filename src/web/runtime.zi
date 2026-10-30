@@ -12,6 +12,7 @@ using Canvas :: #import "kryon/Canvas";
 #import "kryon/text_widget"
 #import "kryon/button_props"
 #import "kryon/button_widget"
+#import "kryon/open_uri"
 #import "std/web"
 #import "std/file"
 Entity :: #import "entity/native_host";
@@ -21,6 +22,9 @@ Progress :: #import "progress";
 
 #program_export
 ClockMillisecondsHost :: () -> s64 { return cast(s64)PageNow() }
+
+// Every installer of the newest release: APKs, AppImage and Windows.
+DOWNLOADS_URL :: "https://github.com/waozixyz/choano/releases/latest";
 
 Held :: (keys: s32, name: string) -> bool { return WebAsBool(WebGet(keys, WebName(name))) }
 
@@ -40,6 +44,7 @@ main :: () -> s32 {
     if !SessionValid(session) { return 1 }
     defer { unused SessionClose(session) }
     App.SetProfileAvailable(true)
+    App.SetDownloadsAvailable(true)
     visible: bool;
     saved := PageNow()
     WebSet(WebModule, WebName("choanoReady"), WebBool(true))
@@ -75,6 +80,8 @@ main :: () -> s32 {
             }
             App.AccountProgress(Progress.HighestStage())
             unused App.Frame(session, viewport)
+            // A new tab, so the game keeps its place.
+            if App.TakeDownloadsRequest() { unused OpenUri(DOWNLOADS_URL) }
             if App.TakeProfileRequest() {
                 Entity.EntityHostReload()
                 unused Entity.EntityHostPage("profile")

@@ -31,6 +31,9 @@ loaded: bool;
 muted: bool;
 profile_available: bool;
 profile_requested: bool;
+// The website offers the release downloads from the title screen.
+downloads_available: bool;
+downloads_requested: bool;
 start_requested: bool;
 save_failed: bool;
 // Reaching full size unlocks Fish mode, picked on the title screen; a run
@@ -77,6 +80,7 @@ TakeStart :: () -> bool {
 }
 ClearHeading :: () { heading_x = 0.0; heading_y = 0.0 }
 TakeProfile :: () -> bool { result := profile_requested; profile_requested = false; return result }
+TakeDownloads :: () -> bool { result := downloads_requested; downloads_requested = false; return result }
 Page :: () -> s32 { return state.page }
 Playing :: () -> bool { return state.page == Nav.GAME_PLAYING }
 WantsBoard :: () -> bool { return state.running && state.page != Nav.GAME_TITLE && state.page != Nav.GAME_SETTINGS }
@@ -141,6 +145,10 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64) -> Rect
     bar = Rectangle.{viewport.x, viewport.y, viewport.width, BAR_HEIGHT - 3.0}
     if GameBar(session, viewport, cast(u64)50000, title, state.page != Nav.GAME_TITLE, playing) { unused Back() }
     x := viewport.x + viewport.width - cast(float32)trailing
+    if downloads_available && state.page == Nav.GAME_TITLE &&
+    Action(session, cast(u64)50012, "Downloads", Rectangle.{x - 108.0, viewport.y + 6.0, 104.0, 40.0}) {
+        downloads_requested = true
+    }
     if profile_available && !playing {
         if Action(session, cast(u64)50010, "Profile", Rectangle.{x, viewport.y + 6.0, 76.0, 40.0}) {
             profile_requested = true

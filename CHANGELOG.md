@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Find the Android, Linux and Windows downloads from Downloads on the website's title screen.
+
 ## [0.1.1] - 2026-10-30
 
 - Load title artwork and creatures correctly in the Linux AppImage on newer Linux distributions.

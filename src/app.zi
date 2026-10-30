@@ -346,6 +346,8 @@ UsePalette :: (session: Session) {
 }
 SetProfileAvailable :: (available: bool) { Shell.profile_available = available }
 TakeProfileRequest :: () -> bool { return Shell.TakeProfile() }
+SetDownloadsAvailable :: (available: bool) { Shell.downloads_available = available }
+TakeDownloadsRequest :: () -> bool { return Shell.TakeDownloads() }
 NavigationPage :: () -> s32 { return Shell.Page() }
 // Account progress that already reached full size unlocks Fish mode quietly
 // on this device too.

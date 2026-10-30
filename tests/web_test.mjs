@@ -61,13 +61,26 @@ try{
  };
  const shot=async path=>{if(path){const result=await command('Page.captureScreenshot',{format:'png'});await writeFile(path,Buffer.from(result.data,'base64'))}};
  const dimensions=()=>evaluate('({w:Module.canvas.clientWidth,h:Module.canvas.clientHeight})');
+ // Clicks where the title's Downloads sits, left of Profile and Settings. The
+ // new tab it opens is caught and cancelled, so nothing leaves this profile.
+ const download=async()=>{
+  await evaluate(`globalThis.caught||(globalThis.caught=[],addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a');if(a){caught.push({href:a.href,target:a.target,rel:a.rel});e.preventDefault()}},true)),true`);
+  await click((await dimensions()).w-224,26);await delay(150);return evaluate('caught.splice(0)')};
+ const downloadsOpen=async label=>{
+  const opened=await download();
+  if(opened.length!==1||opened[0].href!=='https://github.com/waozixyz/choano/releases/latest'||opened[0].target!=='_blank'||!opened[0].rel.includes('noopener'))throw Error(label+': Downloads did not open the latest release in a new tab: '+JSON.stringify(opened));
+  if(!await evaluate('Module.choanoPage===0 && !Module.profileVisible && document.querySelectorAll("a").length===0'))throw Error(label+': Downloads left the title screen or a link behind');
+ };
+ const downloadsHidden=async label=>{if((await download()).length)throw Error('Downloads shows '+label)};
  await until('globalThis.Module?.choanoReady && Module.choanoPage===0');await delay(400);
  if(!await evaluate('Module.FS.stat("/assets/choano/organisms-hd.png").size>1000000'))throw Error('High-resolution organisms not loaded');
  if(!await evaluate('document.querySelectorAll("header,footer,button,#loading").length===0 && Module.canvas.clientWidth===innerWidth && Module.canvas.clientHeight===innerHeight'))throw Error('HTML app chrome remains');
  await shot(process.env.CHOANO_SCREENSHOT);
+ await downloadsOpen('landscape title');
  await press('ArrowRight','ArrowRight',39);await delay(150);
  let size=await dimensions();await click(size.w/2,52+(size.h-52)*.75+24);await until('Module.choanoPage===1 && Math.abs(Module.choanoX-245)<1');
  if(await evaluate('Module.choanoMode')!==0)throw Error('Fish mode was playable before it was earned');
+ await downloadsHidden('during play');if(await evaluate('Module.choanoPage')!==1)throw Error('A click in the top bar left the game');
  if(await evaluate("(Module.music(true),Module.musicOn===true&&Module.loop.loop===true&&(Module.music(false),Module.loop.paused))")!==true)throw Error('The shark loop does not start and stop');
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.game.png');
  const before=await evaluate('Module.choanoX');await command('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});await delay(350);await command('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
@@ -85,6 +98,7 @@ try{
  await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await coast('diagonal swipe');
  await turns('Amoeba landscape',300,200);
  await press('Escape','Escape',27);await until('Module.choanoPage===2');const paused=await evaluate('Module.choanoX');await delay(350);if(await evaluate('Module.choanoX')!==paused)throw Error('Pause advanced the game');
+ await downloadsHidden('while paused');
  await click(size.w-48,26);await until('Module.choanoPage===3');await click(size.w/2,52+(size.h-52-194)/2+38);await until('Module.choanoPage===4');
  await press('2','Digit2',50);await until('Module.choanoPage===3');await press('Escape','Escape',27);await until('Module.choanoPage===2');await press('Escape','Escape',27);await until('Module.choanoPage===1');
  await press('Escape','Escape',27);await until('Module.choanoPage===2');await click(size.w-130,26);await until('Module.profileVisible');await press('Escape','Escape',27);await until('!Module.profileVisible');await delay(150);await press('Escape','Escape',27);await until('Module.choanoPage===1');await delay(150);
@@ -95,6 +109,7 @@ try{
  if(await evaluate('Module.choanoX')-touchBefore<8)throw Error('In-app direction pad did not swim right');
  await press('m','KeyM',77);await until('Module.muted');await delay(1500);
  await command('Page.reload');await until('Module.choanoReady && Module.choanoPage===0');await delay(300);await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.portrait.png');
+ await downloadsOpen('portrait title');
  if(!await evaluate('Module.muted'))throw Error('Sound preference was not retained');
  await press('Enter','Enter',13);await until('Module.choanoPage===1');
  // Swipe steering again, in portrait, then Fish mode as if earned.
@@ -103,7 +118,7 @@ try{
  await prefer('1s111');if(await evaluate('Module.choanoMode')!==1)throw Error('Fish mode did not start once earned');await turns('Fish portrait',195,400);
  await command('Emulation.clearDeviceMetricsOverride');await delay(350);await press('r','KeyR',82);await delay(200);await turns('Fish landscape',300,200);
  if(missing.length)throw Error('Missing assets: '+missing.join(', '));if(errors.length)throw Error(errors.join('\n'));
- console.log('Choano local browser tests passed: app title/chrome, locked Fish mode, choice, keyboard/click no start/held free touch steering/clean turns after long drags in Amoeba and Fish, landscape and portrait/release glide/tap no start/pad, pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
+ console.log('Choano local browser tests passed: app title/chrome, title-only Downloads to the latest release, locked Fish mode, choice, keyboard/click no start/held free touch steering/clean turns after long drags in Amoeba and Fish, landscape and portrait/release glide/tap no start/pad, pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
 }finally{
  const exited=!browser.pid||browser.exitCode!==null?Promise.resolve():new Promise(r=>browser.once('exit',r));
  if(socket?.readyState===WebSocket.OPEN)await command('Browser.close').catch(()=>{});

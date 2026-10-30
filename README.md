@@ -12,6 +12,7 @@ when tense music announces a shark. Now and then a gentle sea turtle swims
 by: it never bites and leaves a short trail of golden pearls.
 
 [Play in your browser](https://choano.waozi.xyz/)
+· [Downloads](https://github.com/waozixyz/choano/releases/latest)
 · [Source](https://github.com/waozixyz/choano)
 
 ![Choano replacement artwork](assets/choano/title-landscape.jpg)
@@ -20,8 +21,10 @@ Six quiet event chimes replace the old beat and spawn noises. There is no
 loading message or browser footer; forming bubbles stay beneath the player.
 
 Native and browser editions share the same Ziran game rules and Kryon
-widgets. All artwork and audio are replacements made for Choano. Original
-Moeboid assets and binaries are excluded; see [asset provenance](ASSETS.md).
+widgets. The website's title screen links the latest release's APKs,
+AppImage and Windows installer. All artwork and audio are replacements made
+for Choano. Original Moeboid assets and binaries are excluded; see
+[asset provenance](ASSETS.md).
 
 ## Controls
 
