@@ -8,10 +8,12 @@
 #import "kryon/drawing_props"
 #import "kryon/image_props"
 #import "kryon/image_widget"
-#import "kryon/tree"
 #import "kryon/text_props"
 #import "kryon/text_widget"
 #import "kryon/text_align"
+#import "kryon/scroll_props"
+#import "kryon/scroll_widget"
+#import "kryon/tree"
 #import "kryon/widget_palette"
 #if #defined(CHOANO_PORTABLE) {
     Clock :: #import "portable_runtime";
@@ -237,11 +239,10 @@ DrawBlob :: (session: Session, animation: float64, x: float32, y: float32, key: 
 }
 
 DrawGame :: (session: Session, bounds: Rectangle) {
-    world_clip := Box(session, BoxProps.{.key = cast(u64)49100, .bounds = bounds})
-    if world_clip < 0 { return }
-    TreeSetChildClip(session, world_clip, bounds)
-    if !TreePushScope(session, world_clip) { return }
-    defer { unused TreePopScope(session) }
+    world_clip := Scroll(session, ScrollProps.{.key = cast(u64)49100, .bounds = bounds,
+        .content_height = cast(s32)bounds.height})
+    if !world_clip.opened { return }
+    defer { unused End(session) }
 
     field = FitPlayfield(bounds, game.mode)
     view = field.view
