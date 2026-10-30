@@ -49,7 +49,11 @@ try{
   if(Math.hypot(...(await where()).map((value,index)=>value-before[index]))>1)throw Error(label+': pointer movement or a click restarted the player');
  };
  const turns=async(label,ox,oy,spawn=[245,209])=>{
-  await press('r','KeyR',82);await until(`Math.abs(Module.choanoX-${spawn[0]})<1 && Math.abs(Module.choanoY-${spawn[1]})<1`);await delay(100);
+  await press('r','KeyR',82);
+  if(spawn)await until(`Math.abs(Module.choanoX-${spawn[0]})<1 && Math.abs(Module.choanoY-${spawn[1]})<1`);
+  // Fish centers on the current sea geometry. The first layout after startup
+  // or rotation can change that geometry; its earlier position is no reset oracle.
+  await frames(3);await delay(100);
   await touch('touchStart',ox,oy);await delay(80);for(const x of [ox+60,ox+120,ox+180]){await touch('touchMove',x,oy);await delay(60)}await delay(250);
   const d=Math.SQRT1_2,legs=[['below the pad',0,1],['above the pad',0,-1],['left',-1,0],['right',1,0],['down-right',d,d],['up-left',-d,-d],['down-left',-d,d],['up-right',d,-d]];
   for(const [name,x,y] of legs){
@@ -170,8 +174,8 @@ try{
  if(await evaluate('Module.choanoDishFrame')!==true)throw Error('The portrait dish has no rimmed arena');
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.portrait-game.png');await turns('Amoeba portrait',195,400);
  await prefer('1s111');
- if(await evaluate('Module.choanoMode')!==1)throw Error('Fish mode did not start once earned');if(await evaluate('Module.choanoDishFrame')!==false)throw Error('Fish mode kept the dish rim');await turns('Fish portrait',195,400,await where());
- await command('Emulation.clearDeviceMetricsOverride');await delay(350);await press('r','KeyR',82);await delay(200);await turns('Fish landscape',300,200,await where());
+ if(await evaluate('Module.choanoMode')!==1)throw Error('Fish mode did not start once earned');if(await evaluate('Module.choanoDishFrame')!==false)throw Error('Fish mode kept the dish rim');await turns('Fish portrait',195,400,null);
+ await command('Emulation.clearDeviceMetricsOverride');await delay(350);await press('r','KeyR',82);await delay(200);await turns('Fish landscape',300,200,null);
  if(missing.length)throw Error('Missing assets: '+missing.join(', '));if(errors.length)throw Error(errors.join('\n'));
  console.log('Choano local browser tests passed: app title/chrome, title-only Downloads to the latest release, locked Fish mode, choice, keyboard/click no start/held free touch steering/clean turns after long drags in Amoeba and Fish, landscape and portrait/round landscape and rimmed portrait dish/release glide/tap no start/pad, title and playing wardrobe/pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
 }finally{
