@@ -93,6 +93,7 @@ try{
  await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await coast('right swipe');
  const tapped=await evaluate('[Module.choanoX,Module.choanoY]');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(80);await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(400);
  if(await evaluate(`Math.hypot(Module.choanoX-${tapped[0]},Module.choanoY-${tapped[1]})`)>1)throw Error('A tap started swimming');
+ await press('r','KeyR',82);await until('Math.abs(Module.choanoX-245)<1 && Math.abs(Module.choanoY-209)<1');await delay(100);
  const diagonal=await evaluate('[Module.choanoX,Module.choanoY]');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(100);await command('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:330,y:240}]});await delay(400);
  const [dx,dy]=await evaluate('[Module.choanoX,Module.choanoY]').then(([x,y])=>[x-diagonal[0],y-diagonal[1]]);if(!(dy>8&&dx>4&&Math.abs(dy/dx-4/3)<.2))throw Error(`A held diagonal did not steer freely: ${dx},${dy}`);
  await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await coast('diagonal swipe');
