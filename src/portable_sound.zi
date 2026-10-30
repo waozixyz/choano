@@ -10,5 +10,8 @@ SoundPlayEvent :: (event: s32) -> bool {
     return Runtime.PlaySound(BuilderFinish(path))
 }
 
+// The package host plays single sounds only, so the shark loop stays quiet.
+SoundMusic :: (on: bool) {}
+
 sound_muted: bool;
 SoundSetMuted :: (value: bool) { sound_muted = value }

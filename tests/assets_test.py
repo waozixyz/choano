@@ -26,6 +26,14 @@ for name, digest in files.items():
             assert (width, height) == (size, size) and header[25] == 6, name
         if path.name.startswith('blob-'):
             assert (width, height) == (39, 39) and header[25] == 6, name
+    elif path.name == 'shark-music.wav':
+        # The one loop: only while a shark hunts, and still kept quiet.
+        with wave.open(str(path)) as sound:
+            assert sound.getnchannels() == 1 and sound.getframerate() == 22050 and sound.getsampwidth() == 2
+            assert 4 <= sound.getnframes()/sound.getframerate() <= 10
+            raw = sound.readframes(sound.getnframes())
+            samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
+            assert max(map(abs, samples)) <= .35 * 32767, 'Shark loop too loud'
     elif path.suffix == '.wav':
         with wave.open(str(path)) as sound:
             assert sound.getcomptype() == 'NONE' and sound.getnchannels() == 1
@@ -35,8 +43,8 @@ for name, digest in files.items():
             assert len(set(raw)) > 1, name
             samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
             assert max(map(abs, samples)) <= .12 * 32767, 'Effect too loud: ' + name
-assert len([p for p in actual if p.endswith('.png')]) == 185
-assert len([p for p in actual if p.endswith('.wav')]) == 6
+assert len([p for p in actual if p.endswith('.png')]) == 186
+assert len([p for p in actual if p.endswith('.wav')]) == 7
 assert not (ROOT / 'assets/original').exists()
 for p in (ROOT / 'assets').rglob('*'):
     assert p.suffix.lower() not in {'.exe', '.dll', '.gam', '.gif'}, p
@@ -49,7 +57,7 @@ assert all((ROOT / a['icon']).is_file() for a in awards['achievements'])
 for path in (ROOT / 'assets/choano/achievement-locales').glob('*.json'):
     assert {k for a in awards['achievements'] for k in (a['title_key'], a['description_key'])} <= set(json.loads(path.read_text())), path
 assert '[dependencies.arcade]' not in (ROOT / 'ziran.toml').read_text()
-print('Choano local asset and package tests passed: 185 PNGs, 6 quiet WAVs.')
+print('Choano local asset and package tests passed: 186 PNGs, 6 quiet chimes and the shark loop.')
 
 for name, minimum in [('organisms-hd.png',1254),('title-landscape.png',1024),('title-portrait.png',1024)]:
     with (ROOT / 'assets/choano' / name).open('rb') as handle:

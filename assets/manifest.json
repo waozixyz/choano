@@ -1,5 +1,5 @@
 {
-  "sha256": "76f48f0937272d12e48254d5a120f96894ca7cc39618eed2e5b5568efa5cbf3c",
+  "sha256": "8bad58c1570f7415b52b2ab8cd7b9cafba1ae1ac1bf9568fe08cce77e360cfe0",
   "files": {
     "assets/choano/achievement-locales/cs.json": "a8e0c13f6f2aa0dc86e177659c7152978384d595d5e849cd6f4d0eaf04bf3d5c",
     "assets/choano/achievement-locales/de.json": "30158adb2327c1012737d64ff3c381ca6c49768179bdcfd54df86737c4346bd9",
@@ -23,6 +23,7 @@
     "assets/choano/audio/game-start.wav": "8c2ec9404e881c89a891d1ec2743e66e83039580707bc19df0f2969884dc9690",
     "assets/choano/audio/grow.wav": "1e3336f083005708d8d4c914b6feeb014343ff18e3aac8d0a2d4c777cff98e88",
     "assets/choano/audio/lose-life.wav": "04f8451fc7090bbb745c2f1a3e93aa84259e9b56e2894f25307b5323bc18ac56",
+    "assets/choano/audio/shark-music.wav": "512ad4ea02644d7458731a0796585de1ddded36a11cbcccc826d15ebdf5ac442",
     "assets/choano/background-0.png": "4e8ce0161b14c9fea626269a9ef62d081146c52f4b96646d9f35f1af075620de",
     "assets/choano/background-1.png": "78264564857179c1fbd1915180fc4695bd13faf4905ced4597e94b6cc611592a",
     "assets/choano/background-2.png": "584e3ba0967e57bf3b27228689810485df5fdc41105a8b28f4e1ecd0a4ecd047",
@@ -95,6 +96,7 @@
     "assets/choano/enemy-right-47-1.png": "2c33914645eecb8cb2562e6206c02e47a0708764933da22747cf4183acb15e29",
     "assets/choano/enemy-right-47-2.png": "49f86ea72efac21501b8fc5618b63bb5b9fcaa47725d8c29fabf2a90d071cbac",
     "assets/choano/fish/fish-hd.png": "d7cb46b428806729bb12a6c7c7f637258141237d95791a1f001700867a73ed7d",
+    "assets/choano/fish/hunters-hd.png": "24250bf02d3fc7ba30f9f8707e35d44989b2a8c1d9216e524731a66ad95f747c",
     "assets/choano/fish/sea.png": "c34278ef52051515e4f2708493dfaff1a25b03c769084cf240b88ad437f4eba7",
     "assets/choano/fish/title-landscape.png": "0679a11a1fd0f6319802cf3aecafd53c9eb31a608f077335dd7771f58139979e",
     "assets/choano/fish/title-portrait.png": "a5f31d42ff754edde1fd4586d4d6d23aebfc2189637d46293a3bb760ee2c7952",

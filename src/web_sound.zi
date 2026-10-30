@@ -11,5 +11,12 @@ SoundPlayEvent :: (event: s32) -> bool {
     return true
 }
 
+music_on: bool;
+SoundMusic :: (on: bool) {
+    if on == music_on { return }
+    music_on = on
+    unused WebCall1(WebModule, WebName("music"), WebBool(on))
+}
+
 sound_muted: bool;
 SoundSetMuted :: (value: bool) { sound_muted = value; unused WebCall1(WebModule, WebName("setMuted"), WebBool(value)) }

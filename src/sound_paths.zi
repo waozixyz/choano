@@ -1,3 +1,6 @@
+// The loop that plays while a shark hunts in Fish mode.
+SHARK_MUSIC :: "assets/choano/audio/shark-music.wav";
+
 SoundPath :: (event: s32) -> string {
     paths: [7]string = .["", "game-start", "eat", "grow", "extra-life", "lose-life", "game-over"]
     if event < 1 || event > 6 { return "" }

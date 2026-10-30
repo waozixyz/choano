@@ -32,6 +32,22 @@ PEARL_SCORE :: 25;
 KIND_FISH :: 0;
 KIND_JELLY :: 1;
 KIND_PEARL :: 2;
+KIND_SHARK :: 3;
+KIND_SARDINE :: 4;
+// Now and then a shark hunts: its fin shows at the edge first, then it
+// sweeps across, swallowing fish in its way.
+SHARK_FIRST :: 18.0;
+SHARK_WARNING :: 2.5;
+SHARK_LENGTH :: 150.0;
+SHARK_SPEED :: 165.0;
+SHARK_TURN :: 38.0;
+SHARK_SCORE :: 50;
+// A school of sardines darts past; eating quickly builds a frenzy.
+SCHOOL_SIZE :: 7;
+SARDINE_SIZE :: 9.0;
+SARDINE_SCORE :: 5;
+FRENZY_SECONDS :: 1.5;
+FRENZY_MOST :: 8;
 PLAYER_SPEED :: 100.0;
 // How quickly the player's velocity eases towards its heading, per second.
 PLAYER_EASE :: 8.0;
@@ -90,6 +106,14 @@ Game :: struct {
     safe_timer: float64
     jelly_timer: float64
     pearl_timer: float64
+    shark_timer: float64
+    shark_warning: float64
+    shark_y: float32
+    shark_leftward: bool
+    shark_bit: bool
+    school_timer: float64
+    frenzy: s32
+    frenzy_timer: float64
     growth_progress: s32
     next_growth_threshold: s32
     growth_stages: s32
@@ -246,6 +270,8 @@ StartGame :: (seed: u32, mode: s32 = MODE_AMOEBA) {
     if mode == MODE_FISH {
         game.jelly_timer = 14.0
         game.pearl_timer = 8.0
+        game.shark_timer = SHARK_FIRST
+        game.school_timer = 10.0
         while game.enemy_count < FISH_START { unused SpawnFish(STAGE_FIRST, true) }
     } else {
         while game.enemy_count < INITIAL_ENEMIES { unused SpawnEnemy(STAGE_FIRST) }
@@ -463,6 +489,46 @@ SpawnDrifter :: (kind: s32) -> bool {
     return true
 }
 
+// The shark enters at the depth its fin showed, from that side.
+SpawnShark :: () -> bool {
+    if game.enemy_count >= ENEMY_LIMIT { return false }
+    length := cast(float32)SHARK_LENGTH
+    game.enemies[game.enemy_count] = .{
+        .x = ifx game.shark_leftward then cast(float32)FIELD_WIDTH + length * .5 else -length * .5,
+        .y = game.shark_y, .stage = STAGE_LAST,
+        .velocity_x = ifx game.shark_leftward then -cast(float32)SHARK_SPEED else cast(float32)SHARK_SPEED,
+        .active = true, .kind = KIND_SHARK}
+    game.enemy_count += 1
+    game.shark_bit = false
+    return true
+}
+
+// Sardines swim in from one side as a tight school sharing one wave.
+SpawnSchool :: () {
+    leftward := RandomNext(2) == 0
+    y := SeaY(60.0)
+    phase := cast(float32)RandomNext(628) * .01
+    for member: cast(s32)0..SCHOOL_SIZE - 1 {
+        if game.enemy_count >= ENEMY_LIMIT { return }
+        behind := cast(float32)(member % 3) * 16.0 + cast(float32)RandomNext(6)
+        x: float32 = ifx leftward then cast(float32)FIELD_WIDTH + 10.0 + behind else -10.0 - behind
+        game.enemies[game.enemy_count] = .{.x = x, .y = y + cast(float32)(member / 3 * 14 - 14) + cast(float32)RandomNext(6),
+            .stage = 0, .velocity_x = ifx leftward then -78.0 else 78.0, .active = true, .kind = KIND_SARDINE,
+            .phase = phase, .animation = cast(float64)member * .07}
+        game.enemy_count += 1
+    }
+}
+
+SharkAlert :: () -> bool { return game.mode == MODE_FISH && !game.over && (game.shark_warning > 0.0 || KindCount(KIND_SHARK) > 0) }
+
+// The shark's body, a long low box.
+SharkReach :: (shark: Enemy, left: *float32, right: *float32, top: *float32, bottom: *float32) {
+    <<left = shark.x - cast(float32)SHARK_LENGTH * .4
+    <<right = shark.x + cast(float32)SHARK_LENGTH * .4
+    <<top = shark.y - cast(float32)SHARK_LENGTH * .12
+    <<bottom = shark.y + cast(float32)SHARK_LENGTH * .12
+}
+
 FishCount :: () -> s32 {
     count: s32 = 0
     for index: cast(s32)0..game.enemy_count - 1 {
@@ -500,6 +566,23 @@ MoveSeaCreature :: (index: s32, delta: float64) -> bool {
         return !(enemy.velocity_x < 0.0 && enemy.x < -size - 4.0) &&
             !(enemy.velocity_x > 0.0 && enemy.x > cast(float32)FIELD_WIDTH + size + 4.0)
     }
+    if enemy.kind == KIND_SHARK {
+        enemy.velocity_y = 0.0
+        if game.player_y > enemy.y + 4.0 { enemy.velocity_y = cast(float32)SHARK_TURN }
+        if game.player_y < enemy.y - 4.0 { enemy.velocity_y = -cast(float32)SHARK_TURN }
+        enemy.x += enemy.velocity_x * step
+        enemy.y += enemy.velocity_y * step
+        half := cast(float32)SHARK_LENGTH * .5
+        return !(enemy.velocity_x < 0.0 && enemy.x < -half - 4.0) &&
+            !(enemy.velocity_x > 0.0 && enemy.x > cast(float32)FIELD_WIDTH + half + 4.0)
+    }
+    if enemy.kind == KIND_SARDINE {
+        enemy.velocity_y = wave * 24.0
+        enemy.x += enemy.velocity_x * step
+        enemy.y += enemy.velocity_y * step
+        return !(enemy.velocity_x < 0.0 && enemy.x < -60.0) &&
+            !(enemy.velocity_x > 0.0 && enemy.x > cast(float32)FIELD_WIDTH + 60.0)
+    }
     enemy.x += wave * 8.0 * step
     enemy.y += enemy.velocity_y * step
     if enemy.kind == KIND_JELLY { return enemy.y > cast(float32)SEA_TOP - 40.0 }
@@ -509,10 +592,44 @@ MoveSeaCreature :: (index: s32, delta: float64) -> bool {
 LoseLife :: () {
     game.lives -= 1
     game.safe_timer = SAFE_SECONDS
+    game.frenzy = 0
+    if KindCount(KIND_SHARK) > 0 { game.shark_bit = true }
     QueueSound(SOUND_LOSE_LIFE)
     if game.lives < 0 {
         game.over = true
         QueueSound(SOUND_GAME_OVER)
+    }
+}
+
+// Each bite soon after the last one grows the frenzy.
+Feed :: () {
+    game.frenzy = ifx game.frenzy_timer > 0.0 then game.frenzy + 1 else 1
+    if game.frenzy > FRENZY_MOST { game.frenzy = FRENZY_MOST }
+    game.frenzy_timer = FRENZY_SECONDS
+}
+
+// Fish and sardines in a shark's mouth are gone.
+SharkFeeds :: () {
+    shark: s32 = 0
+    while shark < game.enemy_count {
+        if game.enemies[shark].kind != KIND_SHARK { shark += 1; continue }
+        left: float32
+        right: float32
+        top: float32
+        bottom: float32
+        SharkReach(game.enemies[shark], *left, *right, *top, *bottom)
+        index: s32 = 0
+        while index < game.enemy_count {
+            prey := game.enemies[index]
+            if (prey.kind == KIND_FISH || prey.kind == KIND_SARDINE) &&
+                RectanglesOverlap(left, right, top, bottom, prey.x - 3.0, prey.x + 3.0, prey.y - 3.0, prey.y + 3.0) {
+                RemoveEnemy(index)
+                if index < shark { shark -= 1 }
+                continue
+            }
+            index += 1
+        }
+        shark += 1
     }
 }
 
@@ -524,10 +641,25 @@ SeaCollisions :: () {
         reach := player_size * .5
         enemy_size: float32 = ifx enemy.kind == KIND_JELLY then 26.0 else 12.0
         if enemy.kind == KIND_FISH { enemy_size = cast(float32)StageSize(enemy.stage) }
+        if enemy.kind == KIND_SARDINE { enemy_size = cast(float32)SARDINE_SIZE + 4.0 }
         inset := enemy_size * .5 - COLLISION_INSET
         if inset < 2.0 { inset = 2.0 }
+        left := enemy.x - inset
+        right := enemy.x + inset
+        top := enemy.y - inset
+        bottom := enemy.y + inset
+        if enemy.kind == KIND_SHARK { SharkReach(enemy, *left, *right, *top, *bottom) }
         if !RectanglesOverlap(game.player_x - reach, game.player_x + reach, game.player_y - reach, game.player_y + reach,
-            enemy.x - inset, enemy.x + inset, enemy.y - inset, enemy.y + inset) { index += 1; continue }
+            left, right, top, bottom) { index += 1; continue }
+        if enemy.kind == KIND_SARDINE {
+            Feed()
+            game.score += SARDINE_SCORE * game.frenzy
+            game.growth_progress += 1
+            QueueSound(SOUND_EAT)
+            RemoveEnemy(index)
+            GrowPlayer()
+            continue
+        }
         if enemy.kind == KIND_PEARL {
             game.score += PEARL_SCORE
             game.growth_progress += 2
@@ -537,7 +669,9 @@ SeaCollisions :: () {
             continue
         }
         if enemy.kind == KIND_FISH && enemy.stage <= game.player_stage {
+            Feed()
             game.score += enemy.stage * 10
+            if game.frenzy > 1 { game.score += SARDINE_SCORE * game.frenzy }
             game.growth_progress += enemy.stage
             QueueSound(SOUND_EAT)
             RemoveEnemy(index)
@@ -553,11 +687,20 @@ UpdateSea :: (input: GameInput, delta: float64) {
     if game.dash_timer > 0.0 { game.dash_timer -= delta }
     if game.dash_cooldown > 0.0 { game.dash_cooldown -= delta }
     if game.safe_timer > 0.0 { game.safe_timer -= delta }
+    if game.frenzy_timer > 0.0 { game.frenzy_timer -= delta }
+    if game.frenzy_timer <= 0.0 { game.frenzy = 0 }
     MovePlayer(input, delta)
     index: s32 = 0
     while index < game.enemy_count {
-        if MoveSeaCreature(index, delta) { index += 1 } else { RemoveEnemy(index) }
+        if MoveSeaCreature(index, delta) { index += 1; continue }
+        // Outlasting a shark's pass without a bite earns a bonus.
+        if game.enemies[index].kind == KIND_SHARK && !game.shark_bit {
+            game.score += SHARK_SCORE
+            QueueSound(SOUND_GROW)
+        }
+        RemoveEnemy(index)
     }
+    SharkFeeds()
     SeaCollisions()
     if game.over { return }
     // More fish join as a run goes on.
@@ -577,5 +720,25 @@ UpdateSea :: (input: GameInput, delta: float64) {
     if game.pearl_timer <= 0.0 {
         unused SpawnDrifter(KIND_PEARL)
         game.pearl_timer = 9.0 + cast(float64)RandomNext(6000) / 1000.0
+    }
+    game.school_timer -= delta
+    if game.school_timer <= 0.0 {
+        SpawnSchool()
+        game.school_timer = 14.0 + cast(float64)RandomNext(8000) / 1000.0
+    }
+    if game.shark_warning > 0.0 {
+        game.shark_warning -= delta
+        if game.shark_warning <= 0.0 {
+            game.shark_warning = 0.0
+            unused SpawnShark()
+        }
+    } else if KindCount(KIND_SHARK) == 0 {
+        game.shark_timer -= delta
+        if game.shark_timer <= 0.0 {
+            game.shark_warning = SHARK_WARNING
+            game.shark_leftward = RandomNext(2) == 0
+            game.shark_y = SeaY(cast(float32)SHARK_LENGTH * .3)
+            game.shark_timer = 25.0 + cast(float64)RandomNext(15000) / 1000.0
+        }
     }
 }

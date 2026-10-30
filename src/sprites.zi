@@ -52,6 +52,17 @@ FishSource :: (index: s32) -> Rectangle {
     return cells[index]
 }
 // A fish of STAGE, one to ten.
+// The shark, its warning fin and a sardine, from their own sheet.
+HUNTER_SHEET :: "assets/choano/fish/hunters-hd.png";
+HUNTER_SHARK :: 0;
+HUNTER_FIN :: 1;
+HUNTER_SARDINE :: 2;
+HunterSource :: (index: s32) -> Rectangle {
+    cells: [3]Rectangle = .[.{8.0, 8.0, 468.0, 237.0}, .{484.0, 8.0, 301.0, 206.0}, .{793.0, 8.0, 279.0, 135.0}]
+    if index < 0 || index > 2 { return cells[0] }
+    return cells[index]
+}
+
 FishStageSource :: (stage: s32) -> Rectangle {
     index := stage - 1
     if index < 0 { index = 0 }

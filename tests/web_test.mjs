@@ -35,6 +35,7 @@ try{
  await press('ArrowRight','ArrowRight',39);await delay(150);
  let size=await dimensions();await click(size.w/2,52+(size.h-52)*.75+24);await until('Module.choanoPage===1 && Math.abs(Module.choanoX-245)<1');
  if(await evaluate('Module.choanoMode')!==0)throw Error('Fish mode was playable before it was earned');
+ if(await evaluate("(Module.music(true),Module.musicOn===true&&Module.loop.loop===true&&(Module.music(false),Module.loop.paused))")!==true)throw Error('The shark loop does not start and stop');
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.game.png');
  const before=await evaluate('Module.choanoX');await command('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});await delay(350);await command('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
  if(await evaluate('Module.choanoX')-before<10)throw Error('Keyboard swimming failed');

@@ -52,6 +52,7 @@ SetHeldInput :: (left: bool, right: bool, up: bool, down: bool) {
 }
 score_text: [16]u8;
 lives_text: [16]u8;
+frenzy_text: [24]u8;
 stage_text: [48]u8;
 path_buffers: [16][128]u8;
 path_buffer_index: s32;
@@ -170,6 +171,14 @@ DrawSea :: (session: Session) {
         if enemy.kind == KIND_JELLY {
             Float(session, FISH_SHEET, FishSource(FISH_JELLY), "right", 30.0, enemy.animation, 0.0, .08,
                 enemy.x, enemy.y, key)
+        } else if enemy.kind == KIND_SHARK {
+            side := ifx enemy.velocity_x < 0.0 then "left" else "right"
+            Float(session, HUNTER_SHEET, HunterSource(HUNTER_SHARK), side, cast(float32)SHARK_LENGTH,
+                enemy.animation, enemy.velocity_y / 60.0, .02, enemy.x, enemy.y, key)
+        } else if enemy.kind == KIND_SARDINE {
+            side := ifx enemy.velocity_x < 0.0 then "left" else "right"
+            Float(session, HUNTER_SHEET, HunterSource(HUNTER_SARDINE), side, cast(float32)SARDINE_SIZE * FISH_LENGTH,
+                enemy.animation, enemy.velocity_y / 40.0, .03, enemy.x, enemy.y, key)
         } else if enemy.kind == KIND_PEARL {
             Float(session, FISH_SHEET, FishSource(FISH_PEARL), "right", 13.0, enemy.animation * 2.0, 0.0, .1,
                 enemy.x, enemy.y, key)
@@ -179,6 +188,13 @@ DrawSea :: (session: Session) {
                 cast(float32)StageSize(enemy.stage) * FISH_LENGTH, enemy.animation, enemy.velocity_y / 40.0, .03,
                 enemy.x, enemy.y, key)
         }
+    }
+    // The fin cuts the water where the shark will come in.
+    if game.shark_warning > 0.0 && Trig.Sin(game.elapsed * 14.0) > -.4 {
+        side := ifx game.shark_leftward then "left" else "right"
+        x: float32 = ifx game.shark_leftward then cast(float32)FIELD_WIDTH - 30.0 else 30.0
+        Float(session, HUNTER_SHEET, HunterSource(HUNTER_FIN), side, 44.0, game.elapsed, 0.0, .05,
+            x, game.shark_y, cast(u64)1990)
     }
 }
 DrawSprite :: (session: Session, kind: string, side: string, stage: s32, animation: float64,
@@ -259,7 +275,15 @@ DrawHud :: (session: Session, bar: Rectangle) {
     HudText(session, TextUntilNul(lives_text[:]), Rectangle.{bar.x + 118.0, bar.y, 48.0, bar.height},
         cast(u64)3021, 20, TextAlign.TextAlignStart)
 
-    HudText(session, "SCORE", Rectangle.{bar.x, bar.y + 3.0, bar.width, 14.0}, cast(u64)3010, 11,
+    label := "SCORE"
+    if game.frenzy >= 2 {
+        frenzy_digits: [12]u8
+        at = CopyText("FRENZY x", frenzy_text[:], 0)
+        at = CopyText(FormatInteger(cast(s64)game.frenzy, frenzy_digits[:]), frenzy_text[:], at)
+        if at < cast(s32)frenzy_text.count { frenzy_text[at] = cast(u8)0 }
+        label = TextUntilNul(frenzy_text[:])
+    }
+    HudText(session, label, Rectangle.{bar.x, bar.y + 3.0, bar.width, 14.0}, cast(u64)3010, 11,
         TextAlign.TextAlignCenter)
     score_digits: [16]u8
     at = CopyText(FormatInteger(cast(s64)game.score, score_digits[:]), score_text[:], 0)
@@ -270,10 +294,12 @@ DrawHud :: (session: Session, bar: Rectangle) {
     avoid_stage := game.player_stage + 1
     if avoid_stage > STAGE_LAST { avoid_stage = STAGE_LAST }
     right := bar.x + bar.width
-    HudText(session, "AVOID", Rectangle.{right - 104.0, bar.y, 56.0, bar.height}, cast(u64)3000, 12,
-        TextAlign.TextAlignEnd)
+    shark := SharkAlert()
+    HudText(session, ifx shark then "SHARK!" else "AVOID", Rectangle.{right - 104.0, bar.y, 56.0, bar.height},
+        cast(u64)3000, 12, TextAlign.TextAlignEnd)
     danger := Rectangle.{right - 42.0, middle - 15.0, 30.0, 30.0}
-    if fish { PaintCell(session, FISH_SHEET, FishStageSource(avoid_stage), "right", danger, cast(u64)3002) }
+    if shark { PaintCell(session, HUNTER_SHEET, HunterSource(HUNTER_SHARK), "right", danger, cast(u64)3002) }
+    else if fish { PaintCell(session, FISH_SHEET, FishStageSource(avoid_stage), "right", danger, cast(u64)3002) }
     else { PaintOrganism(session, "enemy", "right", avoid_stage, AnimationFrame(game.elapsed, 3), danger, cast(u64)3002) }
 }
 
@@ -354,6 +380,7 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     }
     area := Shell.Begin(session, viewport, key, now)
     SoundSetMuted(Shell.muted)
+    SoundMusic(Shell.Playing() && SharkAlert())
     if Shell.WantsBoard() { DrawGame(session, area) }
     if Shell.HudVisible() { DrawHud(session, Shell.bar) }
     Shell.End(session, now, game.over)

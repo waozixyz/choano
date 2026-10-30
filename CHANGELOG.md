@@ -4,6 +4,8 @@
 
 - Earn a Full size achievement and unlock Fish mode, chosen on the title screen.
 - Swim through open water in Fish mode: eat smaller fish, dash, dodge jellyfish and collect golden pearls.
+- Watch for a shark's fin in Fish mode: a hunting shark brings tense music and swallows fish in its way; outlast it for a bonus.
+- Feast on passing sardine schools in Fish mode, building a frenzy with quick bites.
 - Play Choano on Android phones and tablets, steering with swipes or the direction pad.
 - Use six quiet, short event chimes without a background beat or spawn thumps.
 - Keep forming bubbles beneath the player and open without a loading message.

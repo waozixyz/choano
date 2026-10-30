@@ -129,6 +129,53 @@ main :: () -> s32 {
     unused SeaClamp(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage))
     if Expect(game.player_y <= cast(float32)SEA_BOTTOM, "the fish stays above the sand") != 0 { return 1 }
 
+    StartGame(4244, MODE_FISH)
+    game.enemy_count = 0
+    game.school_timer = 99.0
+    game.shark_timer = .001
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(SharkAlert() && game.shark_warning > 0.0 && KindCount(KIND_SHARK) == 0, "a shark's fin warns first") != 0 { return 1 }
+    for step: 0..159 { UpdateGame(.{}, 1.0 / 60.0) }
+    if Expect(KindCount(KIND_SHARK) == 1 && SharkAlert(), "the shark hunts after its warning") != 0 { return 1 }
+    shark := 0
+    while game.enemies[shark].kind != KIND_SHARK { shark += 1 }
+    game.enemies[shark].x = game.player_x + 300.0
+    game.enemies[game.enemy_count] = .{.x = game.enemies[shark].x, .y = game.enemies[shark].y, .stage = 1, .velocity_x = 20.0,
+        .active = true, .kind = KIND_FISH}
+    game.enemy_count += 1
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(FishCount() == 0, "the shark swallows fish in its way") != 0 { return 1 }
+    game.enemies[0].x = game.player_x
+    game.enemies[0].y = game.player_y
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.lives == 1 && game.shark_bit, "even a big fish loses a life to the shark") != 0 { return 1 }
+    score := game.score
+    game.enemies[0].x = cast(float32)FIELD_WIDTH + cast(float32)SHARK_LENGTH
+    game.enemies[0].velocity_x = cast(float32)SHARK_SPEED
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(KindCount(KIND_SHARK) == 0 && game.score == score && !SharkAlert(), "a shark that bit leaves without a bonus") != 0 { return 1 }
+    game.shark_timer = 99.0
+    game.enemy_count = 0
+    unused SpawnShark()
+    game.enemies[0].x = -cast(float32)SHARK_LENGTH
+    game.enemies[0].velocity_x = -cast(float32)SHARK_SPEED
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(game.score == score + SHARK_SCORE, "outlasting a shark scores") != 0 { return 1 }
+
+    StartGame(4245, MODE_FISH)
+    game.enemy_count = 0
+    SpawnSchool()
+    if Expect(KindCount(KIND_SARDINE) == SCHOOL_SIZE, "a whole school of sardines arrives") != 0 { return 1 }
+    game.enemy_count = 0
+    for bite: 0..2 {
+        game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .velocity_x = 70.0, .active = true, .kind = KIND_SARDINE}
+        game.enemy_count = 1
+        UpdateGame(.{}, 1.0 / 60.0)
+    }
+    if Expect(game.frenzy == 3 && game.score == SARDINE_SCORE * (1 + 2 + 3), "quick bites build a frenzy") != 0 { return 1 }
+    for step: 0..119 { UpdateGame(.{}, 1.0 / 60.0) }
+    if Expect(game.frenzy == 0, "a frenzy cools down") != 0 { return 1 }
+
     StartGame(54321)
     game.enemies[0].warning_timer = 0.0
     game.enemies[0].active = false
