@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.3] - 2026-10-30
 
 - Load Choano correctly in Arcade by publishing its artwork and sound under the paths the game requests.
 - Add free-standing wardrobe and settings icons, and explain how to unlock Fish when its lock is tapped.
