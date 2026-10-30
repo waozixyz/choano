@@ -30,8 +30,8 @@ Shell :: #import "shell";
     #import "portable_sound"
 } else #if #defined(PLATFORM_WEB) {
     #import "web_sound"
-} else #if #defined(ANDROID_BUILD) {
-    #import "android_sound"
+} else #if #defined(ANDROID_BUILD) || #defined(CHOANO_RAYLIB) {
+    #import "raylib_sound"
 } else {
     #import "sound"
 }
@@ -185,9 +185,14 @@ DrawSea :: (session: Session) {
             // The starfish turns slowly about; the others lean into their bob.
             lean := enemy.velocity_y / 60.0
             if enemy.kind == KIND_STARFISH { lean = cast(float32)Trig.Sin(enemy.animation * .8 + cast(float64)enemy.phase) }
-            Float(session, ANIMAL_SHEET, source, side,
-                FitWidth(source, cast(float32)StageSize(enemy.stage) * FISH_LENGTH), enemy.animation, lean,
+            // A seahorse stands as tall as its body in the game.
+            longest := cast(float32)StageSize(enemy.stage) * (ifx enemy.kind == KIND_SEAHORSE then SEAHORSE_HEIGHT else FISH_LENGTH)
+            Float(session, ANIMAL_SHEET, source, side, FitWidth(source, longest), enemy.animation, lean,
                 ifx enemy.kind == KIND_SEAHORSE then .02 else .01, enemy.x, enemy.y, key)
+        } else if enemy.kind == KIND_TURTLE {
+            side := ifx enemy.velocity_x < 0.0 then "left" else "right"
+            Float(session, TURTLE_SHEET, TurtleSource(), side, cast(float32)TURTLE_WIDTH, enemy.animation * .5,
+                enemy.velocity_y / 40.0, .01, enemy.x, enemy.y, key)
         } else if enemy.kind == KIND_PEARL {
             Float(session, FISH_SHEET, FishSource(FISH_PEARL), "right", 13.0, enemy.animation * 2.0, 0.0, .1,
                 enemy.x, enemy.y, key)
@@ -401,12 +406,11 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
         Shell.ClearHeading()
     }
     input := held_input
-    held := input.left || input.right || input.up || input.down
-    // Keys steer while held and end a touch heading.
-    if held { Shell.ClearHeading() }
+    // Touch steers only while held; keys win in MovePlayer.
     input.steer_x = Shell.heading_x
     input.steer_y = Shell.heading_y
-    // Shift or X dashes in Fish mode, as a tap does.
+    input.stop = Shell.TakeStop()
+    // Shift or X dashes in Fish mode, as the Dash button does.
     input.dash = Shell.TakeDash() || key == 340 || key == 344 || key == 88 || key == 120
     if last_tick < 0.0 { last_tick = now }
     if now >= last_tick {

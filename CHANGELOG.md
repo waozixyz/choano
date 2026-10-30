@@ -2,19 +2,28 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-29
+
+- Cover the title screen with both mode's artwork, crop it cleanly at every
+  orientation, and load four smaller JPEG title images.
 - Earn a Full size achievement and unlock Fish mode, chosen on the title screen.
 - Swim through open water in Fish mode: eat smaller fish, dash, dodge jellyfish and collect golden pearls.
 - Hear tense music precede a shark in Fish mode: it arrives only after the lead-in, swallows fish in its way, and rewards outlasting it.
 - Feast on passing sardine schools in Fish mode, building a frenzy with quick bites.
 - Meet bobbing seahorses, crawling lobsters and drifting starfish in Fish mode from the first seconds, among fish of many looks.
+- See bigger seahorses in Fish mode: they bite until you grow to their size.
+- Watch for a rare, gentle sea turtle in Fish mode: it never bites, cannot be eaten, and leaves a short trail of golden pearls.
 - Play Choano on Android phones and tablets, steering with swipes or the direction pad.
+- Play Choano on Linux desktops from a single AppImage.
+- Install Choano on Windows with a per-user installer that includes its artwork and sound.
 - Use six quiet, short event chimes without a background beat or spawn thumps.
 - Keep forming bubbles beneath the player and open without a loading message.
 
 - Open on an illustrated title screen, with all navigation inside the app and a full-screen browser canvas.
 - Start from the title screen with Play; choose swipe steering or a direction pad in Settings and keep that choice between visits.
-- Drag anywhere to swim in any direction: Choano glides that way after you let go, and a tap stops.
-- See the touch anchor, finger and heading clearly over the dish with a dark backing and bright rim.
+- Hold and drag anywhere to swim in any direction; letting go stops at once, and a tap alone never starts swimming.
+- See the light touch pad from Shovey and Wurm under your finger, with a thin outline over the bright dish.
+- Dash in Fish mode with the Dash button, X or Shift.
 - Float smoothly: the player bobs gently, leans into its swim and eases to a stop.
 - Keep the score, lives and the next danger in a game-style top bar.
 - Open the Android app on Choano's title art instead of a system splash icon.

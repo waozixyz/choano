@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Choano
+Comment=Eat or be eaten
+Exec=Choano
+Icon=xyz.waozi.choano
+Categories=Game;ArcadeGame;
+Terminal=false

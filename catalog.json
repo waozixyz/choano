@@ -16,5 +16,5 @@
   "entry": "portable:Main",
   "source": "src/portable.zi",
   "assets": "assets",
-  "preview": "assets/choano/title-landscape.png"
+  "preview": "assets/choano/title-landscape.jpg"
 }

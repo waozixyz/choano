@@ -1,0 +1,11 @@
+#!/bin/sh
+# Choano reads its art and sound from assets/ in its working directory, so it
+# starts in the image's read-only share folder. Saves go to CHOANO_DATA, else
+# XDG_DATA_HOME/choano or ~/.local/share/choano.
+HERE="${APPDIR:-$(dirname "$(readlink -f "$0")")}"
+case "${CHOANO_DATA:-/}" in
+	/*) ;;
+	*) CHOANO_DATA="$PWD/$CHOANO_DATA"; export CHOANO_DATA ;;
+esac
+cd "$HERE/usr/share/choano" || exit 1
+exec "$HERE/usr/bin/Choano" "$@"

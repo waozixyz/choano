@@ -5,8 +5,8 @@
     {
       "manifest": "catalog.json",
       "cover": {
-        "portrait": "assets/choano/title-portrait.png",
-        "landscape": "assets/choano/title-landscape.png",
+        "portrait": "assets/choano/title-portrait.jpg",
+        "landscape": "assets/choano/title-landscape.jpg",
         "action": "play"
       }
     }

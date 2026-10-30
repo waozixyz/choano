@@ -1,0 +1,101 @@
+// Windows: Choano on Kryon's raylib host. It draws the same Frame the Linux
+// desktop edition draws (src/desktop.zi), from the assets installed beside
+// the program, with raylib's keyboard, pointer and audio.
+#import "kryon/raylib_runtime"
+#import "kryon/session"
+#import "kryon/tree"
+#import "kryon/geometry"
+#import "kryon/input_protocol"
+#import "kryon/tree_input"
+#import "kryon/test_driver"
+#import "kryon/Frame"
+#import "std/c_string"
+#import "std/byte_text_linux"
+Timer :: #import "std/timer_linux";
+#import "app"
+
+#program_export
+ClockMillisecondsHost :: () -> s64 { return Timer.MonotonicMilliseconds() }
+
+windows_raylib :: #system_library "raylib";
+ApplicationDirectory :: () -> *u8 #foreign windows_raylib "GetApplicationDirectory";
+windows_c :: #system_library "c";
+ChangeDirectory :: (path: *u8) -> s32 #foreign windows_c "_chdir";
+
+// raylib's key codes: arrows, then WASD.
+KEY_RIGHT :: 262
+KEY_LEFT :: 263
+KEY_DOWN :: 264
+KEY_UP :: 265
+
+KeyIsDown :: (key: s32) -> bool { return TestDriverKeyDown(key) || RaylibKeyDown(key) }
+
+UpdateHeldInput :: () {
+    SetHeldInput(KeyIsDown(KEY_LEFT) || KeyIsDown(65), KeyIsDown(KEY_RIGHT) || KeyIsDown(68),
+        KeyIsDown(KEY_UP) || KeyIsDown(87), KeyIsDown(KEY_DOWN) || KeyIsDown(83))
+}
+
+DrawGameFrame :: (session: Session) -> bool {
+    BeginRaylibFrame()
+    UpdateHeldInput()
+    KeyboardModifiersSend(session, RaylibModifiers())
+    key := RaylibPressedKey()
+    if key == 0 { key = RaylibRepeatedKey() }
+    for candidate: cast(s32)0..349 {
+        if TestDriverKeyPressed(candidate) { key = candidate; break }
+    }
+    if key != 0 { KeyboardSend(session, key) }
+    codepoint := TestDriverCodepoint()
+    if codepoint == 0 { codepoint = RaylibTypedCodepoint() }
+    while codepoint != 0 {
+        unused TypedCodepointSend(session, codepoint)
+        codepoint = RaylibTypedCodepoint()
+    }
+    viewport := RaylibViewport()
+    pointer := TestDriverPointer(session, PollPointer())
+    TreePointerUpdate(session, pointer)
+    PointerWheelSend(session, pointer.x, pointer.y, TestDriverWheel(RaylibWheelMove()))
+    if BeginFrame(session, cast(u64)1, viewport) != FrameStatus.FrameOk {
+        unused EndRaylibFrame()
+        return false
+    }
+    if Frame(session, viewport) != 0 {
+        TreeCancel(session)
+        unused EndRaylibFrame()
+        return false
+    }
+    if EndFrame(session) != FrameStatus.FrameOk {
+        unused EndRaylibFrame()
+        return false
+    }
+    ok := EndRaylibFrame()
+    TestDriverFrame(session)
+    return ok
+}
+
+#program_export
+main :: () -> s32 {
+    // Assets, chimes and the font are installed beside the program; a
+    // shortcut may start it anywhere.
+    folder: [4096]u8
+    if !CopyCString(TextFromCString(ApplicationDirectory()), folder[:]) ||
+        ChangeDirectory(*folder[0]) != 0 { return 1 }
+    if !OpenRaylib(900, 680, "Choano") {
+        CloseRaylib()
+        return 1
+    }
+    RaylibExitKey(0)
+    unused LoadTypefaceFile("default", "kryon-font.ttf", null, 0) && SelectTypeface("default")
+    session := SessionOpen()
+    if !SessionValid(session) {
+        CloseRaylib()
+        return 1
+    }
+    ok := true
+    while ok && PollRaylib() {
+        ok = DrawGameFrame(session)
+    }
+    unused CloseSession(session)
+    CloseRaylib()
+    return ifx ok then 0 else 1
+}

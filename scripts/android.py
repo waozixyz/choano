@@ -12,12 +12,14 @@ applies Kryon's android-gplay.gradle, which adds Play Billing.
 import argparse
 import hashlib
 import os
-from pathlib import Path
 import re
+from pathlib import Path
 import shutil
 import subprocess
 import sys
 import zipfile
+
+from release import ReleaseError, android_code, release_version
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'xyz.waozi.choano'
@@ -45,11 +47,11 @@ def sdk():
 def version():
     """The newest released changelog version and its versionCode; 0.0.0
     before the first release."""
-    found = re.search(r'^## \[(\d+)\.(\d+)\.(\d+)\]', (ROOT / 'CHANGELOG.md').read_text(), re.M)
-    if not found:
+    try:
+        name = release_version((ROOT / 'CHANGELOG.md').read_text())
+    except (OSError, ReleaseError):
         return '0.0.0', 1
-    major, minor, patch = map(int, found.groups())
-    return f'{major}.{minor}.{patch}', max(1, major * 10000 + minor * 100 + patch)
+    return name, android_code(name)
 
 
 def launcher_icons(res):
@@ -115,7 +117,7 @@ def build(edition, abis=ABIS):
     launcher_icons(res)
     # The startup screen shows the title art, as the title screen does.
     (res / 'drawable-nodpi').mkdir()
-    shutil.copyfile(ROOT / 'assets/choano/title-portrait.png', res / 'drawable-nodpi/startup_art.png')
+    shutil.copyfile(ROOT / 'assets/choano/title-portrait.jpg', res / 'drawable-nodpi/startup_art.jpg')
     name, code = version()
     command = ['sh', ROOT / 'droid/gradlew', '-p', ROOT / 'droid', '--no-daemon', '--max-workers=1',
                '-Pkryon.dir=' + str(kryon), '-Pziran.dir=' + str(compiler), '-Praylib.dir=' + str(raylib / 'src'),
@@ -139,10 +141,11 @@ def build_tools():
 
 
 def verify(apk, edition, tools):
-    name, _ = version()
+    name, code = version()
     badging = subprocess.check_output([str(tools / 'aapt'), 'dump', 'badging', str(apk)], text=True)
     found = re.search(r"^package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'", badging, re.M)
-    assert found and found[1] == PACKAGE and found[3] == name, 'APK identity or version differs'
+    assert found and found[1] == PACKAGE and found[2] == str(code) and found[3] == name, \
+        'APK identity or version differs'
     assert 'application-debuggable' not in badging, 'A debug build cannot be published'
     google_play = edition == 'gplay'
     assert ("'com.android.vending.BILLING'" in badging) == google_play, 'Only the Google Play edition may ask for Play Billing'

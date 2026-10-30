@@ -2,11 +2,13 @@
   "mode": "built-in image_gen",
   "assets": [
     {
-      "file": "assets/choano/title-landscape.png",
+      "file": "assets/choano/title-landscape.jpg",
+      "source": "Generated for Choano with the built-in image_gen mode; encoded from the original PNG master as baseline JPEG with 4:4:4 sampling and stripped metadata using ImageMagick.",
       "prompt": "Use case: stylized-concept. Asset type: high-resolution title-screen background illustration for Choano, a 2D amoeba swimming/eat-and-grow game. Create a beautiful polished landscape 3:2 composition at high resolution, with crisp readable organic silhouettes, detailed hand-painted glossy pink amoeba protagonist and smaller jewel-coloured unicellular creatures floating in luminous turquoise microscopic water inside a petri-dish world. The protagonist is a friendly pink amoeba with large expressive eyes and little magenta nucleus bubbles, matching the reference's character identity; supporting cells are violet, orange and lime. Tiny suspended bubbles, translucent membranes and subtle caustic light, rich aquatic depth, charming premium game art, sharp clean edges rather than blurry bloom. One exact title integrated across the upper part: \"CHOANO\" in dimensional friendly pink organic lettering. Keep the lower centre calm and dark teal enough for real app-rendered Play and Controls buttons; do not draw buttons, panels, menus, browser headers, footer text, tutorials, device frames, watermarks or extra lettering. This is scene art to fill an app title screen, not a screenshot of a UI. Preserve broad spacious composition that also crops gracefully on portrait screens."
     },
     {
-      "file": "assets/choano/title-portrait.png",
+      "file": "assets/choano/title-portrait.jpg",
+      "source": "Generated for Choano with the built-in image_gen mode; encoded from the original PNG master as baseline JPEG with 4:4:4 sampling and stripped metadata using ImageMagick.",
       "prompt": "Use case: stylized-concept. Asset type: portrait title-screen illustration for the game Choano, companion to the landscape reference. Create a tall 2:3 high-resolution polished composition. Keep the exact same friendly glossy pink amoeba protagonist with big expressive eyes, magenta nucleus bubbles, jewel-coloured violet/orange/lime unicellular supporting creatures, translucent membranes, suspended bubbles and rich turquoise microscopic water as the reference. Crisp detailed silhouettes and clean premium illustrated game art, not blurry bloom. Put the exact organic pink title \"CHOANO\" clearly across the upper quarter, fully inside the portrait framing. Place the large pink protagonist around the upper middle with supporting creatures at the sides. Leave the lower quarter visually calm dark teal water for real app-rendered Play and Controls buttons. No painted buttons, menus, panels, browser chrome, footer, tutorials, extra text, watermark or device frame."
     },
     {
@@ -17,6 +19,11 @@
       "file": "assets/choano/fish/sea-animals-hd.png",
       "prompt": "Use-case: stylized-concept game sprite asset. Create one transparent RGBA sprite sheet for Choano, a polished friendly cartoon underwater eat-and-grow game. Exactly THREE completely separate full-body animals in a single horizontal row of three equal square cells: LEFT a golden yellow SEAHORSE in side profile facing RIGHT with curled tail; CENTER a coral orange LOBSTER in side profile facing RIGHT, readable pincers and segmented tail; RIGHT a peach pink five-armed STARFISH, frontal with two small expressive eyes. Match clean rounded hand-painted 2D game art: dark navy contour, soft saturated highlights, charming large eyes, clear silhouettes readable at 28 to 50 pixels. Each animal centered in its own cell with generous transparent padding, fully contained, no overlap, no shadow or floor. Transparent background throughout. No text, no labels, no borders, no grids, no water, no bubbles, no extra fish. Wide landscape sprite sheet, consistent visual quality.",
       "source": "Generated for Choano with the built-in image_gen mode as one 2172 × 724 RGBA sheet and copied as a binary file without reduction. Seahorse, lobster and starfish source rectangles are in src/sprites.zi."
+    },
+    {
+      "file": "assets/choano/fish/turtle-hd.png",
+      "prompt": "Use-case: stylized-concept game sprite asset for Choano. One friendly special SEA TURTLE, full body, side profile swimming toward the RIGHT, isolated on truly transparent RGBA background. Match polished rounded hand-painted 2D underwater game art: clean dark navy contour, soft jewel-like highlights, warm expressive eye, moss green patterned domed shell, seafoam green skin, elegant clearly separated front and rear flippers in swimming pose. Calm gentle majestic visitor rather than an enemy; readable appealing silhouette at 90 to 120 pixels wide. Keep the entire turtle, face and every flipper fully inside the image with generous transparent margin. No shadow, no floor, no water, no bubbles, no fish, no props, no text, no labels, no watermark. Wide landscape composition with the turtle centered.",
+      "source": "Generated for Choano with the built-in image_gen mode as one 1536 × 1024 RGBA picture, then encoded for the game as a 640 × 427 RGBA PNG keeping its true alpha. The turtle's source rectangle is in src/sprites.zi."
     }
   ]
 }

@@ -75,10 +75,17 @@ main :: () -> s32 {
     if Expect(moved_x > 30.0 && moved_y < -40.0 && moved_y * .6 + moved_x * .8 > -1.0 && moved_y * .6 + moved_x * .8 < 1.0,
         "a touch heading swims in any direction") != 0 { return 1 }
     if Expect(game.player_facing == 1 && game.player_moving, "the player faces its swim") != 0 { return 1 }
-    UpdateGame(.{.left = true, .steer_x = 1.0}, 1.0 / 60.0)
-    if Expect(game.player_velocity_x < 50.0, "keys win over the touch heading") != 0 { return 1 }
+    UpdateGame(.{.left = true, .steer_x = 1.0, .stop = true}, 1.0 / 60.0)
+    if Expect(game.player_velocity_x < 50.0 && game.player_velocity_x > 20.0,
+        "keys win over the touch heading and its release") != 0 { return 1 }
     for step: 0..119 { UpdateGame(.{}, 1.0 / 60.0) }
     if Expect(!game.player_moving, "the player glides to rest") != 0 { return 1 }
+    for step: 0..29 { UpdateGame(.{.steer_x = 1.0}, 1.0 / 60.0) }
+    if Expect(game.player_moving, "a held touch swims") != 0 { return 1 }
+    stopped_x := game.player_x
+    UpdateGame(.{.stop = true}, 1.0 / 60.0)
+    if Expect(game.player_velocity_x == 0.0 && game.player_velocity_y == 0.0 && !game.player_moving &&
+        game.player_x == stopped_x, "letting go of a touch halts at once") != 0 { return 1 }
 
     StartGame(97531)
     game.player_stage = PLAYER_STAGE_LAST - 1
@@ -263,11 +270,15 @@ main :: () -> s32 {
     StartGame(4248, MODE_FISH)
     game.animal_timer = 999.0
     game.next_spawn_timer = 999.0
+    game.player_stage = SEAHORSE_STAGE
+    game.next_growth_threshold = GrowthThreshold(game.player_stage)
     game.enemy_count = 1
-    game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 1, .velocity_x = 20.0, .active = true, .kind = KIND_SEAHORSE}
+    game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = SEAHORSE_STAGE, .velocity_x = 20.0, .active = true,
+        .kind = KIND_SEAHORSE}
     UpdateGame(.{}, 1.0 / 60.0)
-    if Expect(game.score == 10 && game.growth_progress == 1 && game.frenzy == 1 && game.enemy_count == 0,
-        "a small seahorse is eaten like a fish") != 0 { return 1 }
+    if Expect(game.score == SEAHORSE_STAGE * 10 && game.growth_progress == SEAHORSE_STAGE && game.frenzy == 1 &&
+        game.enemy_count == 0, "a seahorse no bigger than the player is eaten like a fish") != 0 { return 1 }
+    game.player_stage = 1
     game.enemy_count = 1
     game.player_y = cast(float32)SEA_BOTTOM - cast(float32)StageSize(game.player_stage) * .5
     game.enemies[0] = .{.x = game.player_x, .y = SandY(KIND_LOBSTER, cast(float32)StageSize(3)), .stage = 3,
@@ -295,6 +306,195 @@ main :: () -> s32 {
         if game.enemies[index].kind != KIND_FISH || game.enemies[index].species != 0 { amoebas_only = false }
     }
     if Expect(amoebas_only && game.enemy_count > 0, "Amoeba mode keeps only amoebas") != 0 { return 1 }
+
+    // Seahorses are never tiny: stage five at the least, up to two above the player.
+    StartGame(4250, MODE_FISH)
+    game.animal_timer = 999.0
+    game.next_spawn_timer = 999.0
+    for grown: 0..2 {
+        game.player_stage = ifx grown == 0 then 1 else ifx grown == 1 then 6 else PLAYER_STAGE_LAST
+        smallest: s32 = 99
+        largest: s32 = 0
+        for spawn: 0..79 {
+            game.enemy_count = 0
+            if Expect(SpawnSeaAnimal(KIND_SEAHORSE), "a seahorse spawns") != 0 { return 1 }
+            horse := game.enemies[0]
+            if horse.stage < smallest { smallest = horse.stage }
+            if horse.stage > largest { largest = horse.stage }
+            body_width: float32
+            body_height: float32
+            BodyHalf(KIND_SEAHORSE, horse.stage, *body_width, *body_height)
+            if Expect(horse.y >= cast(float32)SEA_TOP + body_height && horse.y <= cast(float32)SEA_BOTTOM - body_height,
+                "a seahorse spawns wholly in the water") != 0 { return 1 }
+        }
+        top_stage := game.player_stage + 2
+        if top_stage > STAGE_LAST { top_stage = STAGE_LAST }
+        if top_stage < SEAHORSE_STAGE { top_stage = SEAHORSE_STAGE }
+        if Expect(smallest == SEAHORSE_STAGE && largest == top_stage, "seahorses range from stage five to two above the player") != 0 { return 1 }
+    }
+    horse_half_width: float32
+    horse_half_height: float32
+    BodyHalf(KIND_SEAHORSE, SEAHORSE_STAGE, *horse_half_width, *horse_half_height)
+    if Expect(horse_half_height * 2.0 > cast(float32)StageSize(1) * 3.0 && horse_half_width < horse_half_height,
+        "the smallest seahorse stands over three times a new fish's size, upright") != 0 { return 1 }
+    // Its body is tall and narrow, as drawn.
+    game.player_stage = 1
+    game.lives = 9
+    game.player_x = 250.0
+    game.player_y = 200.0
+    player_half := cast(float32)StageSize(1) * .5
+    game.enemy_count = 1
+    game.enemies[0] = .{.x = game.player_x + player_half + horse_half_width - 1.0, .y = game.player_y, .stage = SEAHORSE_STAGE,
+        .velocity_x = 0.0, .active = true, .kind = KIND_SEAHORSE}
+    SeaCollisions()
+    if Expect(game.lives == 9, "brushing a seahorse's narrow side is harmless") != 0 { return 1 }
+    game.enemies[0].x = game.player_x
+    game.enemies[0].y = game.player_y + player_half + horse_half_height - COLLISION_INSET - 1.0
+    SeaCollisions()
+    if Expect(game.lives == 8 && game.enemy_count == 1, "a big seahorse's tall body bites a small fish") != 0 { return 1 }
+    game.safe_timer = 0.0
+    game.player_stage = SEAHORSE_STAGE - 1
+    game.enemies[0].y = game.player_y
+    SeaCollisions()
+    if Expect(game.lives == 7 && game.enemy_count == 1, "a seahorse still bites until the player reaches its size") != 0 { return 1 }
+    game.enemies[0].x = 100.0
+    game.enemies[0].y = cast(float32)SEA_TOP
+    game.enemies[0].velocity_x = 22.0
+    game.player_x = 450.0
+    for step: 0..239 {
+        UpdateGame(.{}, 1.0 / 60.0)
+        if game.enemy_count == 0 || game.enemies[0].kind != KIND_SEAHORSE { break }
+        if Expect(game.enemies[0].y >= cast(float32)SEA_TOP + horse_half_height - .01 &&
+            game.enemies[0].y <= cast(float32)SEA_BOTTOM - horse_half_height + .01, "a bobbing seahorse stays in the water") != 0 { return 1 }
+    }
+
+    // A big gentle sea turtle visits after about 35 seconds.
+    StartGame(4251, MODE_FISH)
+    game.enemy_count = 0
+    game.lives = 99
+    game.next_spawn_timer = 9999.0
+    game.school_timer = 9999.0
+    game.shark_timer = 9999.0
+    game.pearl_timer = 9999.0
+    game.jelly_timer = 9999.0
+    game.animal_timer = 9999.0
+    if Expect(game.turtle_timer == TURTLE_FIRST, "the turtle's first visit is scheduled") != 0 { return 1 }
+    turtle_arrival := 0.0
+    for step: 0..2399 {
+        UpdateGame(.{}, 1.0 / 60.0)
+        if KindCount(KIND_TURTLE) > 0 { turtle_arrival = game.elapsed; break }
+    }
+    if Expect(turtle_arrival > 34.9 && turtle_arrival < 35.1, "the first turtle arrives at about 35 seconds") != 0 { return 1 }
+    if Expect(game.turtle_timer >= 45.0 && game.turtle_timer <= 65.0, "the next turtle is a rare 45 to 65 seconds away") != 0 { return 1 }
+    if Expect(!SpawnTurtle() && KindCount(KIND_TURTLE) == 1, "only one turtle swims at once") != 0 { return 1 }
+    game.turtle_timer = 0.0
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(KindCount(KIND_TURTLE) == 1, "no second turtle joins while one visits") != 0 { return 1 }
+    turtle := 0
+    while game.enemies[turtle].kind != KIND_TURTLE { turtle += 1 }
+    visitor := game.enemies[turtle]
+    if Expect(visitor.velocity_x == cast(float32)TURTLE_SPEED || visitor.velocity_x == -cast(float32)TURTLE_SPEED,
+        "the turtle swims slowly across") != 0 { return 1 }
+    if Expect(visitor.y >= cast(float32)SEA_TOP + cast(float32)TURTLE_HEIGHT * .5 &&
+        visitor.y <= cast(float32)SEA_BOTTOM - cast(float32)TURTLE_HEIGHT * .5, "the turtle swims in open water") != 0 { return 1 }
+    // Directions vary from visit to visit.
+    leftward := 0
+    rightward := 0
+    for visit: 0..39 {
+        game.enemy_count = 0
+        unused SpawnTurtle()
+        if game.enemies[0].velocity_x < 0.0 { leftward += 1 } else { rightward += 1 }
+        if Expect(game.enemies[0].x < 0.0 || game.enemies[0].x > cast(float32)FIELD_WIDTH, "the turtle enters from an edge") != 0 { return 1 }
+    }
+    if Expect(leftward > 0 && rightward > 0, "turtles arrive from either edge") != 0 { return 1 }
+
+    // It crosses with a mild bob, never bites, is never eaten, and leaves at
+    // most five pearls behind it.
+    game.enemy_count = 0
+    unused SpawnTurtle()
+    game.enemies[0].x = 60.0
+    game.enemies[0].velocity_x = cast(float32)TURTLE_SPEED
+    game.enemies[0].y = 200.0
+    game.turtle_timer = 9999.0
+    game.player_x = 30.0
+    game.player_y = cast(float32)SEA_TOP + 10.0
+    turtle_low: float32 = 999.0
+    turtle_high: float32 = 0.0
+    first_pearl := 0.0
+    most_pearls := 0
+    for step: 0..119 {
+        UpdateGame(.{}, 1.0 / 60.0)
+        if first_pearl == 0.0 && KindCount(KIND_PEARL) > 0 { first_pearl = cast(float64)(step + 1) / 60.0 }
+        if game.enemies[0].y < turtle_low { turtle_low = game.enemies[0].y }
+        if game.enemies[0].y > turtle_high { turtle_high = game.enemies[0].y }
+    }
+    moved := game.enemies[0].x - 60.0
+    if Expect(moved > 45.0 && moved < 60.0, "the turtle glides slowly") != 0 { return 1 }
+    if Expect(turtle_high - turtle_low > .5 && turtle_high - turtle_low < 12.0, "the turtle bobs gently") != 0 { return 1 }
+    if Expect(first_pearl > 1.4 && first_pearl < 1.6, "the turtle drops a pearl after about 1.5 seconds") != 0 { return 1 }
+    for step: 0..899 {
+        UpdateGame(.{}, 1.0 / 60.0)
+        if KindCount(KIND_PEARL) > most_pearls { most_pearls = KindCount(KIND_PEARL) }
+        if KindCount(KIND_TURTLE) == 0 { break }
+        if Expect(game.turtle_pearls <= TURTLE_PEARLS, "a turtle's trail is short") != 0 { return 1 }
+    }
+    if Expect(game.turtle_pearls == TURTLE_PEARLS && most_pearls <= TURTLE_PEARLS && most_pearls >= 2,
+        "a visit leaves a trail of five pearls") != 0 { return 1 }
+    game.enemy_count = 0
+    unused SpawnTurtle()
+    if Expect(game.turtle_pearls == 0 && game.turtle_drop == TURTLE_DROP, "each visit starts a fresh trail") != 0 { return 1 }
+    game.enemies[0].x = game.player_x
+    game.enemies[0].y = game.player_y
+    for grown: 0..1 {
+        game.player_stage = ifx grown == 0 then 1 else PLAYER_STAGE_LAST
+        game.safe_timer = 0.0
+        lives_before := game.lives
+        score_before := game.score
+        SeaCollisions()
+        if Expect(game.lives == lives_before && game.score == score_before && KindCount(KIND_TURTLE) == 1,
+            "the turtle neither bites nor is eaten, whatever the player's size") != 0 { return 1 }
+    }
+    unused SpawnShark()
+    game.enemies[1].x = game.enemies[0].x
+    game.enemies[1].y = game.enemies[0].y
+    SharkFeeds()
+    if Expect(KindCount(KIND_TURTLE) == 1, "the shark leaves the turtle alone") != 0 { return 1 }
+    // A dropped pearl is collected like any other.
+    game.enemy_count = 1
+    if Expect(!SharkAlert(), "the turtle brings no shark music") != 0 { return 1 }
+    game.enemies[0].x = 200.0
+    game.turtle_drop = 0.0
+    TurtleTrail(1.0 / 60.0)
+    if Expect(game.enemy_count == 2 && game.enemies[1].kind == KIND_PEARL, "the turtle drops a pearl behind it") != 0 { return 1 }
+    behind: bool = ifx game.enemies[0].velocity_x > 0.0 then game.enemies[1].x < game.enemies[0].x else game.enemies[1].x > game.enemies[0].x
+    if Expect(behind, "the pearl falls behind the turtle") != 0 { return 1 }
+    game.player_x = game.enemies[1].x
+    game.player_y = game.enemies[1].y
+    pearl_score := game.score
+    growth := game.growth_progress
+    game.player_stage = 1
+    SeaCollisions()
+    if Expect(game.score == pearl_score + PEARL_SCORE && game.growth_progress == growth + 2 && KindCount(KIND_PEARL) == 0,
+        "a turtle's pearl is collected for score and growth") != 0 { return 1 }
+    // No pearl drops when the water is full.
+    game.turtle_drop = 0.0
+    dropped := game.turtle_pearls
+    game.enemy_count = ENEMY_LIMIT
+    TurtleTrail(1.0 / 60.0)
+    if Expect(game.enemy_count == ENEMY_LIMIT && game.turtle_pearls == dropped, "turtle pearls respect the enemy limit") != 0 { return 1 }
+    if Expect(!SpawnTurtle(), "a turtle needs room to visit") != 0 { return 1 }
+    // A turtle past the edge leaves.
+    game.enemy_count = 1
+    game.enemies[0].x = cast(float32)FIELD_WIDTH + cast(float32)TURTLE_WIDTH
+    game.enemies[0].velocity_x = cast(float32)TURTLE_SPEED
+    UpdateGame(.{}, 1.0 / 60.0)
+    if Expect(KindCount(KIND_TURTLE) == 0, "a turtle that swims out leaves") != 0 { return 1 }
+
+    StartGame(4252)
+    game.lives = 99
+    if Expect(!SpawnTurtle() && game.turtle_timer == 0.0, "Amoeba mode has no turtle") != 0 { return 1 }
+    for step: 0..2699 { UpdateGame(.{}, 1.0 / 60.0) }
+    if Expect(KindCount(KIND_TURTLE) == 0 && KindCount(KIND_PEARL) == 0, "no turtle visits the amoeba dish") != 0 { return 1 }
 
     StartGame(54321)
     game.enemies[0].warning_timer = 0.0

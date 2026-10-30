@@ -7,6 +7,26 @@ import struct
 import wave
 
 ROOT = Path(__file__).resolve().parents[1]
+
+def jpeg_details(data):
+    offset = 2
+    while offset + 4 < len(data):
+        if data[offset] != 0xff:
+            return None
+        marker = data[offset + 1]
+        offset += 2
+        if marker in (0x01, 0xd8, 0xd9) or 0xd0 <= marker <= 0xd7:
+            continue
+        length = int.from_bytes(data[offset:offset + 2], 'big')
+        if 0xc0 <= marker <= 0xcf and marker not in (0xc4, 0xc8, 0xcc):
+            components = data[offset + 7]
+            sampling = [data[offset + 9 + index * 3] for index in range(components)]
+            return marker, int.from_bytes(data[offset + 3:offset + 5], 'big'), components, sampling
+        if marker == 0xda:
+            break
+        offset += length
+    return None
+
 manifest = json.loads((ROOT / 'assets/manifest.json').read_text())
 files = manifest['files']
 actual = {p.relative_to(ROOT).as_posix() for p in (ROOT / 'assets/choano').rglob('*') if p.is_file()}
@@ -24,6 +44,8 @@ for name, digest in files.items():
         if path.name.startswith(('player-', 'enemy-')):
             size = int(path.stem.split('-')[-2])
             assert (width, height) == (size, size) and header[25] == 6, name
+        if path.name == 'turtle-hd.png':
+            assert (width, height) == (640, 427) and header[25] == 6, name
         if path.name.startswith('blob-'):
             assert (width, height) == (39, 39) and header[25] == 6, name
     elif path.name == 'shark-music.wav':
@@ -34,6 +56,14 @@ for name, digest in files.items():
             raw = sound.readframes(sound.getnframes())
             samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
             assert max(map(abs, samples)) <= .35 * 32767, 'Shark loop too loud'
+    elif path.suffix == '.jpg':
+        data = path.read_bytes()
+        details = jpeg_details(data)
+        assert data[:2] == b'\xff\xd8' and data[-2:] == b'\xff\xd9', name
+        assert b'JFIF' in data[:32] and details is not None, name
+        marker, height, components, sampling = details
+        assert marker == 0xc0 and components == 3 and sampling == [0x11] * 3, name
+        assert len(data) < 800_000 and height >= 1024, name
     elif path.suffix == '.wav':
         with wave.open(str(path)) as sound:
             assert sound.getcomptype() == 'NONE' and sound.getnchannels() == 1
@@ -43,7 +73,8 @@ for name, digest in files.items():
             assert len(set(raw)) > 1, name
             samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
             assert max(map(abs, samples)) <= .12 * 32767, 'Effect too loud: ' + name
-assert len([p for p in actual if p.endswith('.png')]) == 187
+assert len([p for p in actual if p.endswith('.png')]) == 184
+assert len([p for p in actual if p.endswith('.jpg')]) == 4
 assert len([p for p in actual if p.endswith('.wav')]) == 7
 assert not (ROOT / 'assets/original').exists()
 for p in (ROOT / 'assets').rglob('*'):
@@ -57,9 +88,9 @@ assert all((ROOT / a['icon']).is_file() for a in awards['achievements'])
 for path in (ROOT / 'assets/choano/achievement-locales').glob('*.json'):
     assert {k for a in awards['achievements'] for k in (a['title_key'], a['description_key'])} <= set(json.loads(path.read_text())), path
 assert '[dependencies.arcade]' not in (ROOT / 'ziran.toml').read_text()
-print('Choano local asset and package tests passed: 187 PNGs, 6 quiet chimes and the shark loop.')
+print('Choano local asset and package tests passed: 184 PNGs, 4 JPEG titles, 6 quiet chimes and the shark loop.')
 
-for name, minimum in [('organisms-hd.png',1254),('title-landscape.png',1024),('title-portrait.png',1024)]:
+for name, minimum in [('organisms-hd.png',1254)]:
     with (ROOT / 'assets/choano' / name).open('rb') as handle:
         header=handle.read(33)
     assert min(struct.unpack('>II',header[16:24])) >= minimum, name

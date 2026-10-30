@@ -70,6 +70,9 @@ AnimalSource :: (index: s32) -> Rectangle {
     if index < 0 || index > 2 { return cells[0] }
     return cells[index]
 }
+// The visiting sea turtle, facing right: the opaque bounds of its picture.
+TURTLE_SHEET :: "assets/choano/fish/turtle-hd.png";
+TurtleSource :: () -> Rectangle { return .{38.0, 60.0, 561.0, 312.0} }
 // The width that makes SOURCE's longer side LONGEST, so upright cells keep
 // their height in bounds.
 FitWidth :: (source: Rectangle, longest: float32) -> float32 {

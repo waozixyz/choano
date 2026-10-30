@@ -1,4 +1,4 @@
-.PHONY: all test native portable web android android-gplay
+.PHONY: all test native portable web appimage appimage-test android android-gplay
 all: native portable
 native:
 	ziran build --project --locked native
@@ -6,12 +6,19 @@ portable:
 	python3 scripts/build.py bundle
 web:
 	python3 scripts/build.py web
+# The Linux release image of the native build, at build/Choano.AppImage.
+appimage:
+	python3 scripts/desktop_release.py appimage
+appimage-test:
+	python3 tests/appimage_test.py
 # Unsigned release APKs: the normal (also F-Droid) edition and Google Play's.
 android:
 	python3 scripts/android.py build
 android-gplay:
 	python3 scripts/android.py build --edition gplay
 test:
+	python3 tests/release_test.py
+	python3 tests/desktop_release_test.py
 	python3 tests/assets_test.py
 	ziran check --project --locked
 	ziran build --project --locked --target=c --exe --entry game_test:main -o build/game-test tests/game_test.zi

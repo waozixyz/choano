@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>xyz.waozi.choano</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <name>Choano</name>
+  <summary>Eat or be eaten</summary>
+  <description>
+    <p>
+      Swim through a petri dish as a tiny organism: eat anything smaller,
+      avoid anything bigger, and grow to earn extra lives.
+    </p>
+    <p>
+      Reaching full size unlocks Fish mode in the open sea, with dashing,
+      golden pearls, sardine schools and sharks announced by tense music.
+    </p>
+  </description>
+  <launchable type="desktop-id">xyz.waozi.choano.desktop</launchable>
+  <developer id="xyz.waozi">
+    <name>Waozi</name>
+  </developer>
+  <url type="homepage">https://choano.waozi.xyz/</url>
+  <url type="vcs-browser">https://github.com/waozixyz/choano</url>
+  <categories>
+    <category>Game</category>
+    <category>ArcadeGame</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <provides>
+    <binary>Choano</binary>
+  </provides>
+</component>

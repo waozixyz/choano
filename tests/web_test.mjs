@@ -39,13 +39,18 @@ try{
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.game.png');
  const before=await evaluate('Module.choanoX');await command('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});await delay(350);await command('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
  if(await evaluate('Module.choanoX')-before<10)throw Error('Keyboard swimming failed');
+ await delay(700);const clicked=await evaluate('[Module.choanoX,Module.choanoY]');await click(300,200);await delay(300);
+ if(await evaluate(`Math.hypot(Module.choanoX-${clicked[0]},Module.choanoY-${clicked[1]})`)>1)throw Error('A click started swimming');
  await command('Emulation.setTouchEmulationEnabled',{enabled:true});
- const swipeBefore=await evaluate('Module.choanoX');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(100);await command('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:360,y:200}]});await delay(300);await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
- if(await evaluate('Module.choanoX')-swipeBefore<8)throw Error('Touch steering did not swim right');
- const released=await evaluate('Module.choanoX');await delay(300);if(await evaluate('Module.choanoX')-released<8)throw Error('A touch heading did not hold after release');
- await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(80);await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(500);const stopped=await evaluate('Module.choanoX');await delay(250);if(Math.abs(await evaluate('Module.choanoX')-stopped)>1)throw Error('A tap did not stop the heading');
- const diagonal=await evaluate('[Module.choanoX,Module.choanoY]');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(100);await command('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:330,y:240}]});await delay(400);await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
- const [dx,dy]=await evaluate('[Module.choanoX,Module.choanoY]').then(([x,y])=>[x-diagonal[0],y-diagonal[1]]);if(!(dy>8&&dx>4&&Math.abs(dy/dx-4/3)<.2))throw Error(`Touch did not steer freely: ${dx},${dy}`);
+ const swipeBefore=await evaluate('Module.choanoX');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(100);await command('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:360,y:200}]});await delay(300);
+ const held=await evaluate('Module.choanoX');if(held-swipeBefore<8)throw Error('Touch steering did not swim right');await delay(250);if(await evaluate('Module.choanoX')-held<8)throw Error('A held touch stopped swimming');
+ await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(120);const released=await evaluate('Module.choanoX');await delay(300);if(Math.abs(await evaluate('Module.choanoX')-released)>1)throw Error('Releasing the touch did not stop');
+ const tapped=await evaluate('[Module.choanoX,Module.choanoY]');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(80);await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(400);
+ if(await evaluate(`Math.hypot(Module.choanoX-${tapped[0]},Module.choanoY-${tapped[1]})`)>1)throw Error('A tap started swimming');
+ const diagonal=await evaluate('[Module.choanoX,Module.choanoY]');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:300,y:200}]});await delay(100);await command('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:330,y:240}]});await delay(400);
+ const [dx,dy]=await evaluate('[Module.choanoX,Module.choanoY]').then(([x,y])=>[x-diagonal[0],y-diagonal[1]]);if(!(dy>8&&dx>4&&Math.abs(dy/dx-4/3)<.2))throw Error(`A held diagonal did not steer freely: ${dx},${dy}`);
+ await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await delay(120);const settled=await evaluate('[Module.choanoX,Module.choanoY]');await delay(250);
+ if(await evaluate(`Math.hypot(Module.choanoX-${settled[0]},Module.choanoY-${settled[1]})`)>1)throw Error('Releasing the diagonal did not stop');
  await press('Escape','Escape',27);await until('Module.choanoPage===2');const paused=await evaluate('Module.choanoX');await delay(350);if(await evaluate('Module.choanoX')!==paused)throw Error('Pause advanced the game');
  await click(size.w-48,26);await until('Module.choanoPage===3');await click(size.w/2,52+(size.h-52-194)/2+38);await until('Module.choanoPage===4');
  await press('2','Digit2',50);await until('Module.choanoPage===3');await press('Escape','Escape',27);await until('Module.choanoPage===2');await press('Escape','Escape',27);await until('Module.choanoPage===1');
@@ -60,7 +65,7 @@ try{
  if(!await evaluate('Module.muted'))throw Error('Sound preference was not retained');
  await press('Enter','Enter',13);await until('Module.choanoPage===1');
  if(missing.length)throw Error('Missing assets: '+missing.join(', '));if(errors.length)throw Error(errors.join('\n'));
- console.log('Choano local browser tests passed: app title/chrome, locked Fish mode, choice, keyboard/free touch steering/tap stop/pad, pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
+ console.log('Choano local browser tests passed: app title/chrome, locked Fish mode, choice, keyboard/click no start/held free touch steering/release stop/tap no start/pad, pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
 }finally{
  const exited=!browser.pid||browser.exitCode!==null?Promise.resolve():new Promise(r=>browser.once('exit',r));
  if(socket?.readyState===WebSocket.OPEN)await command('Browser.close').catch(()=>{});

@@ -40,7 +40,7 @@ jobs:
           path: ziranlang/ziran
           fetch: true
           packages: >-
-            build-essential cmake pkg-config zlib1g-dev libssl-dev libsdl2-dev libcairo2-dev libfreetype-dev libfontconfig-dev libpango1.0-dev libgtk-3-dev libx11-dev libxcursor-dev libxinerama-dev libxrandr-dev libxi-dev libgl1-mesa-dev xvfb xdotool
+            build-essential cmake pkg-config zlib1g-dev libssl-dev libsdl2-dev libcairo2-dev libfreetype-dev libfontconfig-dev libpango1.0-dev libgtk-3-dev libx11-dev libxcursor-dev libxinerama-dev libxrandr-dev libxi-dev libgl1-mesa-dev xvfb xdotool python3-pil python3-yaml
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -50,6 +50,8 @@ jobs:
           actions-cache-folder: emsdk-cache
       - name: Test replacement assets and native game rules
         run: make test
+      - name: Test release publishing against a fake GitHub
+        run: python3 tests/publish_release_test.py
       - name: Build the independent native and portable editions
         run: make all
       - name: Exercise the native game on a private display

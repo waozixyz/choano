@@ -1,5 +1,6 @@
-// Android event chimes through raylib's audio device; relative paths read
-// from the APK's assets.
+// Event chimes and the shark loop through raylib's audio device, for the
+// raylib hosts (Android and Windows). Relative paths read from the APK's
+// assets on Android and from beside the program on Windows.
 #import "std/format"
 #import "std/c_string"
 Paths :: #import "sound_paths";

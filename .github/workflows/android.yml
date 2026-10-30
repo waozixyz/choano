@@ -5,8 +5,8 @@ name: Android
 # choano-vVERSION.apk and choano-VERSION-fdroid.apk (the same Google-free
 # build; Choano has no self-update) and choano-vVERSION-gplay.apk, the only
 # one with a Google library. VERSION is the newest numbered changelog entry
-# (0.0.0 before the first release). Choano has no binary release path yet,
-# so nothing is published.
+# (0.0.0 before the first release). The Downloads workflow publishes the
+# APKs of a master commit with an unreleased version from these artifacts.
 on:
   push:
     branches: [master]

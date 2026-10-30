@@ -1,0 +1,179 @@
+name: Downloads
+
+# A master commit whose changelog names a version that is not released yet
+# becomes that version's GitHub Release, with five downloads: the signed
+# normal, F-Droid and Google Play APKs (scripts/release.py expected_assets),
+# the Linux AppImage and the Windows installer, plus SHA256SUMS. The APKs are
+# the ones the Android workflow built and signed for this exact commit; this
+# workflow builds the desktop downloads, waits until the Android and Choano
+# workflows of the commit succeed and then publishes
+# (scripts/publish_release.py). Publishing the draft creates the vVERSION tag
+# at the commit; a published release is never changed. A manual run retries a
+# master commit that is not released yet.
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Full master commit to release (defaults to the run's commit)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: choano-downloads
+  cancel-in-progress: false
+
+jobs:
+  due:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      release_due: ${{ steps.due.outputs.release_due }}
+      version: ${{ steps.due.outputs.version }}
+      revision: ${{ steps.revision.outputs.revision }}
+    steps:
+      - name: Choose the candidate commit
+        id: revision
+        env:
+          REVISION: ${{ inputs.revision || github.sha }}
+        run: |
+          [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::A full source commit is required, not $REVISION"; exit 1; }
+          echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+        with:
+          ref: ${{ steps.revision.outputs.revision }}
+          persist-credentials: false
+      - name: Release only a master commit of an unreleased version
+        id: due
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REVISION: ${{ steps.revision.outputs.revision }}
+        run: python3 scripts/publish_release.py due --revision "$REVISION"
+
+  linux:
+    needs: due
+    if: needs.due.outputs.release_due == 'true'
+    # The oldest supported image, so the AppImage runs on older C libraries.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      ZIRAN_PAR_THREADS: '1'
+      MAKEFLAGS: -j1
+      CMAKE_BUILD_PARALLEL_LEVEL: '1'
+      YUE_DESKTOP_RECOVERY: '0'
+      VERSION: ${{ needs.due.outputs.version }}
+    defaults:
+      run:
+        working-directory: waozixyz/choano
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+        with:
+          ref: ${{ needs.due.outputs.revision }}
+          path: waozixyz/choano
+          persist-credentials: false
+      - uses: ziranlang/ziran/.github/actions/setup@979159a55bcf1f9edb9eb8f26ea10aca421412e2
+        with:
+          project: waozixyz/choano
+          path: ziranlang/ziran
+          fetch: true
+          packages: >-
+            build-essential cmake pkg-config zlib1g-dev libssl-dev libsdl2-dev libcairo2-dev libfreetype-dev
+            libfontconfig-dev libpango1.0-dev libgtk-3-dev libx11-dev libxcursor-dev libxinerama-dev libxrandr-dev
+            libxi-dev libgl1-mesa-dev python3-pil xvfb xdotool imagemagick
+      - name: Build the AppImage
+        run: python3 scripts/desktop_release.py appimage
+      # Its titles must match the native build's and both modes must play.
+      - name: Play the AppImage on a private display
+        run: python3 tests/appimage_test.py
+      - name: Name the download
+        run: |
+          test "$(python3 scripts/release.py version)" = "$VERSION"
+          mkdir -p build/downloads
+          cp build/Choano.AppImage "build/downloads/$(python3 scripts/release.py assets | grep -x '.*\.AppImage')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: choano-linux
+          path: waozixyz/choano/build/downloads/*.AppImage
+          if-no-files-found: error
+          retention-days: 7
+
+  windows:
+    needs: due
+    if: needs.due.outputs.release_due == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      ZIRAN_PAR_THREADS: '1'
+      MAKEFLAGS: -j1
+      CMAKE_BUILD_PARALLEL_LEVEL: '1'
+      VERSION: ${{ needs.due.outputs.version }}
+    defaults:
+      run:
+        working-directory: waozixyz/choano
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+        with:
+          ref: ${{ needs.due.outputs.revision }}
+          path: waozixyz/choano
+          persist-credentials: false
+      - uses: ziranlang/ziran/.github/actions/setup@979159a55bcf1f9edb9eb8f26ea10aca421412e2
+        with:
+          project: waozixyz/choano
+          path: ziranlang/ziran
+          fetch: true
+          packages: >-
+            build-essential cmake pkg-config zlib1g-dev python3-pil gcc-mingw-w64-x86-64-win32
+            binutils-mingw-w64-x86-64 nsis
+      - name: Cross-build the Windows installer
+        run: python3 scripts/desktop_release.py windows
+      - name: Name the download
+        run: |
+          test "$(python3 scripts/release.py version)" = "$VERSION"
+          mkdir -p build/downloads
+          cp build/Choano-setup.exe "build/downloads/$(python3 scripts/release.py assets | grep -x '.*-setup\.exe')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: choano-windows
+          path: waozixyz/choano/build/downloads/*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: [due, linux, windows]
+    if: needs.due.outputs.release_due == 'true'
+    # The runner's Android SDK checks the APKs again.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      REVISION: ${{ needs.due.outputs.revision }}
+      VERSION: ${{ needs.due.outputs.version }}
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
+        with:
+          ref: ${{ needs.due.outputs.revision }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: choano-linux
+          path: build/release
+      - uses: actions/download-artifact@v4
+        with:
+          name: choano-windows
+          path: build/release
+      # The Android workflow already built, checked and signed this commit's
+      # APKs; nothing publishes unless it and the Choano workflow succeed.
+      - name: Wait for this commit's Android and Choano workflows
+        timeout-minutes: 120
+        run: python3 scripts/publish_release.py checks --revision "$REVISION" build/release
+      - name: Publish this version
+        run: python3 scripts/publish_release.py publish --revision "$REVISION" --version "$VERSION" build/release

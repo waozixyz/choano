@@ -6,13 +6,15 @@ time to move; cumulative growth earns extra lives. An illustrated title screen o
 
 Reaching full size unlocks Fish mode in the open sea. Fish of many kinds,
 seahorses, lobsters and starfish are food at your size or smaller and bite
-when bigger. Dash past jellyfish, collect golden pearls, feast on sardine
-schools, and swim clear when tense music announces a shark.
+when bigger; seahorses are big, so grow before you hunt them. Dash past
+jellyfish, collect golden pearls, feast on sardine schools, and swim clear
+when tense music announces a shark. Now and then a gentle sea turtle swims
+by: it never bites and leaves a short trail of golden pearls.
 
 [Play in your browser](https://choano.waozi.xyz/)
 · [Source](https://github.com/waozixyz/choano)
 
-![Choano replacement artwork](assets/choano/title-landscape.png)
+![Choano replacement artwork](assets/choano/title-landscape.jpg)
 
 Six quiet event chimes replace the old beat and spawn noises. There is no
 loading message or browser footer; forming bubbles stay beneath the player.
@@ -24,8 +26,9 @@ Moeboid assets and binaries are excluded; see [asset provenance](ASSETS.md).
 ## Controls
 
 Desktop and browser: hold arrow keys or WASD to swim. Enter after game over
-or R starts a fresh run. On touch screens a swipe sets the heading, which holds until the next swipe
-or key press. Swipe steering is the default; choose the direction pad or
+or R starts a fresh run. In Fish mode, X or Shift dashes. On touch screens hold and drag
+anywhere to swim that way; letting go stops, and a tap alone does nothing. Fish mode adds a
+Dash button. Swipe steering is the default; choose the direction pad or
 turn sound off in the in-app Settings, also reachable from Pause. Profile pauses play and opens the shared Entity account UI;
 Back returns to the same run. Signing in is optional. Earned growth stages
 follow that account; the current run stays on this device and is not restored
@@ -55,6 +58,33 @@ python3 -m http.server --directory build/web
 `build/Choano-native` and `build/choano.zx`. Window tests use only a fresh
 private Xvfb display; browser tests use a disposable headless Chromium profile.
 
+## Linux AppImage
+
+`make appimage` rebuilds the native game and packs it with its libraries and
+art into `build/Choano.AppImage`; `--use-built-native` on
+`scripts/desktop_release.py appimage` packs the existing build instead. The
+pinned linuxdeploy tools are downloaded once into ignored `work/tools` and
+checked against their SHA-256. `make appimage-test` unpacks the image, checks
+its assets and libraries, and plays it in both modes on a private Xvfb display
+through `APPIMAGE_EXTRACT_AND_RUN`, without FUSE. Releases name it
+`choano-vVERSION-linux-x86_64.AppImage`.
+
+## Windows installer
+
+`python3 scripts/desktop_release.py windows` builds `build/Choano-setup.exe`.
+`src/windows.zi` runs the same game Frame on Kryon's raylib host (RGFW, OpenGL
+1.1, JPEG titles and raylib audio for the chimes and shark loop), linked
+statically with MinGW-w64 from the locked Ziran runtime and raylib; the build
+keeps its intermediates in `build/windows`. NSIS (`makensis`) packs the
+program, Kryon's Liberation Sans and every asset into a per-user installer:
+no administrator rights, Start menu and desktop shortcuts, and an uninstall
+entry in the player's own registry. Settings live in
+`%LOCALAPPDATA%\Choano` and stay after uninstalling. The installer is not
+Authenticode-signed. `python3 tests/windows_release_test.py` installs it
+silently in a private Wine prefix under `work/`, plays it on a private Xvfb
+display against the native build's title screens, saves its settings and
+uninstalls it. Releases name it `choano-vVERSION-windows-x86_64-setup.exe`.
+
 ## Android
 
 `make android` builds the unsigned release APK on Kryon's Android host and
@@ -68,10 +98,15 @@ architectures, the bundled art and the Choano certificate.
 The Android workflow builds `choano-vVERSION.apk`, the same Google-free build
 as `choano-VERSION-fdroid.apk`, and `choano-vVERSION-gplay.apk`, the only one
 with a Google library (Play Billing). It checks both editions with Kryon's
-`google-free` action, signs them with the `CHOANO_ANDROID_KEYSTORE` and
-`CHOANO_ANDROID_KEYSTORE_PASSWORD` secrets and keeps them as workflow
-artifacts. VERSION is the newest numbered changelog entry, 0.0.0 until the
-first release; nothing is published to a release or store.
+`google-free` action and signs them with the `CHOANO_ANDROID_KEYSTORE` and
+`CHOANO_ANDROID_KEYSTORE_PASSWORD` secrets.
+
+## Releases
+
+`VERSION` and the newest numbered `CHANGELOG.md` entry name the release, 0.1.0
+first; `python3 scripts/release.py assets` lists its five files: the normal,
+F-Droid and Google Play APKs, the Linux AppImage and the Windows installer.
+Nothing is submitted to a store.
 
 ## Independent game package
 
@@ -91,6 +126,3 @@ swimming, Profile/Back, restart and reload in headless Chromium. Successful
 master builds deploy to the Cloudflare Pages project `choano` and connect
 `choano.waozi.xyz`. Repository secrets `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` configure deployment; credentials are never committed.
-
-This initial publication has no numbered binary release. Work remains under
-`Unreleased` until a versioned release is requested.

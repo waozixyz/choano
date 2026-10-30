@@ -19,6 +19,31 @@
     }
     Read :: () -> string { text, found := ReadEntireFile(Path()); return ifx found then text else "" }
     Write :: (value: string) -> bool { return WriteEntireFile(Path(), value) }
+} else #if #defined(_WIN32) {
+    // The installed program folder is read-only to the game; settings live in
+    // the player's Local AppData, with forward slashes as std/file takes them.
+    #import "std/file"
+    #import "std/environment_linux"
+    #import "std/format"
+    Root :: () -> string {
+        value := EnvironmentText("CHOANO_DATA")
+        if value != "" { return value }
+        base := EnvironmentText("LOCALAPPDATA")
+        if base == "" { base = EnvironmentText("APPDATA") }
+        out: Vec(u8)
+        for byte: base {
+            unused VecPush(out, ifx byte == cast(u8)92 then cast(u8)47 else byte)
+        }
+        BuilderPrint(*out, "%", "/Choano")
+        return BuilderFinish(out)
+    }
+    Path :: () -> string {
+        out: Vec(u8)
+        BuilderPrint(*out, "%/preferences.v1", Root())
+        return BuilderFinish(out)
+    }
+    Read :: () -> string { text, found := ReadEntireFile(Path()); return ifx found then text else "" }
+    Write :: (value: string) -> bool { return CreateDirectory(Root()) && WriteEntireFile(Path(), value) }
 } else {
     #import "std/file"
     #import "std/file_tree_linux"

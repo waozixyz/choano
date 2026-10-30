@@ -21,10 +21,13 @@ BAR_HEIGHT :: 52.0;
 
 state: Nav.GameNavigation;
 stick: Controls.GameStick;
-// A drag sets the heading in any direction; it holds after release, as Wurm
-// steers, and a tap stops.
+// A held drag sets the heading in any direction, as Shovey and Wurm read
+// their touch area; inside the dead zone or after release it is zero.
 heading_x: float32;
 heading_y: float32;
+// Lifting a held touch asks the game to halt at once instead of gliding.
+touching: bool;
+stop_requested: bool;
 // The top bar; while playing, the app draws the score and lives in it.
 bar: Rectangle;
 loaded: bool;
@@ -38,7 +41,7 @@ save_failed: bool;
 fish_unlocked: bool;
 fish: bool;
 run_fish: bool;
-// In Fish mode a tap dashes instead of stopping.
+// The Fish Dash button, beside the play area's touch controls.
 dash_requested: bool;
 area: Rectangle;
 
@@ -60,6 +63,13 @@ Pick :: (value: bool) {
 }
 FishRun :: () -> bool { return run_fish }
 TakeDash :: () -> bool { result := dash_requested; dash_requested = false; return result }
+TakeStop :: () -> bool { result := stop_requested; stop_requested = false; return result }
+// This frame's touch heading; letting go of a held touch requests a stop.
+Touch :: (held: bool, x: float32, y: float32) {
+    heading_x = x; heading_y = y
+    if touching && !held { stop_requested = true }
+    touching = held
+}
 Start :: () { if Nav.GameNavigationPlay(*state) { start_requested = true } }
 Choose :: (mode: s32) {
     if Nav.GameNavigationChoose(*state, mode) { start_requested = true }
@@ -68,7 +78,7 @@ Choose :: (mode: s32) {
 }
 TakeStart :: () -> bool {
     result := start_requested; start_requested = false
-    if result { ClearHeading(); stick.active = false; run_fish = fish }
+    if result { ClearHeading(); stick.active = false; touching = false; stop_requested = false; run_fish = fish }
     return result
 }
 ClearHeading :: () { heading_x = 0.0; heading_y = 0.0 }
@@ -91,8 +101,11 @@ RoundAction :: (session: Session, key: u64, text: string, bounds: Rectangle) -> 
 GameBar :: (session: Session, viewport: Rectangle, key: u64, title: string, leading: bool, playing: bool) -> bool {
     bounds := Rectangle.{viewport.x, viewport.y, viewport.width, BAR_HEIGHT}
     unused Box(session, BoxProps.{.key = key, .bounds = bounds, .fill = ColorFromPacked(0x0a2438ff)})
-    unused Box(session, BoxProps.{.key = key + 1, .bounds = Rectangle.{bounds.x, bounds.y + BAR_HEIGHT - 3.0, bounds.width, 3.0},
-        .fill = ColorFromPacked(0x80cbd8ff)})
+    if leading {
+        unused Box(session, BoxProps.{.key = key + 1,
+            .bounds = Rectangle.{bounds.x, bounds.y + BAR_HEIGHT - 3.0, bounds.width, 3.0},
+            .fill = ColorFromPacked(0x80cbd8ff)})
+    }
     if title.count > 0 {
         strong: [1]TextRange = .[.{0, cast(s32)title.count}]
         unused Text(session, TextProps.{.key = key + 2, .text = title, .font = 24, .strong = strong[:],
@@ -126,8 +139,8 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64) -> Rect
     settings_available := state.page != Nav.GAME_SETTINGS && state.page != Nav.GAME_CONTROLS && !playing
     trailing: s32 = ifx profile_available && !playing then 80 else 0
     if settings_available { trailing += 88 }
-    title := "CHOANO"
-    if playing { title = "" }
+    // The home artwork carries the title; keep the action bar clear.
+    title := ""
     if state.page == Nav.GAME_PAUSED { title = "PAUSED" }
     if state.page == Nav.GAME_SETTINGS { title = "SETTINGS" }
     if state.page == Nav.GAME_CONTROLS { title = "CONTROLS" }
@@ -162,11 +175,21 @@ Mode :: (session: Session, key: u64, text: string, detail: string, selected: boo
         .emphasis = ifx selected then ButtonEmphasis.ButtonEmphasisFilled else ButtonEmphasis.ButtonEmphasisSoft}) != 0
 }
 Backdrop :: (session: Session) {
+    if area.width <= 0.0 || area.height <= 0.0 { return }
     portrait := area.height > area.width
-    path := ifx portrait then "assets/choano/title-portrait.png" else "assets/choano/title-landscape.png"
-    if fish { path = ifx portrait then "assets/choano/fish/title-portrait.png" else "assets/choano/fish/title-landscape.png" }
+    path := ifx portrait then "assets/choano/title-portrait.jpg" else "assets/choano/title-landscape.jpg"
+    if fish { path = ifx portrait then "assets/choano/fish/title-portrait.jpg" else "assets/choano/fish/title-landscape.jpg" }
+    source := Rectangle.{0.0, 0.0, ifx portrait then 1024.0 else 1536.0, ifx portrait then 1536.0 else 1024.0}
+    // Fill the area without bars, keeping the painted logo at the top.
+    if area.width * source.height > area.height * source.width {
+        source.height = source.width * area.height / area.width
+    } else {
+        width := source.height * area.width / area.height
+        source.x = (source.width - width) * .5
+        source.width = width
+    }
     unused Image(session, ImageProps.{.key = cast(u64)50100, .asset_path = path,
-        .bounds = area, .fit = ImageFit.ImageFitContain, .smooth = true})
+        .bounds = area, .source = source, .fit = ImageFit.ImageFitStretch, .smooth = true})
 }
 MenuBounds :: (count: s32) -> Rectangle {
     width := area.width - 48.0
@@ -237,22 +260,39 @@ End :: (session: Session, now: float64, over: bool) {
     } else if state.controls_mode == Nav.GAME_PAD {
         pad := DirectionPad(session, DirectionPadProps.{.key = cast(u64)52000,
             .bounds = DirectionPadBounds(area), .label = "Move", .now = now, .floating = true})
-        heading_x = ifx pad.direction == 0 then -1.0 else ifx pad.direction == 2 then 1.0 else 0.0
-        heading_y = ifx pad.direction == 1 then -1.0 else ifx pad.direction == 3 then 1.0 else 0.0
+        Touch(pad.direction >= 0, ifx pad.direction == 0 then -1.0 else ifx pad.direction == 2 then 1.0 else 0.0,
+            ifx pad.direction == 1 then -1.0 else ifx pad.direction == 3 then 1.0 else 0.0)
+        DashButton(session)
         return
     } else {
-        // Captured contact only; the release-only swipe result is unused.
+        // Captured contact only, as Shovey and Wurm read it; the release-only
+        // swipe result is unused. A tap never leans, so it does not move.
         gesture := SwipeArea(session, SwipeAreaProps.{.key = cast(u64)52010, .bounds = area,
             .label = "Move", .now = now, .min_distance = 6.0})
         steer := Controls.GameStickSteer(*stick, gesture.down, gesture.at_x, gesture.at_y)
-        if steer.steering { heading_x = steer.x; heading_y = steer.y }
-        if steer.tapped {
-            if run_fish { dash_requested = true } else { ClearHeading() }
+        Touch(gesture.down, steer.x, steer.y)
+        if gesture.down && !run_fish {
+            // A thin unfilled dark ring, just outside SwipeFeedback's 56-unit
+            // base, keeps the light feedback visible on the bright dish.
+            ring: float32 = 60.0
+            unused Box(session, BoxProps.{.key = cast(u64)52021,
+                .bounds = Rectangle.{gesture.start_x - ring * .5, gesture.start_y - ring * .5, ring, ring},
+                .border = ColorFromPacked(0x0a243899), .radius = ring * .5})
         }
-        Controls.GameStickIndicator(session, cast(u64)52020, stick, heading_x, heading_y)
+        SwipeFeedback(session, SwipeFeedbackProps.{.key = cast(u64)52020, .gesture = gesture})
+        DashButton(session)
         return
     }
     stick.active = false
+    Touch(false, 0.0, 0.0)
+}
+
+// Fish mode's touch dash, at the bottom right, clear of the pad. Drawn after
+// the touch area, it takes the presses there.
+DashButton :: (session: Session) {
+    if !run_fish { return }
+    if RoundAction(session, cast(u64)52030, "Dash",
+        Rectangle.{area.x + area.width - 104.0, area.y + area.height - 72.0, 88.0, 52.0}) { dash_requested = true }
 }
 
 ProfileBar :: (session: Session, viewport: Rectangle) -> bool {
