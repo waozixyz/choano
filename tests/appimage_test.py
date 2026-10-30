@@ -65,15 +65,33 @@ def window_for(launch, name):
     raise AssertionError(f'{name} window missing')
 
 
-def capture(path):
+def capture(window, path):
+    """The owned window's exact 900x680 pixels, wherever the display placed it."""
     time.sleep(1.5)
-    subprocess.run([*IMAGEMAGICK, 'import', '-window', 'root', '-crop', '900x680+0+0', path], check=True, env=env)
+    geometry = dict(line.split('=', 1) for line in subprocess.check_output(
+        ['xdotool', 'getwindowgeometry', '--shell', window], env=env, text=True).split())
+    assert (geometry['WIDTH'], geometry['HEIGHT']) == ('900', '680'), geometry
+    subprocess.run([*IMAGEMAGICK, 'import', '-window', 'root', '-crop',
+                    f'900x680+{geometry["X"]}+{geometry["Y"]}', '+repage', path], check=True, env=env)
 
 
 def difference(a, b):
     result = subprocess.run([*IMAGEMAGICK, 'compare', '-metric', 'RMSE', a, b, 'null:'],
                             env=env, text=True, capture_output=True)
     return float(result.stderr.split('(')[1].split(')')[0])
+
+
+def compare(mode, a, b):
+    result = difference(a, b)
+    try:
+        assert result < .02, f'AppImage {mode} title differs from the native build: {result:.4f}'
+    except AssertionError:
+        diagnostics = ROOT / 'work/appimage-diagnostics'
+        diagnostics.mkdir(parents=True, exist_ok=True)
+        for shot in SCRATCH.glob('*.png'):
+            shutil.copy2(shot, diagnostics / shot.name)
+        raise
+    return result
 
 
 def run_title(command, cwd, fish, shot):
@@ -88,7 +106,13 @@ def run_title(command, cwd, fish, shot):
         pid = int(subprocess.check_output(['xdotool', 'getwindowpid', window], env=env, text=True))
         geometry = subprocess.check_output(['xdotool', 'getwindowgeometry', '--shell', window], env=env, text=True)
         assert 'WIDTH=900' in geometry and 'HEIGHT=680' in geometry, geometry
-        capture(shot)
+        position = (20, 40) if command[0] == APPIMAGE else (330, 180)
+        subprocess.run(['xdotool', 'windowmove', window, *map(str, position)], check=True, env=env)
+        geometry = subprocess.check_output(['xdotool', 'getwindowgeometry', '--shell', window], env=env, text=True)
+        placed = dict(line.split('=', 1) for line in geometry.split())
+        assert (placed['X'], placed['Y'], placed['WIDTH'], placed['HEIGHT']) == (
+            str(position[0]), str(position[1]), '900', '680'), geometry
+        capture(window, shot)
         if command[0] == APPIMAGE:
             folder = Path(os.readlink(f'/proc/{pid}/cwd'))
             assert folder.parts[-3:] == ('usr', 'share', 'choano') and SCRATCH / 'tmp' in folder.parents, folder
@@ -146,8 +170,7 @@ try:
         # Opened from the profile folder, which has no assets of its own.
         run_title([APPIMAGE], PROFILE, fish, SCRATCH / f'appimage-{mode}.png')
         run_title([NATIVE], ROOT, fish, SCRATCH / f'native-{mode}.png')
-        shots[mode] = difference(SCRATCH / f'appimage-{mode}.png', SCRATCH / f'native-{mode}.png')
-        assert shots[mode] < 0.02, f'AppImage {mode} title differs from the native build: {shots[mode]:.4f}'
+        shots[mode] = compare(mode, SCRATCH / f'appimage-{mode}.png', SCRATCH / f'native-{mode}.png')
     modes = difference(SCRATCH / 'appimage-dish.png', SCRATCH / 'appimage-fish.png')
     assert modes > 0.05, f'Fish title art did not replace the dish title: {modes:.4f}'
     print('Choano AppImage local test passed on private Xvfb: assets and libraries packed, titles match the '

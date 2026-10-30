@@ -89,7 +89,16 @@ jobs:
         run: python3 scripts/desktop_release.py appimage
       # Its titles must match the native build's and both modes must play.
       - name: Play the AppImage on a private display
+        id: appimage
         run: python3 tests/appimage_test.py
+      - name: Upload private AppImage comparison failure
+        if: failure() && steps.appimage.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: choano-appimage-comparison-failure
+          path: waozixyz/choano/work/appimage-diagnostics/*.png
+          if-no-files-found: error
+          retention-days: 3
       - name: Name the download
         run: |
           test "$(python3 scripts/release.py version)" = "$VERSION"
