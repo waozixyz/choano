@@ -1,9 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.4] - 2026-10-30
 
 - Release movement keys to stop swimming in compatible game libraries, with the same diagonal steering as desktop.
-
 - Replace the Settings screen with a readable panel, direct control and sound choices, and a layout that fits both orientations.
 - Open the Shop from a clear illustrated stall, with transparent picture controls that brighten on hover and shrink when pressed.
 
