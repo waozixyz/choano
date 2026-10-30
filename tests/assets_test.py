@@ -81,7 +81,7 @@ for name, digest in files.items():
             assert len(set(raw)) > 1, name
             samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
             assert max(map(abs, samples)) <= .12 * 32767, 'Effect too loud: ' + name
-assert len([p for p in actual if p.endswith('.png')]) == 193
+assert len([p for p in actual if p.endswith('.png')]) == 187
 assert len([p for p in actual if p.endswith('.jpg')]) == 4
 assert len([p for p in actual if p.endswith('.wav')]) == 7
 assert not (ROOT / 'assets/original').exists()
@@ -96,18 +96,19 @@ assert all((ROOT / a['icon']).is_file() for a in awards['achievements'])
 for path in (ROOT / 'assets/choano/achievement-locales').glob('*.json'):
     assert {k for a in awards['achievements'] for k in (a['title_key'], a['description_key'])} <= set(json.loads(path.read_text())), path
 assert '[dependencies.arcade]' not in (ROOT / 'ziran.toml').read_text()
-print('Choano local asset and package tests passed: 193 PNGs, 4 JPEG titles, 6 quiet chimes and the shark loop.')
+print('Choano local asset and package tests passed: 187 PNGs, 4 JPEG titles, 6 quiet chimes and the shark loop.')
 
-for name, size in [('title-logo.png', (1800, 560)), ('button-primary.png', (512, 160)),
-                   ('button-secondary.png', (512, 160)), ('button-mode-unselected.png', (512, 160)),
-                   ('button-mode-amoeba-selected.png', (512, 160)), ('button-mode-fish-selected.png', (512, 160))]:
-    with Image.open(ROOT / 'assets/choano' / name) as image:
-        assert image.mode == 'RGBA' and image.size == size, name
-        assert image.getchannel('A').getextrema() == (0, 255), name
+original_titles = {
+    'title-portrait.jpg': '47b07722c474a67ee4a06b7644a3aff211503674391e363c17eb06a34ce60d6c',
+    'title-landscape.jpg': '1ca6e31c1062a7cca41bace4cf1bb221291988aea4a1dd61271899c2f5f28307',
+    'fish/title-portrait.jpg': '05da8673c21014dbf433ef54474dbdb414742f949d1b8bd67e4ca5061392d092',
+    'fish/title-landscape.jpg': '54cdacb46e3d0f5d7b9b2e577f535036c2d83e72b7d242b4552241fb78d1e597',
+}
 for name, size in [('title-portrait.jpg', (1024, 1536)), ('title-landscape.jpg', (1536, 1024)),
                    ('fish/title-portrait.jpg', (1024, 1536)), ('fish/title-landscape.jpg', (1536, 1024))]:
     with Image.open(ROOT / 'assets/choano' / name) as image:
         assert image.mode == 'RGB' and image.size == size, name
+    assert hashlib.sha256((ROOT / 'assets/choano' / name).read_bytes()).hexdigest() == original_titles[name], name
 
 for name, minimum in [('organisms-hd.png',1254)]:
     with (ROOT / 'assets/choano' / name).open('rb') as handle:

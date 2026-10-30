@@ -3,45 +3,13 @@
   "assets": [
     {
       "file": "assets/choano/title-landscape.jpg",
-      "source": "Regenerated text-free for Choano with the built-in image_gen mode; encoded as an optimized baseline JPEG with 4:4:4 sampling and stripped metadata. The app draws the separate CHOANO logo layer.",
+      "source": "Generated for Choano with the built-in image_gen mode; encoded from the original PNG master as baseline JPEG with 4:4:4 sampling and stripped metadata using ImageMagick.",
       "prompt": "Use case: stylized-concept. Asset type: high-resolution title-screen background illustration for Choano, a 2D amoeba swimming/eat-and-grow game. Create a beautiful polished landscape 3:2 composition at high resolution, with crisp readable organic silhouettes, detailed hand-painted glossy pink amoeba protagonist and smaller jewel-coloured unicellular creatures floating in luminous turquoise microscopic water inside a petri-dish world. The protagonist is a friendly pink amoeba with large expressive eyes and little magenta nucleus bubbles, matching the reference's character identity; supporting cells are violet, orange and lime. Tiny suspended bubbles, translucent membranes and subtle caustic light, rich aquatic depth, charming premium game art, sharp clean edges rather than blurry bloom. One exact title integrated across the upper part: \"CHOANO\" in dimensional friendly pink organic lettering. Keep the lower centre calm and dark teal enough for real app-rendered Play and Controls buttons; do not draw buttons, panels, menus, browser headers, footer text, tutorials, device frames, watermarks or extra lettering. This is scene art to fill an app title screen, not a screenshot of a UI. Preserve broad spacious composition that also crops gracefully on portrait screens."
     },
     {
       "file": "assets/choano/title-portrait.jpg",
-      "source": "Regenerated text-free for Choano with the built-in image_gen mode; encoded as an optimized baseline JPEG with 4:4:4 sampling and stripped metadata. The app draws the separate CHOANO logo layer.",
+      "source": "Generated for Choano with the built-in image_gen mode; encoded from the original PNG master as baseline JPEG with 4:4:4 sampling and stripped metadata using ImageMagick.",
       "prompt": "Use case: stylized-concept. Asset type: portrait title-screen illustration for the game Choano, companion to the landscape reference. Create a tall 2:3 high-resolution polished composition. Keep the exact same friendly glossy pink amoeba protagonist with big expressive eyes, magenta nucleus bubbles, jewel-coloured violet/orange/lime unicellular supporting creatures, translucent membranes, suspended bubbles and rich turquoise microscopic water as the reference. Crisp detailed silhouettes and clean premium illustrated game art, not blurry bloom. Put the exact organic pink title \"CHOANO\" clearly across the upper quarter, fully inside the portrait framing. Place the large pink protagonist around the upper middle with supporting creatures at the sides. Leave the lower quarter visually calm dark teal water for real app-rendered Play and Controls buttons. No painted buttons, menus, panels, browser chrome, footer, tutorials, extra text, watermark or device frame."
-    },
-    {
-      "file": "assets/choano/fish/title-landscape.jpg",
-      "source": "Regenerated text-free for Choano with the built-in image_gen mode; encoded as an optimized baseline JPEG with 4:4:4 sampling and stripped metadata."
-    },
-    {
-      "file": "assets/choano/fish/title-portrait.jpg",
-      "source": "Derived without text from the text-free generated Fish landscape master by taking its safe central 2:3 crop and using LANCZOS resizing; encoded as an optimized baseline JPEG with 4:4:4 sampling and stripped metadata."
-    },
-    {
-      "file": "assets/choano/title-logo.png",
-      "source": "Generated as a transparent CHOANO logo with the built-in image_gen mode, alpha-cropped, padded to 1800 x 560, and optimized as RGBA PNG."
-    },
-    {
-      "file": "assets/choano/button-primary.png",
-      "source": "Generated as a transparent 9-slice-ready button plate with the built-in image_gen mode and normalized to 512 x 160 RGBA."
-    },
-    {
-      "file": "assets/choano/button-secondary.png",
-      "source": "Generated as a transparent 9-slice-ready button plate with the built-in image_gen mode and normalized to 512 x 160 RGBA."
-    },
-    {
-      "file": "assets/choano/button-mode-unselected.png",
-      "source": "Generated as a transparent 9-slice-ready button plate with the built-in image_gen mode and normalized to 512 x 160 RGBA."
-    },
-    {
-      "file": "assets/choano/button-mode-amoeba-selected.png",
-      "source": "Generated as a transparent selected-state 9-slice-ready button plate with the built-in image_gen mode and normalized to 512 x 160 RGBA."
-    },
-    {
-      "file": "assets/choano/button-mode-fish-selected.png",
-      "source": "Generated as a transparent selected-state 9-slice-ready button plate with the built-in image_gen mode and normalized to 512 x 160 RGBA."
     },
     {
       "file": "assets/choano/organisms-hd.png",

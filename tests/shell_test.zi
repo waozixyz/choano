@@ -23,11 +23,6 @@ main :: () -> s32 {
     for bounds: layouts {
         for resumable: 0..1 {
             layout := Shell.TitleLayoutFor(bounds, resumable == 1)
-            if !Expect(Inside(layout.logo, bounds) && layout.logo.x >= bounds.x + 20.0 &&
-                layout.logo.x + layout.logo.width <= bounds.x + bounds.width - 160.0,
-                "title logo is fully visible with side margins") { return 1 }
-            if !Expect(layout.logo.y + layout.logo.height <= layout.character_safe.y,
-                "title logo does not cover the character safe zone") { return 1 }
             if !Expect(layout.mode.y >= layout.character_safe.y + layout.character_safe.height,
                 "title buttons do not cover the character safe zone") { return 1 }
             if !Expect(Inside(layout.mode, bounds) && Inside(layout.wardrobe, bounds) &&
@@ -35,15 +30,33 @@ main :: () -> s32 {
             if resumable == 1 && !Inside(layout.continue_button, bounds) { return 2 }
             if !Expect(Clear(layout.mode, layout.character_safe) && Clear(layout.wardrobe, layout.character_safe) &&
                 Clear(layout.play, layout.character_safe), "title controls avoid painted characters") { return 1 }
-            if !Expect(layout.mode.height == 52.0 && layout.wardrobe.height == 52.0 &&
-                layout.play.height == 52.0 && layout.mode.width == layout.wardrobe.width,
-                "title buttons share one shape and height") { return 1 }
+            if !Expect(layout.mode.width == 320.0 && layout.mode.height == 52.0 &&
+                layout.wardrobe.height == 52.0 && layout.play.height == 56.0,
+                "title controls use fixed logical sizes and a taller Play button") { return 1 }
+            if !Expect(layout.mode.x + layout.mode.width * .5 == bounds.x + bounds.width * .5,
+                "the segmented control is centered") { return 1 }
+            if !Expect(layout.wardrobe.width >= 140.0 && layout.wardrobe.width <= 320.0 &&
+                layout.play.width >= 220.0 && layout.play.width <= 320.0 &&
+                layout.wardrobe.y == layout.mode.y + 64.0,
+                "hugging title buttons clamp their widths and keep their gaps") { return 1 }
+            if resumable == 1 {
+                if !Expect(layout.continue_button.y == layout.wardrobe.y + 64.0 &&
+                    layout.play.y == layout.continue_button.y + 68.0,
+                    "resumable buttons keep fixed gaps") { return 1 }
+            } else if !Expect(layout.play.y == layout.wardrobe.y + 68.0,
+                "Play keeps its gap") { return 1 }
         }
     }
-    if !Expect(Shell.ModeAssetPath(false, true) != Shell.ModeAssetPath(false, false) &&
-        Shell.ModeAssetPath(true, true) != Shell.ModeAssetPath(true, false) &&
-        Shell.ModeAssetPath(false, true) != Shell.ModeAssetPath(true, true),
-        "each selected mode uses its own highlighted button art") { return 1 }
+    if !Expect(Shell.ButtonWidth("i") == 140.0 && Shell.ButtonWidth("Continue") >= 140.0 &&
+        Shell.ButtonWidth("A very long button label that must stop stretching") == 320.0,
+        "buttons hug labels and clamp between 140 and 320") { return 1 }
+    if !Expect(Shell.ButtonRadius(44.0) == 22.0 && Shell.ButtonRadius(52.0) == 26.0 &&
+        Shell.ButtonRadius(56.0) == 28.0, "buttons use true pill radii") { return 1 }
+    if !Expect(Shell.ButtonContrast(Shell.BUTTON_NORMAL) >= 4.5 &&
+        Shell.ButtonContrast(Shell.BUTTON_SELECTED) >= 4.5 &&
+        Shell.ButtonContrast(Shell.BUTTON_PRIMARY) >= 4.5 &&
+        Shell.ButtonContrast(Shell.BUTTON_DISABLED) >= 4.5,
+        "all button states meet WCAG AA contrast") { return 1 }
     print("Choano local shell layout tests passed.\n")
     return 0
 }
