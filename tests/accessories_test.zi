@@ -1,0 +1,87 @@
+Accessories :: #import "accessories";
+Game :: #import "game";
+Prefs :: #import "preferences";
+#import "kryon/geometry"
+
+Expect :: (value: bool, name: string) -> bool {
+    if !value { print("Choano accessory local test failed: %\n", name) }
+    return value
+}
+
+main :: () -> s32 {
+    fresh := Accessories.DefaultRecord(1)
+    if !Expect(fresh.selected == Accessories.ACCESSORY_HALO && fresh.owned == 1,
+        "fresh players own and wear the halo") { return 1 }
+
+    saved := Accessories.AccessoryRecord.{.selected = Accessories.ACCESSORY_CROWN,
+        .owned = (1 << Accessories.ACCESSORY_COUNT) - 1, .highest_stage = Accessories.ACCESSORY_CROWN_STAGE}
+    tail := Accessories.EncodeTail(saved)
+    loaded := Accessories.DecodeTail(TextView(tail[:]), saved.highest_stage)
+    if !Expect(loaded.selected == saved.selected && loaded.owned == saved.owned &&
+        loaded.highest_stage == saved.highest_stage,
+        "accessory selection, owned mask, and progress round-trip") { return 1 }
+
+    unknown := Accessories.AccessoryRecord.{.selected = 99, .owned = 7, .highest_stage = 1}
+    normalized := Accessories.NormalizeRecord(unknown)
+    if !Expect(normalized.selected == Accessories.ACCESSORY_HALO,
+        "unknown accessories fall back to the halo") { return 1 }
+
+    if !Expect(Accessories.DecodeTail("zzz", 1).selected == Accessories.ACCESSORY_HALO,
+        "invalid saved records fall back to the halo") { return 1 }
+    preference := Prefs.Encode(Prefs.Preferences.{.chosen = true, .pad = false, .muted = true,
+        .fish_unlocked = true, .fish = true, .accessory = Accessories.ACCESSORY_RIBBON,
+        .accessories_owned = (1 << Accessories.ACCESSORY_COUNT) - 1,
+        .accessories_stage = Accessories.ACCESSORY_CROWN_STAGE})
+    if preference.count != 9 { return 2 }
+    restored := Prefs.Decode(preference)
+    if !Expect(restored.accessory == Accessories.ACCESSORY_RIBBON &&
+        restored.accessories_owned == (1 << Accessories.ACCESSORY_COUNT) - 1 &&
+        restored.accessories_stage == Accessories.ACCESSORY_CROWN_STAGE,
+        "preferences round-trip selection, ownership, and progress") { return 1 }
+    old := Prefs.Decode("1u0")
+    if !Expect(old.accessory == Accessories.ACCESSORY_HALO && old.accessories_owned == 1,
+        "old preferences default to the halo") { return 1 }
+    invalid := Prefs.Encode(Prefs.Preferences.{.accessory = 99,
+        .accessories_owned = 0, .accessories_stage = 1})
+    if !Expect(Prefs.Decode(invalid).accessory == Accessories.ACCESSORY_HALO,
+        "unknown preference accessories fall back to the halo") { return 1 }
+    draw_size := Accessories.DrawSize(47.0, 2.75)
+    if !Expect(draw_size > 129.0 && draw_size < 130.0 &&
+        Accessories.SourceCoversDraw(draw_size),
+        "accessory draw size matches the on-screen player and stays downscaled") { return 1 }
+    container := Rectangle.{0.0, 0.0, 400.0, 400.0}
+    for stage: 1..10 {
+        for fish: 0..1 {
+            game_stage := cast(s32)stage
+            size := cast(float32)Game.StageSize(game_stage)
+            if fish == 1 { size = cast(float32)Game.FishSize(game_stage) }
+            clear := Accessories.ClampSize(size) * .5
+            for side_index: 0..1 {
+                side := ifx side_index == 0 then "left" else "right"
+                player := Rectangle.{container.x + clear - size * .5,
+                    container.y + clear - size * .5, size, size}
+                overlay := Accessories.OverlayBounds(player, Accessories.ACCESSORY_HALO, side)
+                item := Accessories.AccessoryBounds(player, Accessories.ACCESSORY_HALO, side)
+                if !Expect(item.x >= overlay.x && item.y >= overlay.y &&
+                    item.x + item.width <= overlay.x + overlay.width &&
+                    item.y + item.height <= overlay.y + overlay.height &&
+                    item.x >= container.x && item.y >= container.y &&
+                    item.x + item.width <= container.x + container.width,
+                    "halo remains whole at the container edge in both modes and facings") { return 1 }
+                player.x = container.x + clear - size * .5
+                player.y = container.y + container.height - clear - size * .5
+                item = Accessories.AccessoryBounds(player, Accessories.ACCESSORY_RIBBON, side)
+                if !Expect(item.y + item.height <= container.y + container.height,
+                    "ribbon remains whole at the bottom edge in both modes and facings") { return 1 }
+                player.x = container.x + clear - size * .5
+                player.y = container.y + clear - size * .5
+                item = Accessories.AccessoryBounds(player, Accessories.ACCESSORY_CROWN, side)
+                if !Expect(item.x >= container.x && item.y >= container.y &&
+                    item.x + item.width <= container.x + container.width,
+                    "crown remains whole at the top and side edges in both modes and facings") { return 1 }
+            }
+        }
+    }
+    print("Choano local accessory tests passed.\n")
+    return 0
+}

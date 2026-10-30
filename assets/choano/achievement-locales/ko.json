@@ -1,4 +1,11 @@
 {
   "achievement_choano_full_size_title": "최대 크기",
-  "achievement_choano_full_size_description": "아메바 접시에서 최대 크기까지 자라 물고기 모드를 잠금 해제하세요."
+  "achievement_choano_full_size_description": "아메바 접시에서 최대 크기까지 자라 물고기 모드를 잠금 해제하세요.",
+  "wardrobe_title": "옷장",
+  "wardrobe_halo": "후광",
+  "wardrobe_ribbon": "리본",
+  "wardrobe_crown": "왕관",
+  "fish_first_hint": "같은 색이거나 더 작으면 먹세요. 빨간 테두리는 피하세요",
+  "wardrobe_ribbon_unlock": "5단계 달성",
+  "wardrobe_crown_unlock": "최대 크기 달성"
 }

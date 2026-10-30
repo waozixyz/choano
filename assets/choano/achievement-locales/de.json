@@ -1,4 +1,11 @@
 {
   "achievement_choano_full_size_title": "Volle Größe",
-  "achievement_choano_full_size_description": "Wachse in der Amöbenschale zur vollen Größe heran und schalte den Fischmodus frei."
+  "achievement_choano_full_size_description": "Wachse in der Amöbenschale zur vollen Größe heran und schalte den Fischmodus frei.",
+  "wardrobe_title": "Garderobe",
+  "wardrobe_halo": "Heiligenschein",
+  "wardrobe_ribbon": "Schleife",
+  "wardrobe_crown": "Krone",
+  "fish_first_hint": "Gleiche Farbe oder kleiner: iss ihn. Rote Umrandung: flieh",
+  "wardrobe_ribbon_unlock": "Erreiche Stufe 5",
+  "wardrobe_crown_unlock": "Erreiche volle Größe"
 }

@@ -1,0 +1,138 @@
+ACCESSORY_HALO :: 0;
+ACCESSORY_RIBBON :: 1;
+ACCESSORY_CROWN :: 2;
+ACCESSORY_COUNT :: 3;
+ACCESSORY_RIBBON_STAGE :: 5;
+ACCESSORY_CROWN_STAGE :: 9;
+SOURCE_SIZE :: 512;
+ACCESSORY_CLEAR_SCALE :: 0.92;
+
+AccessoryRecord :: struct {
+    selected: s32;
+    owned: s32;
+    highest_stage: s32;
+}
+
+DefaultRecord :: (highest_stage: s32) -> AccessoryRecord {
+    return AccessoryRecord.{.selected = ACCESSORY_HALO, .owned = 1, .highest_stage = highest_stage}
+}
+
+NormalizeRecord :: (record: AccessoryRecord) -> AccessoryRecord {
+    result := record
+    if result.selected < 0 || result.selected >= ACCESSORY_COUNT { result.selected = ACCESSORY_HALO }
+    if result.highest_stage < 1 { result.highest_stage = 1 }
+    result.owned &= (1 << ACCESSORY_COUNT) - 1
+    result.owned |= 1
+    if !Available(result.highest_stage, result.selected) { result.selected = ACCESSORY_HALO }
+    return result
+}
+
+RecordForStage :: (stage: s32) -> AccessoryRecord {
+    record := DefaultRecord(stage)
+    if stage >= ACCESSORY_RIBBON_STAGE { record.owned |= 1 << ACCESSORY_RIBBON }
+    if stage >= ACCESSORY_CROWN_STAGE { record.owned |= 1 << ACCESSORY_CROWN }
+    return record
+}
+
+Available :: (highest_stage: s32, id: s32) -> bool {
+    if id == ACCESSORY_HALO { return true }
+    if id == ACCESSORY_RIBBON { return highest_stage >= ACCESSORY_RIBBON_STAGE }
+    if id == ACCESSORY_CROWN { return highest_stage >= ACCESSORY_CROWN_STAGE }
+    return false
+}
+
+UnlockHint :: (id: s32) -> string {
+    if id == ACCESSORY_RIBBON { return "Reach stage 5" }
+    if id == ACCESSORY_CROWN { return "Reach full size" }
+    return ""
+}
+
+Name :: (id: s32) -> string {
+    if id == ACCESSORY_RIBBON { return "Ribbon" }
+    if id == ACCESSORY_CROWN { return "Crown" }
+    return "Halo"
+}
+AssetToken :: (id: s32) -> string {
+    if id == ACCESSORY_RIBBON { return "ribbon" }
+    if id == ACCESSORY_CROWN { return "crown" }
+    return "halo"
+}
+
+PreviewAssetPath :: (id: s32) -> string {
+    if id == ACCESSORY_RIBBON { return "assets/choano/accessory-ribbon.png" }
+    if id == ACCESSORY_CROWN { return "assets/choano/accessory-crown.png" }
+    return "assets/choano/accessory-halo.png"
+}
+
+SourceContentBounds :: (id: s32) -> Rectangle {
+    if id == ACCESSORY_HALO { return Rectangle.{56.0, 48.0, 400.0, 250.0} }
+    if id == ACCESSORY_RIBBON { return Rectangle.{96.0, 32.0, 320.0, 288.0} }
+    return Rectangle.{96.0, 32.0, 320.0, 261.0}
+}
+
+OverlayBounds :: (player: Rectangle, id: s32, side: string) -> Rectangle {
+    unused side
+    unused id
+    return player
+}
+
+AccessoryBounds :: (player: Rectangle, id: s32, side: string) -> Rectangle {
+    source := SourceContentBounds(id)
+    overlay := OverlayBounds(player, id, side)
+    scale := overlay.width / cast(float32)SOURCE_SIZE
+    return Rectangle.{overlay.x + source.x * scale, overlay.y + source.y * scale,
+        source.width * scale, source.height * scale}
+}
+
+ClampSize :: (player_size: float32) -> float32 {
+    if player_size < 0.0 { player_size = 0.0 }
+    return player_size * ACCESSORY_CLEAR_SCALE
+}
+
+DrawSize :: (player_size: float32, camera_scale: float32) -> float32 {
+    if player_size < 0.0 { player_size = 0.0 }
+    if camera_scale < 0.0 { camera_scale = 0.0 }
+    return player_size * camera_scale
+}
+
+SourceCoversDraw :: (draw_size: float32) -> bool {
+    return draw_size >= 0.0 && draw_size <= cast(float32)SOURCE_SIZE
+}
+
+DigitValue :: (byte: u8) -> s32 {
+    if byte >= #char "0" && byte <= #char "9" { return cast(s32)(byte - #char "0") }
+    if byte >= #char "a" && byte <= #char "z" { return cast(s32)(byte - #char "a") + 10 }
+    if byte >= #char "A" && byte <= #char "Z" { return cast(s32)(byte - #char "A") + 10 }
+    return -1
+}
+
+ValueDigit :: (value: s32) -> u8 {
+    if value < 10 { return cast(u8)(#char "0" + value) }
+    return cast(u8)(#char "a" + value - 10)
+}
+
+EncodeTail :: (record: AccessoryRecord) -> [4]u8 {
+    value := NormalizeRecord(record)
+    tail: [4]u8
+    tail[0] = ValueDigit(value.selected)
+    tail[1] = ValueDigit(value.highest_stage)
+    tail[2] = ValueDigit(value.owned / 36)
+    tail[3] = ValueDigit(value.owned % 36)
+    return tail
+}
+
+DecodeTail :: (tail: string, highest_stage: s32) -> AccessoryRecord {
+    if tail.count != 4 { return DefaultRecord(highest_stage) }
+    selected := DigitValue(tail[0])
+    saved_stage := DigitValue(tail[1])
+    owned_high := DigitValue(tail[2])
+    owned_low := DigitValue(tail[3])
+    if selected < 0 || saved_stage < 0 || owned_high < 0 || owned_low < 0 {
+        return DefaultRecord(highest_stage)
+    }
+    if saved_stage == 0 { return DefaultRecord(highest_stage) }
+    owned := owned_high * 36 + owned_low
+    if owned >= 1 << ACCESSORY_COUNT { return DefaultRecord(highest_stage) }
+    return NormalizeRecord(AccessoryRecord.{.selected = selected, .owned = owned, .highest_stage = highest_stage})
+}
+#import "kryon/geometry"

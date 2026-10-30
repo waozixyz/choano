@@ -19,14 +19,6 @@
       "url": "https://github.com/open-quantum-safe/liboqs.git"
     },
     {
-      "commit": "c5e6b73a192fa52cb7abd95948b31e8bbb4df688",
-      "dependencies": {"kryon": "p9606a2a69b380df3"},
-      "id": "p4b3db9a313192f2f",
-      "name": "Game2D",
-      "ref": "master",
-      "url": "https://github.com/kryonlabs/game2d.git"
-    },
-    {
       "commit": "fafa2cea97d0cb379d832086ba45a989fa6f9c8e",
       "dependencies": {},
       "id": "p5a77c9c35110e925",
@@ -61,24 +53,24 @@
       "url": "https://github.com/LoupVaillant/Monocypher.git"
     },
     {
-      "commit": "39074d35643e055e36b1ffdd90586d65736222d0",
-      "dependencies": {"raylib": "p5a77c9c35110e925"},
-      "id": "p9606a2a69b380df3",
-      "name": "kryon",
-      "ref": "master",
-      "url": "https://github.com/kryonlabs/kryon.git"
-    },
-    {
       "commit": "5b67236a8e355e67ce4f8cc0389b9ce3805b874b",
-      "dependencies": {"crypto": "pc23fbf455e97614d", "kryon": "p9606a2a69b380df3"},
+      "dependencies": {"crypto": "pc23fbf455e97614d", "kryon": "pa65b3130af69e6e0"},
       "id": "p9928fc15e7b93288",
       "name": "Apps",
       "ref": "master",
       "url": "https://github.com/waozixyz/apps.git"
     },
     {
+      "commit": "f761e3292a2952ab2397032c8628fd85c79e6d5d",
+      "dependencies": {"raylib": "p5a77c9c35110e925"},
+      "id": "pa65b3130af69e6e0",
+      "name": "kryon",
+      "ref": "master",
+      "url": "https://github.com/kryonlabs/kryon.git"
+    },
+    {
       "commit": "e8cc64d1731eecfab07e9fe55cc4fcd8368ae8fb",
-      "dependencies": {"daochi_client": "p7de54c8ad98fe034", "kryon": "p9606a2a69b380df3", "monocypher": "p809b4d31a48625a3", "qrcode": "p0dfa70137405b096"},
+      "dependencies": {"daochi_client": "p7de54c8ad98fe034", "kryon": "pa65b3130af69e6e0", "monocypher": "p809b4d31a48625a3", "qrcode": "p0dfa70137405b096"},
       "id": "pb85975f45ad5e9e0",
       "name": "Entity",
       "ref": "master",
@@ -99,10 +91,18 @@
       "name": "mingcute",
       "ref": "master",
       "url": "https://github.com/kryonlabs/mingcute.git"
+    },
+    {
+      "commit": "d32e4b606ece83e8869c954f66c334f44f7b4838",
+      "dependencies": {"kryon": "pa65b3130af69e6e0"},
+      "id": "pe878ed78ee9f8300",
+      "name": "Game2D",
+      "ref": "master",
+      "url": "https://github.com/kryonlabs/game2d.git"
     }
   ],
   "root": {
-    "dependencies": {"apps": "p9928fc15e7b93288", "entity": "pb85975f45ad5e9e0", "game2d": "p4b3db9a313192f2f", "kryon": "p9606a2a69b380df3", "mingcute": "pe1027b9d16704793"},
+    "dependencies": {"apps": "p9928fc15e7b93288", "entity": "pb85975f45ad5e9e0", "game2d": "pe878ed78ee9f8300", "kryon": "pa65b3130af69e6e0", "mingcute": "pe1027b9d16704793"},
     "name": "Choano"
   },
   "toolchain": {

@@ -1,3 +1,4 @@
+Accessories :: #import "accessories";
 Math :: #import "std/math";
 
 FIELD_WIDTH :: 500.0;
@@ -236,8 +237,7 @@ SetDishFrame :: (half_height: float32, corner_radius: float32, enabled: bool) {
 
     scale := requested_height / old_half_height
     game.player_y = cast(float32)DISH_CENTER_Y + (game.player_y - cast(float32)DISH_CENTER_Y) * scale
-    player_size := cast(float32)StageSize(game.player_stage)
-    unused ClampPoint(*game.player_x, *game.player_y, player_size)
+    unused PlayerClampPoint(*game.player_x, *game.player_y)
     for index: cast(s32)0..game.enemy_count - 1 {
         enemy_size := cast(float32)StageSize(game.enemies[index].stage)
         game.enemies[index].y = cast(float32)DISH_CENTER_Y +
@@ -299,6 +299,16 @@ ClampPoint :: (x: *float32, y: *float32, size: float32) -> bool {
     <<x = cast(float32)DISH_CENTER_X + delta_x * maximum / distance
     <<y = cast(float32)DISH_CENTER_Y + delta_y * maximum / distance
     return true
+}
+
+PlayerClampSize :: () -> float32 {
+    size := cast(float32)ifx game.mode == MODE_FISH then FishSize(game.player_stage) else StageSize(game.player_stage)
+    return Accessories.ClampSize(size)
+}
+
+PlayerClampPoint :: (x: *float32, y: *float32) -> bool {
+    if game.mode == MODE_FISH { return SeaClamp(x, y, PlayerClampSize()) }
+    return ClampPoint(x, y, PlayerClampSize())
 }
 
 RandomSpeed :: () -> float32 {
@@ -444,6 +454,14 @@ GrowPlayer :: () {
     }
 }
 
+GrowthMeter :: () -> float32 {
+    if game.mode != MODE_AMOEBA || game.next_growth_threshold <= 0 { return 0.0 }
+    value := cast(float32)game.growth_progress / cast(float32)game.next_growth_threshold
+    if value < 0.0 { return 0.0 }
+    if value > 1.0 { return 1.0 }
+    return value
+}
+
 MovePlayer :: (input: GameInput, delta: float64) {
     target_x := DirectionX(ifx input.left then 0 else ifx input.right then 2 else -1)
     target_y := DirectionY(ifx input.up then 1 else ifx input.down then 3 else -1)
@@ -507,9 +525,7 @@ MovePlayer :: (input: GameInput, delta: float64) {
     game.player_y += game.player_velocity_y * cast(float32)delta
     if game.player_velocity_x < -8.0 { game.player_facing = 0 }
     if game.player_velocity_x > 8.0 { game.player_facing = 1 }
-    size := cast(float32)ifx fish then FishSize(game.player_stage) else StageSize(game.player_stage)
-    if fish { unused SeaClamp(*game.player_x, *game.player_y, size) }
-    else { unused ClampPoint(*game.player_x, *game.player_y, size) }
+    unused PlayerClampPoint(*game.player_x, *game.player_y)
     game.player_moving = game.player_velocity_x * game.player_velocity_x +
         game.player_velocity_y * game.player_velocity_y > 25.0
     game.player_animation += delta

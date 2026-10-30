@@ -1,4 +1,5 @@
 #import "std/text_buffer"
+Accessories :: #import "accessories";
 #if #defined(CHOANO_PORTABLE) {
     host_api :: #system_library "host_api";
     AppRecordHost :: (name: string) -> string #foreign host_api;
@@ -80,15 +81,38 @@ Preferences :: struct {
     // Reaching full size unlocks Fish mode; fish is the mode last picked.
     fish_unlocked: bool
     fish: bool
+    accessory: s32
+    accessories_owned: s32
+    accessories_stage: s32
+}
+encode_buffer: [10]u8;
+Encode :: (value: Preferences) -> string {
+    text := encode_buffer[:]
+    text[0] = #char "1"; text[1] = #char "u"; text[2] = #char "0"; text[3] = #char "0"
+    text[4] = #char "0"; text[5] = #char "0"; text[6] = #char "0"; text[7] = #char "0"
+    text[8] = #char "0"; text[9] = cast(u8)0
+    if value.chosen { text[1] = ifx value.pad then #char "p" else #char "s" }
+    if value.muted { text[2] = #char "1" }
+    if value.fish_unlocked { text[3] = #char "1" }
+    if value.fish_unlocked && value.fish { text[4] = #char "1" }
+    tail := Accessories.EncodeTail(Accessories.AccessoryRecord.{
+        .selected = value.accessory, .owned = value.accessories_owned,
+        .highest_stage = value.accessories_stage})
+    text[5] = tail[0]; text[6] = tail[1]; text[7] = tail[2]; text[8] = tail[3]
+    return TextUntilNul(text[:])
 }
 // "1", the controls (s, p or u for unchosen), sound muted, then Fish mode
 // unlocked and picked; three-character files predate Fish mode.
-Load :: () -> Preferences {
-    text := Read()
+Decode :: (text: string) -> Preferences {
+    accessory := Accessories.DefaultRecord(1)
     value: Preferences
-    if (text.count != 3 && text.count != 5) || text[0] != #char "1" ||
+    value.accessory = accessory.selected
+    value.accessories_owned = accessory.owned
+    value.accessories_stage = accessory.highest_stage
+    if (text.count != 3 && text.count != 5 && text.count != 9) || text[0] != #char "1" ||
         (text[1] != #char "s" && text[1] != #char "p" && text[1] != #char "u") { return value }
     for index: 2..text.count - 1 {
+        if text.count == 9 && index >= 5 { break }
         if text[index] != #char "0" && text[index] != #char "1" { return value }
     }
     value.chosen = text[1] != #char "u"
@@ -98,13 +122,20 @@ Load :: () -> Preferences {
         value.fish_unlocked = text[3] == #char "1"
         value.fish = value.fish_unlocked && text[4] == #char "1"
     }
+    if text.count == 9 {
+        value.fish_unlocked = text[3] == #char "1"
+        value.fish = value.fish_unlocked && text[4] == #char "1"
+        tail: [4]u8 = .[text[5], text[6], text[7], text[8]]
+        saved_stage := Accessories.DigitValue(text[6])
+        if saved_stage < 1 { saved_stage = 1 }
+        accessory = Accessories.DecodeTail(TextView(tail[:]), saved_stage)
+        value.accessory = accessory.selected
+        value.accessories_owned = accessory.owned
+        value.accessories_stage = accessory.highest_stage
+    }
     return value
 }
+Load :: () -> Preferences { return Decode(Read()) }
 Save :: (value: Preferences) -> bool {
-    text: [6]u8 = .[#char "1", #char "u", #char "0", #char "0", #char "0", cast(u8)0]
-    if value.chosen { text[1] = ifx value.pad then #char "p" else #char "s" }
-    if value.muted { text[2] = #char "1" }
-    if value.fish_unlocked { text[3] = #char "1" }
-    if value.fish_unlocked && value.fish { text[4] = #char "1" }
-    return Write(TextUntilNul(text[:]))
+    return Write(Encode(value))
 }

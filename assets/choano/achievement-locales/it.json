@@ -1,4 +1,11 @@
 {
   "achievement_choano_full_size_title": "Dimensione massima",
-  "achievement_choano_full_size_description": "Cresci fino alla dimensione massima nella piastra delle amebe e sblocca la modalità Pesce."
+  "achievement_choano_full_size_description": "Cresci fino alla dimensione massima nella piastra delle amebe e sblocca la modalità Pesce.",
+  "wardrobe_title": "Guardaroba",
+  "wardrobe_halo": "Aureola",
+  "wardrobe_ribbon": "Nastro",
+  "wardrobe_crown": "Corona",
+  "fish_first_hint": "Stesso colore o più piccolo: mangialo. Bordo rosso: scappa",
+  "wardrobe_ribbon_unlock": "Raggiungi lo stadio 5",
+  "wardrobe_crown_unlock": "Raggiungi la dimensione massima"
 }

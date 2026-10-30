@@ -1,4 +1,11 @@
 {
   "achievement_choano_full_size_title": "Plná velikost",
-  "achievement_choano_full_size_description": "Vyrůst do plné velikosti v misce s amébami a odemknout režim Ryba."
+  "achievement_choano_full_size_description": "Vyrůst do plné velikosti v misce s amébami a odemknout režim Ryba.",
+  "wardrobe_title": "Šatna",
+  "wardrobe_halo": "Svatozáře",
+  "wardrobe_ribbon": "Stuha",
+  "wardrobe_crown": "Koruna",
+  "fish_first_hint": "Stejná barva nebo menší: sněz ji. Červený obrys: uteč",
+  "wardrobe_ribbon_unlock": "Dosáhni 5. fáze",
+  "wardrobe_crown_unlock": "Dosáhni plné velikosti"
 }

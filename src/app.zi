@@ -29,6 +29,7 @@ Trophy :: #import "mingcute/mingcute_regular_trophy";
 #import "game"
 #import "playfield"
 #import "sprites"
+Accessories :: #import "accessories";
 Shell :: #import "shell";
 #if #defined(CHOANO_PORTABLE) {
     #import "portable_sound"
@@ -130,14 +131,21 @@ PaintCell :: (session: Session, sheet: string, source: Rectangle, side: string, 
 // into its swim. The swim poses' stretching tails made it lurch about.
 DrawPlayer :: (session: Session, side: string, stage: s32, animation: float64,
     velocity_y: float32, x: float32, y: float32, key: u64) {
+    accessory := Shell.WearingAccessory()
     if game.mode == MODE_FISH {
         size := cast(float32)FishSize(stage)
         Float(session, FISH_SHEET, FishSource(0), side, size * FISH_LENGTH, animation,
             velocity_y / FISH_SPEED, .04, x, y, key)
+        Float(session, Accessories.PreviewAssetPath(accessory),
+            Rectangle.{0.0, 0.0, cast(float32)Accessories.SOURCE_SIZE, cast(float32)Accessories.SOURCE_SIZE},
+            side, size, animation, 0.0, 0.0, x, y, key + 1)
     } else {
         size := cast(float32)StageSize(stage)
         Float(session, "assets/choano/organisms-hd.png", OrganismSource("player", stage, 0), side, size,
             animation, velocity_y / AMOEBA_PLAYER_SPEED, .04, x, y, key)
+        Float(session, Accessories.PreviewAssetPath(accessory),
+            Rectangle.{0.0, 0.0, cast(float32)Accessories.SOURCE_SIZE, cast(float32)Accessories.SOURCE_SIZE},
+            side, size, animation, 0.0, 0.0, x, y, key + 1)
     }
 }
 // Fish are drawn longer than the square they collide with.
@@ -331,6 +339,27 @@ DrawHud :: (session: Session, bar: Rectangle) {
     if shark { PaintCell(session, HUNTER_SHEET, HunterSource(HUNTER_SHARK), "right", danger, cast(u64)3002) }
     else if fish { PaintCell(session, FISH_SHEET, FishStageSource(avoid_stage), "right", danger, cast(u64)3002) }
     else { PaintOrganism(session, "enemy", "right", avoid_stage, AnimationFrame(game.elapsed, 3), danger, cast(u64)3002) }
+    if !fish { DrawGrowthMeter(session, bar) }
+}
+
+DrawGrowthMeter :: (session: Session, bar: Rectangle) {
+    left := bar.x + 166.0
+    right := bar.x + bar.width - 118.0
+    width := right - left
+    if width < 32.0 { return }
+    label := ifx width >= 68.0 then "NEXT SIZE" else "NEXT"
+    unused Text(session, TextProps.{.key = cast(u64)3032, .text = label,
+        .bounds = Rectangle.{left, bar.y + bar.height - 21.0, width, 11.0}, .font = 9,
+        .align = TextAlign.TextAlignCenter})
+    bounds := Rectangle.{left, bar.y + bar.height - 9.0, width, 7.0}
+    unused Box(session, BoxProps.{.key = cast(u64)3030, .bounds = bounds,
+        .fill = ColorFromPacked(0x081d29f2), .border = ColorFromPacked(0x50758aff), .radius = 4.0})
+    fill := bounds.width * GrowthMeter()
+    if fill > 2.0 {
+        unused Box(session, BoxProps.{.key = cast(u64)3031,
+            .bounds = Rectangle.{bounds.x + 1.0, bounds.y + 1.0, fill - 2.0, bounds.height - 2.0},
+            .fill = ColorFromPacked(0xffd080ff), .radius = 3.0})
+    }
 }
 
 HudText :: (session: Session, text: string, bounds: Rectangle, key: u64, size: s32, align: TextAlign) {
@@ -375,6 +404,7 @@ NavigationPage :: () -> s32 { return Shell.Page() }
 // Account progress that already reached full size unlocks Fish mode quietly
 // on this device too.
 AccountProgress :: (highest_stage: s32) {
+    Shell.SetAccessoryProgress(highest_stage)
     if highest_stage >= PLAYER_STAGE_LAST { unused Shell.Unlock() }
 }
 // Account growth counts the amoeba dish only.
@@ -439,6 +469,7 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     if last_tick < 0.0 { last_tick = now }
     if now >= last_tick {
         UpdateGame(input, now - last_tick)
+        if game.mode == MODE_AMOEBA { Shell.SyncAccessoryGrowth(game.player_stage) }
         if game.full_size { game.full_size = false; AwardFullSize(now) }
         PlayEvents(now)
         last_tick = now

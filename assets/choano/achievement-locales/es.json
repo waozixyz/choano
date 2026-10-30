@@ -1,4 +1,11 @@
 {
   "achievement_choano_full_size_title": "Tamaño completo",
-  "achievement_choano_full_size_description": "Crece hasta tu tamaño completo en la placa de amebas y desbloquea el modo Pez."
+  "achievement_choano_full_size_description": "Crece hasta tu tamaño completo en la placa de amebas y desbloquea el modo Pez.",
+  "wardrobe_title": "Armario",
+  "wardrobe_halo": "Aureola",
+  "wardrobe_ribbon": "Cinta",
+  "wardrobe_crown": "Corona",
+  "fish_first_hint": "Del mismo color o más pequeño: cómelo. Borde rojo: huye",
+  "wardrobe_ribbon_unlock": "Alcanza la fase 5",
+  "wardrobe_crown_unlock": "Alcanza el tamaño completo"
 }

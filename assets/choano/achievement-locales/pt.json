@@ -1,4 +1,11 @@
 {
   "achievement_choano_full_size_title": "Tamanho máximo",
-  "achievement_choano_full_size_description": "Cresça até o tamanho máximo na placa de amebas e desbloqueie o modo Peixe."
+  "achievement_choano_full_size_description": "Cresça até o tamanho máximo na placa de amebas e desbloqueie o modo Peixe.",
+  "wardrobe_title": "Guarda-roupa",
+  "wardrobe_halo": "Auréola",
+  "wardrobe_ribbon": "Laço",
+  "wardrobe_crown": "Coroa",
+  "fish_first_hint": "Da mesma cor ou menor: coma. Contorno vermelho: fuja",
+  "wardrobe_ribbon_unlock": "Alcance a fase 5",
+  "wardrobe_crown_unlock": "Alcance o tamanho máximo"
 }

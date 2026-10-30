@@ -1,4 +1,11 @@
 {
   "achievement_choano_full_size_title": "Full size",
-  "achievement_choano_full_size_description": "Grow to full size in the amoeba dish and unlock Fish mode."
+  "achievement_choano_full_size_description": "Grow to full size in the amoeba dish and unlock Fish mode.",
+  "wardrobe_title": "Wardrobe",
+  "wardrobe_halo": "Halo",
+  "wardrobe_ribbon": "Ribbon",
+  "wardrobe_crown": "Crown",
+  "fish_first_hint": "Same color or smaller: eat it. Red outline: run",
+  "wardrobe_ribbon_unlock": "Reach stage 5",
+  "wardrobe_crown_unlock": "Reach full size"
 }

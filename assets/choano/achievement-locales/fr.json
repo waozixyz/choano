@@ -1,4 +1,11 @@
 {
   "achievement_choano_full_size_title": "Taille maximale",
-  "achievement_choano_full_size_description": "Atteins ta taille maximale dans la boîte à amibes et débloque le mode Poisson."
+  "achievement_choano_full_size_description": "Atteins ta taille maximale dans la boîte à amibes et débloque le mode Poisson.",
+  "wardrobe_title": "Garde-robe",
+  "wardrobe_halo": "Auréole",
+  "wardrobe_ribbon": "Ruban",
+  "wardrobe_crown": "Couronne",
+  "fish_first_hint": "Même couleur ou plus petit : mange-le. Contour rouge : fuis",
+  "wardrobe_ribbon_unlock": "Atteins le stade 5",
+  "wardrobe_crown_unlock": "Atteins la taille maximale"
 }

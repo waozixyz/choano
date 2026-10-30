@@ -1,0 +1,49 @@
+Shell :: #import "shell";
+#import "kryon/geometry"
+
+Expect :: (value: bool, name: string) -> bool {
+    if !value { print("Choano shell local test failed: %\n", name) }
+    return value
+}
+
+Inside :: (inner: Rectangle, outer: Rectangle) -> bool {
+    return inner.x >= outer.x && inner.y >= outer.y &&
+        inner.x + inner.width <= outer.x + outer.width &&
+        inner.y + inner.height <= outer.y + outer.height
+}
+
+Clear :: (first: Rectangle, second: Rectangle) -> bool {
+    return first.x + first.width <= second.x || second.x + second.width <= first.x ||
+        first.y + first.height <= second.y || second.y + second.height <= first.y
+}
+
+main :: () -> s32 {
+    layouts: [3]Rectangle = .[.{0.0, 0.0, 720.0, 1560.0}, .{0.0, 0.0, 1560.0, 720.0},
+        .{0.0, 0.0, 900.0, 628.0}]
+    for bounds: layouts {
+        for resumable: 0..1 {
+            layout := Shell.TitleLayoutFor(bounds, resumable == 1)
+            if !Expect(Inside(layout.logo, bounds) && layout.logo.x >= bounds.x + 20.0 &&
+                layout.logo.x + layout.logo.width <= bounds.x + bounds.width - 160.0,
+                "title logo is fully visible with side margins") { return 1 }
+            if !Expect(layout.logo.y + layout.logo.height <= layout.character_safe.y,
+                "title logo does not cover the character safe zone") { return 1 }
+            if !Expect(layout.mode.y >= layout.character_safe.y + layout.character_safe.height,
+                "title buttons do not cover the character safe zone") { return 1 }
+            if !Expect(Inside(layout.mode, bounds) && Inside(layout.wardrobe, bounds) &&
+                Inside(layout.play, bounds), "title buttons stay on screen") { return 1 }
+            if resumable == 1 && !Inside(layout.continue_button, bounds) { return 2 }
+            if !Expect(Clear(layout.mode, layout.character_safe) && Clear(layout.wardrobe, layout.character_safe) &&
+                Clear(layout.play, layout.character_safe), "title controls avoid painted characters") { return 1 }
+            if !Expect(layout.mode.height == 52.0 && layout.wardrobe.height == 52.0 &&
+                layout.play.height == 52.0 && layout.mode.width == layout.wardrobe.width,
+                "title buttons share one shape and height") { return 1 }
+        }
+    }
+    if !Expect(Shell.ModeAssetPath(false, true) != Shell.ModeAssetPath(false, false) &&
+        Shell.ModeAssetPath(true, true) != Shell.ModeAssetPath(true, false) &&
+        Shell.ModeAssetPath(false, true) != Shell.ModeAssetPath(true, true),
+        "each selected mode uses its own highlighted button art") { return 1 }
+    print("Choano local shell layout tests passed.\n")
+    return 0
+}

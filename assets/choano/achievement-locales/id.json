@@ -1,4 +1,11 @@
 {
   "achievement_choano_full_size_title": "Ukuran penuh",
-  "achievement_choano_full_size_description": "Tumbuh hingga ukuran penuh di cawan amoeba dan buka mode Ikan."
+  "achievement_choano_full_size_description": "Tumbuh hingga ukuran penuh di cawan amoeba dan buka mode Ikan.",
+  "wardrobe_title": "Lemari",
+  "wardrobe_halo": "Halo",
+  "wardrobe_ribbon": "Pita",
+  "wardrobe_crown": "Mahkota",
+  "fish_first_hint": "Warna sama atau lebih kecil: makan. Garis merah: hindari",
+  "wardrobe_ribbon_unlock": "Capai tahap 5",
+  "wardrobe_crown_unlock": "Capai ukuran penuh"
 }

@@ -27,3 +27,7 @@ test:
 	./build/playfield-test/playfield_test
 	ziran build --project --locked --target=c --define CHOANO_PROGRESS_TEST --exe --entry progress_test:main -o build/progress-test tests/progress_test.zi
 	./build/progress-test/progress_test
+	ziran build --project --locked --target=c --exe --entry accessories_test:main -o build/accessories-test tests/accessories_test.zi
+	./build/accessories-test/accessories_test
+	ziran build --project --locked --target=c --exe --entry shell_test:main -o build/shell-test tests/shell_test.zi
+	./build/shell-test/shell_test
