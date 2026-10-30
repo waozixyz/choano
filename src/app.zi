@@ -8,6 +8,7 @@
 #import "kryon/drawing_props"
 #import "kryon/image_props"
 #import "kryon/image_widget"
+#import "kryon/tree"
 #import "kryon/text_props"
 #import "kryon/text_widget"
 #import "kryon/text_align"
@@ -127,13 +128,14 @@ PaintCell :: (session: Session, sheet: string, source: Rectangle, side: string, 
 // into its swim. The swim poses' stretching tails made it lurch about.
 DrawPlayer :: (session: Session, side: string, stage: s32, animation: float64,
     velocity_y: float32, x: float32, y: float32, key: u64) {
-    size := cast(float32)StageSize(stage)
     if game.mode == MODE_FISH {
+        size := cast(float32)FishSize(stage)
         Float(session, FISH_SHEET, FishSource(0), side, size * FISH_LENGTH, animation,
             velocity_y / FISH_SPEED, .04, x, y, key)
     } else {
+        size := cast(float32)StageSize(stage)
         Float(session, "assets/choano/organisms-hd.png", OrganismSource("player", stage, 0), side, size,
-            animation, velocity_y / PLAYER_SPEED, .04, x, y, key)
+            animation, velocity_y / AMOEBA_PLAYER_SPEED, .04, x, y, key)
     }
 }
 // Fish are drawn longer than the square they collide with.
@@ -188,7 +190,7 @@ DrawSea :: (session: Session) {
             lean := enemy.velocity_y / 60.0
             if enemy.kind == KIND_STARFISH { lean = cast(float32)Trig.Sin(enemy.animation * .8 + cast(float64)enemy.phase) }
             // A seahorse stands as tall as its body in the game.
-            longest := cast(float32)StageSize(enemy.stage) * (ifx enemy.kind == KIND_SEAHORSE then SEAHORSE_HEIGHT else FISH_LENGTH)
+            longest := cast(float32)FishSize(enemy.stage) * (ifx enemy.kind == KIND_SEAHORSE then SEAHORSE_HEIGHT else FISH_LENGTH)
             Float(session, ANIMAL_SHEET, source, side, FitWidth(source, longest), enemy.animation, lean,
                 ifx enemy.kind == KIND_SEAHORSE then .02 else .01, enemy.x, enemy.y, key)
         } else if enemy.kind == KIND_TURTLE {
@@ -201,7 +203,7 @@ DrawSea :: (session: Session) {
         } else {
             side := ifx enemy.velocity_x < 0.0 then "left" else "right"
             Float(session, FISH_SHEET, FishSource(4 + enemy.species % FISH_SPECIES), side,
-                cast(float32)StageSize(enemy.stage) * FISH_LENGTH, enemy.animation, enemy.velocity_y / 40.0, .03,
+                cast(float32)FishSize(enemy.stage) * FISH_LENGTH, enemy.animation, enemy.velocity_y / 40.0, .03,
                 enemy.x, enemy.y, key)
         }
     }
@@ -235,6 +237,12 @@ DrawBlob :: (session: Session, animation: float64, x: float32, y: float32, key: 
 }
 
 DrawGame :: (session: Session, bounds: Rectangle) {
+    world_clip := Box(session, BoxProps.{.key = cast(u64)49100, .bounds = bounds})
+    if world_clip < 0 { return }
+    TreeSetChildClip(session, world_clip, bounds)
+    if !TreePushScope(session, world_clip) { return }
+    defer { unused TreePopScope(session) }
+
     field = FitPlayfield(bounds, game.mode)
     view = field.view
     view_scale = field.scale

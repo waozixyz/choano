@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Make Amoeba creatures larger inside the full visible dish, keep every sprite inside its container, and soften cumulative growth.
 - Enlarge the Amoeba game on portrait screens while keeping its safety rim and responsive fit.
 
 ## [0.1.2] - 2026-10-30

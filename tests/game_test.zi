@@ -72,7 +72,7 @@ DishFrameTests :: () -> s32 {
 
     SetDishFrame(300.0, 32.0, true)
     game.player_x = cast(float32)DISH_CENTER_X + 194.0
-    game.player_y = cast(float32)DISH_CENTER_Y - 286.0
+    game.player_y = cast(float32)DISH_CENTER_Y - 282.0
     corner_x := game.player_x; corner_y := game.player_y
     if Expect(!ClampPoint(*corner_x, *corner_y, cast(float32)StageSize(game.player_stage)),
         "the full rounded rectangle reaches outside the old circle") != 0 { return 1 }
@@ -84,14 +84,14 @@ DishFrameTests :: () -> s32 {
     if Expect(ClampPoint(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage)),
         "the tall straight edge clamps") != 0 { return 1 }
     if Expect(game.player_x == cast(float32)DISH_CENTER_X &&
-        Near(game.player_y, cast(float32)DISH_CENTER_Y - 294.5), "the rectangle keeps its straight height") != 0 { return 1 }
+        Near(game.player_y, cast(float32)DISH_CENTER_Y - 292.85), "the rectangle keeps its straight height") != 0 { return 1 }
 
     game.player_x = 450.0
     game.player_y = -100.0
     if Expect(ClampPoint(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage)),
         "a point outside a rounded corner clamps") != 0 { return 1 }
-    if Expect(Near(game.player_x, cast(float32)DISH_CENTER_X + 191.30) &&
-        Near(game.player_y, cast(float32)DISH_CENTER_Y - 289.63), "rounded collision projects to the corner arc") != 0 { return 1 }
+    if Expect(Near(game.player_x, 435.35) && Near(game.player_y, -79.288),
+        "rounded collision projects to the corner arc") != 0 { return 1 }
 
     game.enemy_count = 0
     spawned: s32 = 0
@@ -177,19 +177,20 @@ main :: () -> s32 {
     StartGame(12345)
     if Expect(game.started, "game starts immediately") != 0 { return 1 }
     if Expect(!SharkAlert(), "Amoeba mode has no shark music cue") != 0 { return 1 }
-    if Expect(game.enemy_count == INITIAL_ENEMIES, "original initial enemy count") != 0 { return 1 }
+    if Expect(game.enemy_count == INITIAL_ENEMIES, "retuned initial enemy count") != 0 { return 1 }
     if Expect(game.lives == 2 && game.player_stage == 1 && game.score == 0 &&
         game.next_growth_threshold == 14, "original initial state") != 0 { return 1 }
     for index: cast(s32)0..game.enemy_count - 1 {
         if Expect(!game.enemies[index].active && game.enemies[index].stage == 1,
-            "initial enemies are delayed size-11 amoebas") != 0 { return 1 }
+            "initial enemies are delayed larger amoebas") != 0 { return 1 }
     }
 
-    if Expect(StageSize(1) == 11 && StageSize(10) == 47, "one-based stage sizes") != 0 { return 1 }
+    if Expect(StageSize(1) == 22 && StageSize(10) == 94 &&
+        FishSize(1) == 11 && FishSize(10) == 47, "one-based stage sizes") != 0 { return 1 }
     game.player_x = 500.0
     game.player_y = 209.0
     unused ClampPoint(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage))
-    maximum := cast(float32)DISH_RADIUS - cast(float32)StageSize(game.player_stage) * .5
+    maximum := cast(float32)DISH_RADIUS - cast(float32)StageSize(game.player_stage) * .325
     if Expect(DistanceSquared(game.player_x, game.player_y, cast(float32)DISH_CENTER_X, cast(float32)DISH_CENTER_Y) <= maximum * maximum,
         "player remains inside the petri dish") != 0 { return 1 }
 
@@ -208,13 +209,13 @@ main :: () -> s32 {
         .velocity_x = 1.0, .velocity_y = 0.0, .active = true, .warning_timer = 0.0}
     UpdateGame(.{}, 1.0 / 60.0)
     if Expect(game.player_stage == 2 && game.growth_stages == 1 &&
-        game.next_growth_threshold == 44, "original cumulative growth threshold") != 0 { return 1 }
+        game.next_growth_threshold == 34, "gentler cumulative growth threshold") != 0 { return 1 }
 
     StartGame(12345)
     game.growth_stages = 2
     game.growth_progress = 43
     game.player_stage = 2
-    game.next_growth_threshold = 44
+    game.next_growth_threshold = 34
     game.enemy_count = 1
     game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 1,
         .velocity_x = 1.0, .velocity_y = 0.0, .active = true, .warning_timer = 0.0}
@@ -243,7 +244,7 @@ main :: () -> s32 {
         "a touch heading swims in any direction") != 0 { return 1 }
     if Expect(game.player_facing == 1 && game.player_moving, "the player faces its swim") != 0 { return 1 }
     UpdateGame(.{.left = true, .steer_x = 1.0}, 1.0 / 60.0)
-    if Expect(game.player_velocity_x < 50.0 && game.player_velocity_x > 20.0,
+    if Expect(game.player_velocity_x < 100.0 && game.player_velocity_x > 40.0,
         "keys win over the touch heading and its release") != 0 { return 1 }
     for step: 0..119 { UpdateGame(.{}, 1.0 / 60.0) }
     if Expect(!game.player_moving, "the player glides to rest") != 0 { return 1 }
@@ -261,10 +262,17 @@ main :: () -> s32 {
     game.growth_progress = game.next_growth_threshold
     GrowPlayer()
     if Expect(game.player_stage == PLAYER_STAGE_LAST && game.full_size, "reaching full size is flagged for the award") != 0 { return 1 }
+    expected_thresholds: [10]s32 = .[0, 14, 34, 60, 94, 138, 195, 269, 365, 490]
+    thresholds_match := true
+    for stage: 1..9 {
+        thresholds_match = thresholds_match && GrowthThreshold(cast(s32)stage) == expected_thresholds[stage]
+    }
+    if Expect(thresholds_match, "growth asks about 1.3 times more each level") != 0 { return 1 }
     game.full_size = false
     game.growth_progress = game.next_growth_threshold
     GrowPlayer()
-    if Expect(!game.full_size, "growing past full size awards nothing again") != 0 { return 1 }
+    if Expect(!game.full_size && game.next_growth_threshold == 612,
+        "growing past full size awards nothing again and slows to 1.25 times") != 0 { return 1 }
 
     StartGame(4242, MODE_FISH)
     if Expect(game.mode == MODE_FISH && game.enemy_count == FISH_START, "Fish mode starts with a few fish") != 0 { return 1 }
@@ -304,7 +312,7 @@ main :: () -> s32 {
     UpdateGame(.{.right = true, .dash = true}, 1.0 / 60.0)
     if Expect(game.player_velocity_x < cruising * 1.2, "a dash needs its cooldown") != 0 { return 1 }
     game.player_y = 500.0
-    unused SeaClamp(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage))
+    unused SeaClamp(*game.player_x, *game.player_y, cast(float32)FishSize(game.player_stage))
     if Expect(game.player_y <= cast(float32)SEA_BOTTOM, "the fish stays above the sand") != 0 { return 1 }
 
     StartGame(4244, MODE_FISH)
@@ -424,11 +432,11 @@ main :: () -> s32 {
     starfish := game.enemies[2]
     sand := cast(float32)SEA_BOTTOM
     if Expect(highest[0] - lowest[0] > 10.0 && highest[0] < sand - 20.0, "a seahorse bobs in open water") != 0 { return 1 }
-    if Expect(lobster.y == sand - cast(float32)StageSize(lobster.stage) * .5 && highest[1] - lowest[1] < .01 &&
+    if Expect(lobster.y == sand - cast(float32)FishSize(lobster.stage) * .5 && highest[1] - lowest[1] < .01 &&
         (lobster.x - 100.0) * lobster.velocity_x > 0.0, "a lobster crawls along the sand") != 0 { return 1 }
     starfish_moved := starfish.x - 100.0
     if starfish_moved < 0.0 { starfish_moved = -starfish_moved }
-    if Expect(highest[2] <= sand && lowest[2] > sand - cast(float32)StageSize(starfish.stage) * .5 - 16.0 &&
+    if Expect(highest[2] <= sand && lowest[2] > sand - cast(float32)FishSize(starfish.stage) * .5 - 16.0 &&
         starfish_moved > 10.0 && starfish_moved < 40.0, "a starfish drifts slowly near the sand") != 0 { return 1 }
     game.enemy_count = 1
     game.enemies[0] = .{.x = -60.0, .y = 200.0, .stage = 1, .velocity_x = -22.0, .active = true, .kind = KIND_SEAHORSE}
@@ -448,8 +456,8 @@ main :: () -> s32 {
         game.enemy_count == 0, "a seahorse no bigger than the player is eaten like a fish") != 0 { return 1 }
     game.player_stage = 1
     game.enemy_count = 1
-    game.player_y = cast(float32)SEA_BOTTOM - cast(float32)StageSize(game.player_stage) * .5
-    game.enemies[0] = .{.x = game.player_x, .y = SandY(KIND_LOBSTER, cast(float32)StageSize(3)), .stage = 3,
+    game.player_y = cast(float32)SEA_BOTTOM - cast(float32)FishSize(game.player_stage) * .5
+    game.enemies[0] = .{.x = game.player_x, .y = SandY(KIND_LOBSTER, cast(float32)FishSize(3)), .stage = 3,
         .velocity_x = 30.0, .active = true, .kind = KIND_LOBSTER}
     UpdateGame(.{}, 1.0 / 60.0)
     if Expect(game.lives == 1 && game.safe_timer > 0.0 && game.enemy_count == 1, "a bigger lobster bites") != 0 { return 1 }
@@ -503,14 +511,14 @@ main :: () -> s32 {
     horse_half_width: float32
     horse_half_height: float32
     BodyHalf(KIND_SEAHORSE, SEAHORSE_STAGE, *horse_half_width, *horse_half_height)
-    if Expect(horse_half_height * 2.0 > cast(float32)StageSize(1) * 3.0 && horse_half_width < horse_half_height,
+    if Expect(horse_half_height * 2.0 > cast(float32)FishSize(1) * 3.0 && horse_half_width < horse_half_height,
         "the smallest seahorse stands over three times a new fish's size, upright") != 0 { return 1 }
     // Its body is tall and narrow, as drawn.
     game.player_stage = 1
     game.lives = 9
     game.player_x = 250.0
     game.player_y = 200.0
-    player_half := cast(float32)StageSize(1) * .5
+    player_half := cast(float32)FishSize(1) * .5
     game.enemy_count = 1
     game.enemies[0] = .{.x = game.player_x + player_half + horse_half_width - 1.0, .y = game.player_y, .stage = SEAHORSE_STAGE,
         .velocity_x = 0.0, .active = true, .kind = KIND_SEAHORSE}

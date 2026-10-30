@@ -9,7 +9,7 @@ STAGE_FIRST :: 1;
 STAGE_LAST :: 10;
 PLAYER_STAGE_LAST :: 9;
 ENEMY_LIMIT :: 64;
-INITIAL_ENEMIES :: 6;
+INITIAL_ENEMIES :: 4;
 // The amoeba dish and, once a player reaches full size there, the open sea.
 MODE_AMOEBA :: 0;
 MODE_FISH :: 1;
@@ -73,11 +73,14 @@ SARDINE_SCORE :: 5;
 FRENZY_SECONDS :: 1.5;
 FRENZY_MOST :: 8;
 PLAYER_SPEED :: 100.0;
+AMOEBA_PLAYER_SPEED :: 170.0;
 TOUCH_COAST_TIME :: 0.35;
 // How quickly the player's velocity eases towards its heading, per second.
 PLAYER_EASE :: 8.0;
 ENEMY_SPEED_SCALE :: 90.0;
+AMOEBA_ENEMY_SPEED_SCALE :: 150.0;
 COLLISION_INSET :: 3.0;
+AMOEBA_COLLISION_INSET :: 6.0;
 
 SOUND_NONE :: 0;
 SOUND_START :: 1;
@@ -168,10 +171,11 @@ Game :: struct {
 // Portable record initializers require literal field values.
 game: Game = .{.dish_half_height = 208.0};
 
-StageSize :: (index: s32) -> s32 { return index * 4 + 7 }
+StageSize :: (index: s32) -> s32 { return index * 8 + 14 }
+FishSize :: (index: s32) -> s32 { return index * 4 + 7 }
 
 GrowthThreshold :: (stage: s32) -> s32 {
-    thresholds: [10]s32 = .[0, 14, 44, 96, 168, 256, 416, 661, 981, 1386]
+    thresholds: [10]s32 = .[0, 14, 34, 60, 94, 138, 195, 269, 365, 490]
     if stage < STAGE_FIRST { return thresholds[STAGE_FIRST] }
     if stage > PLAYER_STAGE_LAST { return thresholds[PLAYER_STAGE_LAST] }
     return thresholds[stage]
@@ -244,7 +248,7 @@ SetDishFrame :: (half_height: float32, corner_radius: float32, enabled: bool) {
 
 ClampPoint :: (x: *float32, y: *float32, size: float32) -> bool {
     if game.dish_frame_enabled {
-        half_size := size * .5
+        half_size := size * .325
         half_width := cast(float32)DISH_RADIUS - half_size
         half_height := game.dish_half_height - half_size
         if half_width <= 0.0 || half_height <= 0.0 {
@@ -271,7 +275,7 @@ ClampPoint :: (x: *float32, y: *float32, size: float32) -> bool {
         corner_x := offset_x - nearest_x
         corner_y := offset_y - nearest_y
         corner_length := cast(float32)Math.Sqrt(cast(float64)(corner_x * corner_x + corner_y * corner_y))
-        if corner_length <= corner { return false }
+        if corner_length <= corner + .001 { return false }
         if corner_length > 0.0 {
             nearest_x += corner_x * corner / corner_length
             nearest_y += corner_y * corner / corner_length
@@ -288,8 +292,8 @@ ClampPoint :: (x: *float32, y: *float32, size: float32) -> bool {
     delta_x := <<x - cast(float32)DISH_CENTER_X
     delta_y := <<y - cast(float32)DISH_CENTER_Y
     distance_squared := delta_x * delta_x + delta_y * delta_y
-    maximum := DISH_RADIUS - size * .5
-    if maximum <= 0.0 || distance_squared <= maximum * maximum { return false }
+    maximum := DISH_RADIUS - size * .325
+    if maximum <= 0.0 || distance_squared <= (maximum + .001) * (maximum + .001) { return false }
     distance := cast(float32)Math.Sqrt(cast(float64)distance_squared)
     if distance <= 0.0 { return true }
     <<x = cast(float32)DISH_CENTER_X + delta_x * maximum / distance
@@ -322,12 +326,11 @@ StageForPopulation :: (edible_count: s32, enemy_count: s32) -> s32 {
 }
 
 CanPlaceEnemy :: (x: float32, y: float32, size: float32) -> bool {
-    player_size := cast(float32)StageSize(game.player_stage)
-    clear := size * .5 + player_size * .5 + 4.0
+    clear := size * .65 + 8.0
     if DistanceSquared(x, y, game.player_x, game.player_y) < clear * clear { return false }
     for index: cast(s32)0..game.enemy_count - 1 {
         other_size := cast(float32)StageSize(game.enemies[index].stage)
-        other_clear := size * .5 + other_size * .5 + 2.0
+        other_clear := (size + other_size) * .325 + 6.0
         if DistanceSquared(x, y, game.enemies[index].x, game.enemies[index].y) < other_clear * other_clear { return false }
     }
     return true
@@ -345,7 +348,7 @@ SpawnEnemy :: (forced_stage: s32) -> bool {
     placed := false
     if !game.dish_frame_enabled {
         maximum := cast(float32)DISH_RADIUS - size * .5
-        while attempt < 64 && !placed {
+        while attempt < 96 && !placed {
             x = cast(float32)DISH_CENTER_X + cast(float32)RandomNext(cast(s32)(maximum * 2.0)) - maximum
             y = cast(float32)DISH_CENTER_Y + cast(float32)RandomNext(cast(s32)(maximum * 2.0)) - maximum
             placed = DistanceSquared(x, y, cast(float32)DISH_CENTER_X, cast(float32)DISH_CENTER_Y) <= maximum * maximum && CanPlaceEnemy(x, y, size)
@@ -356,7 +359,7 @@ SpawnEnemy :: (forced_stage: s32) -> bool {
         half_width := cast(float32)DISH_RADIUS - half_size
         half_height := game.dish_half_height - half_size
         if half_width <= 0.0 || half_height <= 0.0 { return false }
-        while attempt < 64 && !placed {
+        while attempt < 96 && !placed {
             x = cast(float32)DISH_CENTER_X + cast(float32)RandomNext(cast(s32)(half_width * 2.0)) - half_width
             y = cast(float32)DISH_CENTER_Y + cast(float32)RandomNext(cast(s32)(half_height * 2.0)) - half_height
             test_x := x; test_y := y
@@ -431,7 +434,7 @@ GrowPlayer :: () {
         game.next_growth_threshold = GrowthThreshold(game.player_stage)
         if game.player_stage == PLAYER_STAGE_LAST { game.full_size = true }
     } else {
-        game.next_growth_threshold = game.next_growth_threshold * 3 / 2
+        game.next_growth_threshold = game.next_growth_threshold * 5 / 4
     }
     game.growth_stages += 1
     QueueSound(SOUND_GROW)
@@ -454,7 +457,7 @@ MovePlayer :: (input: GameInput, delta: float64) {
     keyed := input.left || input.right || input.up || input.down
     // Keys ease the velocity towards their heading, so the amoeba glides.
     fish := game.mode == MODE_FISH
-    speed: float32 = ifx fish then FISH_SPEED else PLAYER_SPEED
+    speed: float32 = ifx fish then FISH_SPEED else AMOEBA_PLAYER_SPEED
     if fish && input.dash && game.dash_cooldown <= 0.0 {
         game.dash_timer = DASH_SECONDS
         game.dash_cooldown = DASH_COOLDOWN
@@ -504,7 +507,7 @@ MovePlayer :: (input: GameInput, delta: float64) {
     game.player_y += game.player_velocity_y * cast(float32)delta
     if game.player_velocity_x < -8.0 { game.player_facing = 0 }
     if game.player_velocity_x > 8.0 { game.player_facing = 1 }
-    size := cast(float32)StageSize(game.player_stage)
+    size := cast(float32)ifx fish then FishSize(game.player_stage) else StageSize(game.player_stage)
     if fish { unused SeaClamp(*game.player_x, *game.player_y, size) }
     else { unused ClampPoint(*game.player_x, *game.player_y, size) }
     game.player_moving = game.player_velocity_x * game.player_velocity_x +
@@ -526,8 +529,8 @@ MoveEnemy :: (index: s32, delta: float64) {
         enemy.velocity_x = RandomSpeed()
         enemy.velocity_y = RandomSpeed()
     }
-    enemy.x += enemy.velocity_x * ENEMY_SPEED_SCALE * cast(float32)delta
-    enemy.y += enemy.velocity_y * ENEMY_SPEED_SCALE * cast(float32)delta
+    enemy.x += enemy.velocity_x * AMOEBA_ENEMY_SPEED_SCALE * cast(float32)delta
+    enemy.y += enemy.velocity_y * AMOEBA_ENEMY_SPEED_SCALE * cast(float32)delta
     size := cast(float32)StageSize(enemy.stage)
     if ClampPoint(*enemy.x, *enemy.y, size) {
         enemy.velocity_x = -enemy.velocity_x
@@ -552,7 +555,7 @@ ResolveCollisions :: () {
         enemy := game.enemies[index]
         if !enemy.active { index += 1; continue }
         enemy_size := cast(float32)StageSize(enemy.stage)
-        inset := enemy_size * .5 - COLLISION_INSET
+        inset := enemy_size * .5 - AMOEBA_COLLISION_INSET
         if inset < 0.0 { inset = 0.0 }
         overlap := RectanglesOverlap(player_left, player_right, player_top, player_bottom,
             enemy.x - inset, enemy.x + inset, enemy.y - inset, enemy.y + inset)
@@ -622,7 +625,7 @@ SpawnFish :: (forced_stage: s32, inside: bool) -> bool {
     stage := forced_stage
     if stage < STAGE_FIRST { stage = StageForPopulation(EdibleCount(), FishCount()) }
     if stage > STAGE_LAST { stage = STAGE_LAST }
-    size := cast(float32)StageSize(stage)
+    size := cast(float32)FishSize(stage)
     leftward := RandomNext(2) == 0
     x: float32 = ifx leftward then cast(float32)FIELD_WIDTH + size else -size
     y := SeaY(size)
@@ -693,7 +696,7 @@ SeaAnimal :: (kind: s32) -> bool { return kind == KIND_SEAHORSE || kind == KIND_
 
 // Half the width and height of a sea animal's body.
 BodyHalf :: (kind: s32, stage: s32, half_width: *float32, half_height: *float32) {
-    size := cast(float32)StageSize(stage)
+    size := cast(float32)FishSize(stage)
     <<half_width = size * .5
     <<half_height = size * .5
     if kind == KIND_SEAHORSE {
@@ -718,7 +721,7 @@ SpawnSeaAnimal :: (kind: s32) -> bool {
     if highest < lowest { highest = lowest }
     stage := lowest + cast(s32)RandomNext(highest - lowest + 1)
     if stage > STAGE_LAST { stage = STAGE_LAST }
-    size := cast(float32)StageSize(stage)
+    size := cast(float32)FishSize(stage)
     half_width: float32
     half_height: float32
     BodyHalf(kind, stage, *half_width, *half_height)
@@ -812,7 +815,7 @@ MoveSeaCreature :: (index: s32, delta: float64) -> bool {
     wave := cast(float32)Math.Sin(enemy.animation * 1.6 + cast(float64)enemy.phase)
     step := cast(float32)delta
     if enemy.kind == KIND_FISH {
-        size := cast(float32)StageSize(enemy.stage)
+        size := cast(float32)FishSize(enemy.stage)
         enemy.velocity_y = wave * 10.0
         across := enemy.x - game.player_x
         if enemy.stage > game.player_stage && across * across < 150.0 * 150.0 {
@@ -848,7 +851,7 @@ MoveSeaCreature :: (index: s32, delta: float64) -> bool {
             !(enemy.velocity_x > 0.0 && enemy.x > cast(float32)FIELD_WIDTH + half + 4.0)
     }
     if SeaAnimal(enemy.kind) {
-        size := cast(float32)StageSize(enemy.stage)
+        size := cast(float32)FishSize(enemy.stage)
         if enemy.kind == KIND_SEAHORSE {
             // Bobs up and down while slowly rising.
             half_width: float32
@@ -936,11 +939,11 @@ SeaCollisions :: () {
         enemy := game.enemies[index]
         // The turtle is a gentle visitor: no bite, and too big to eat.
         if enemy.kind == KIND_TURTLE { index += 1; continue }
-        player_size := cast(float32)StageSize(game.player_stage)
+        player_size := cast(float32)FishSize(game.player_stage)
         reach := player_size * .5
         enemy_size: float32 = ifx enemy.kind == KIND_JELLY then 26.0 else 12.0
         eats := enemy.kind == KIND_FISH || SeaAnimal(enemy.kind)
-        if eats { enemy_size = cast(float32)StageSize(enemy.stage) }
+        if eats { enemy_size = cast(float32)FishSize(enemy.stage) }
         if enemy.kind == KIND_SARDINE { enemy_size = cast(float32)SARDINE_SIZE + 4.0 }
         inset := enemy_size * .5 - COLLISION_INSET
         if inset < 2.0 { inset = 2.0 }

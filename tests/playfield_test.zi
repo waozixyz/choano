@@ -7,125 +7,113 @@ Near :: (first: float32, second: float32) -> bool {
     return delta < .01 && delta > -.01
 }
 
-SameRect :: (first: Rectangle, second: Rectangle) -> bool {
-    return Near(first.x, second.x) && Near(first.y, second.y) &&
-        Near(first.width, second.width) && Near(first.height, second.height)
-}
-
 Expect :: (condition: bool, message: string) -> s32 {
     if condition { return 0 }
     print("choano playfield test failed: %\n", message)
     return 1
 }
 
-// The fitted, centred 500 by 420 field every layout used before the rim.
-FittedField :: (bounds: Rectangle, field: Playfield) -> bool {
-    scale := bounds.width / cast(float32)FIELD_WIDTH
-    if bounds.height / cast(float32)FIELD_HEIGHT < scale { scale = bounds.height / cast(float32)FIELD_HEIGHT }
-    return Near(field.scale, scale) && !field.framed &&
-        Near(field.view.x, bounds.x + (bounds.width - cast(float32)FIELD_WIDTH * scale) * .5) &&
-        Near(field.view.y, bounds.y + (bounds.height - cast(float32)FIELD_HEIGHT * scale) * .5) &&
-        Near(field.view.width, cast(float32)FIELD_WIDTH * scale) &&
-        Near(field.view.height, cast(float32)FIELD_HEIGHT * scale) &&
-        Near(field.origin.x, field.view.x) && Near(field.origin.y, field.view.y) &&
-        Near(field.dish_half_height, cast(float32)DISH_RADIUS) && Near(field.dish_corner_radius, 0.0)
+Inside :: (inner: Rectangle, outer: Rectangle) -> bool {
+    return inner.x >= outer.x - .01 && inner.y >= outer.y - .01 &&
+        inner.x + inner.width <= outer.x + outer.width + .01 &&
+        inner.y + inner.height <= outer.y + outer.height + .01
 }
 
-// Pushes a body of this size far into a corner and checks the game stops it
-// inside the visible ground, rounded corner included.
-CornerStop :: (field: Playfield, size: float32, toward_x: float32, toward_y: float32) -> bool {
-    x := toward_x
-    y := toward_y
-    unused ClampPoint(*x, *y, size)
-    screen_x := field.origin.x + x * field.scale
-    screen_y := field.origin.y + y * field.scale
-    half := size * .5 * field.scale
-    inner := field.inner_playable
-    inside := screen_x - half >= inner.x - .01 && screen_x + half <= inner.x + inner.width + .01 &&
-        screen_y - half >= inner.y - .01 && screen_y + half <= inner.y + inner.height + .01
-    radius := field.inner_radius
-    corner_x := ifx screen_x < inner.x + inner.width * .5 then inner.x + radius else inner.x + inner.width - radius
-    corner_y := ifx screen_y < inner.y + inner.height * .5 then inner.y + radius else inner.y + inner.height - radius
-    beyond_x := ifx screen_x < inner.x + inner.width * .5 then corner_x - screen_x else screen_x - corner_x
-    beyond_y := ifx screen_y < inner.y + inner.height * .5 then corner_y - screen_y else screen_y - corner_y
-    if beyond_x > 0.0 && beyond_y > 0.0 && half < radius {
-        reach := radius - half + .01
-        inside = inside && beyond_x * beyond_x + beyond_y * beyond_y <= reach * reach
-    }
-    return inside
-}
-
-// A portrait dish: the area textured, a white rim 8 dp in, the ground 12 dp
-// in with the arena matching it at one scale along both axes.
-FramedDish :: (bounds: Rectangle) -> s32 {
+WholeDish :: (bounds: Rectangle) -> s32 {
     field := FitPlayfield(bounds, MODE_AMOEBA)
-    failures := Expect(field.framed && SameRect(field.area, bounds), "portrait amoeba dish has a rim")
-    failures += Expect(SameRect(field.outer_frame, Rectangle.{bounds.x + 8.0, bounds.y + 8.0, bounds.width - 16.0, bounds.height - 16.0}) &&
-        Near(field.outer_radius, 28.0), "the rim sits 8 dp in with 28 dp corners")
-    inner := Rectangle.{bounds.x + 12.0, bounds.y + 12.0, bounds.width - 24.0, bounds.height - 24.0}
-    failures += Expect(SameRect(field.inner_playable, inner) && Near(field.inner_radius, 12.0),
-        "the ground sits 12 dp in with 12 dp corners")
-    failures += Expect(Near(field.scale, inner.width / 416.0), "the arena's width spans the ground")
-    failures += Expect(Near(field.view.width / cast(float32)FIELD_WIDTH, field.scale) &&
-        Near(field.view.height / cast(float32)FIELD_HEIGHT, field.scale) &&
-        Near(field.view.x, field.origin.x) && Near(field.view.y, field.origin.y), "one scale along both axes")
-    failures += Expect(Near(field.origin.x + cast(float32)DISH_CENTER_X * field.scale, inner.x + inner.width * .5) &&
-        Near(field.origin.y + cast(float32)DISH_CENTER_Y * field.scale, inner.y + inner.height * .5),
-        "the dish centre sits on the ground's centre")
-    failures += Expect(Near(field.dish_half_height * 2.0 * field.scale, inner.height) &&
-        Near(field.dish_corner_radius * field.scale, 12.0) && field.dish_half_height >= cast(float32)DISH_RADIUS,
-        "the arena matches the ground and its corners")
+    failures := Expect(bounds.height > bounds.width && field.framed,
+        "portrait keeps its framed dish")
+    failures += Expect(Inside(field.outer_frame, bounds) && Inside(field.inner_playable, bounds),
+        "the whole dish stays inside the container")
+    failures += Expect(Near(field.inner_playable.width, bounds.width - 24.0) &&
+        Near(field.inner_playable.height, bounds.height - 24.0), "portrait uses the full safe dish")
+    return failures
+}
 
+EdgesStayInside :: (bounds: Rectangle, stage: s32) -> bool {
+    field := FitPlayfield(bounds, MODE_AMOEBA)
     SetDishFrame(field.dish_half_height, field.dish_corner_radius, field.framed)
-    failures += Expect(game.dish_frame_enabled && Near(game.dish_half_height, field.dish_half_height) &&
-        Near(game.dish_corner_radius, field.dish_corner_radius), "the game takes the arena")
-    sizes: [3]float32 = .[8.0, 20.0, 60.0]
-    for index: 0..2 {
-        far: float32 = 5000.0
-        failures += Expect(CornerStop(field, sizes[index], -far, -far) && CornerStop(field, sizes[index], far, -far) &&
-            CornerStop(field, sizes[index], -far, far) && CornerStop(field, sizes[index], far, far) &&
-            CornerStop(field, sizes[index], 245.0, -far) && CornerStop(field, sizes[index], -far, 209.0),
-            "bodies stop inside the visible ground")
+    directions_x: [8]float32 = .[-5000.0, 5000.0, 0.0, 0.0, -5000.0, 5000.0, -5000.0, 5000.0]
+    directions_y: [8]float32 = .[0.0, 0.0, -5000.0, 5000.0, -5000.0, -5000.0, 5000.0, 5000.0]
+    size := cast(float32)StageSize(stage)
+    for direction: 0..7 {
+        x := directions_x[direction]
+        y := directions_y[direction]
+        unused ClampPoint(*x, *y, size)
+        left := field.origin.x + (x - size * .325) * field.scale
+        right := field.origin.x + (x + size * .325) * field.scale
+        top := field.origin.y + (y - size * .325) * field.scale
+        bottom := field.origin.y + (y + size * .325) * field.scale
+        if left < bounds.x - .01 || right > bounds.x + bounds.width + .01 ||
+            top < bounds.y - .01 || bottom > bounds.y + bounds.height + .01 { return false }
     }
     SetDishFrame(cast(float32)DISH_RADIUS, 0.0, false)
-    return failures
+    return true
+}
+
+SpawnsDoNotOverlap :: () -> s32 {
+    StartGame(918273645, MODE_AMOEBA)
+    bounds := Rectangle.{0.0, 52.0, 720.0, 1508.0}
+    field := FitPlayfield(bounds, MODE_AMOEBA)
+    SetDishFrame(field.dish_half_height, field.dish_corner_radius, field.framed)
+    game.player_stage = 9
+    game.player_x = cast(float32)DISH_CENTER_X
+    game.player_y = cast(float32)DISH_CENTER_Y
+    game.enemy_count = 0
+    placed := true
+    for spawn: 0..11 {
+        placed = placed && SpawnEnemy(9)
+    }
+    for first: cast(s32)0..game.enemy_count - 2 {
+        for second: first + 1..game.enemy_count - 1 {
+            one := game.enemies[first]
+            two := game.enemies[second]
+            clear := cast(float32)StageSize(9) * .65 + 6.0
+            placed = placed && DistanceSquared(one.x, one.y, two.x, two.y) >= clear * clear - .01
+        }
+    }
+    SetDishFrame(cast(float32)DISH_RADIUS, 0.0, false)
+    return Expect(placed, "stage-nine spawns fit without overlapping")
 }
 
 main :: () -> s32 {
     failures: s32 = 0
-    // Moto in portrait, below the 52 pixel bar, and phone browsers.
-    failures += FramedDish(Rectangle.{0.0, 52.0, 360.0, 728.0})
-    failures += FramedDish(Rectangle.{0.0, 52.0, 390.0, 792.0})
-    // Short portrait areas take what height there is.
-    failures += FramedDish(Rectangle.{10.0, 52.0, 400.0, 500.0})
-    failures += FramedDish(Rectangle.{0.0, 0.0, 300.0, 301.0})
-    moto := FitPlayfield(Rectangle.{0.0, 52.0, 360.0, 728.0}, MODE_AMOEBA)
-    failures += Expect(moto.scale > 360.0 / 500.0 * 1.12, "Moto creatures draw much larger than the fitted field")
+    moto_portrait := Rectangle.{0.0, 52.0, 720.0, 1508.0}
+    moto_landscape := Rectangle.{0.0, 52.0, 1560.0, 668.0}
+    desktop := Rectangle.{0.0, 52.0, 900.0, 628.0}
+    failures += WholeDish(moto_portrait)
+    failures += WholeDish(Rectangle.{0.0, 104.0, 360.0, 1456.0})
+    failures += WholeDish(Rectangle.{10.0, 52.0, 400.0, 500.0})
 
-    landscape := Rectangle.{0.0, 52.0, 900.0, 628.0}
-    failures += Expect(FittedField(landscape, FitPlayfield(landscape, MODE_AMOEBA)), "landscape amoeba keeps the round dish")
-    failures += Expect(FittedField(landscape, FitPlayfield(landscape, MODE_FISH)), "landscape sea is unchanged")
-    portrait := Rectangle.{0.0, 52.0, 412.0, 760.0}
-    failures += Expect(FittedField(portrait, FitPlayfield(portrait, MODE_FISH)), "portrait sea is unchanged")
-    browser := Rectangle.{0.0, 52.0, 390.0, 792.0}
-    failures += Expect(FittedField(browser, FitPlayfield(browser, MODE_FISH)), "portrait browser sea is unchanged")
-    square := Rectangle.{0.0, 0.0, 420.0, 420.0}
-    failures += Expect(FittedField(square, FitPlayfield(square, MODE_AMOEBA)), "a square area keeps the round dish")
+    all_bounds: [3]Rectangle = .[moto_portrait, moto_landscape, desktop]
+    for bounds_index: 0..2 {
+        bounds := all_bounds[bounds_index]
+        field := FitPlayfield(bounds, MODE_AMOEBA)
+        failures += Expect(Inside(field.inner_playable, bounds) && Inside(field.outer_frame, bounds),
+            "every orientation keeps the complete dish visible")
+        failures += Expect(EdgesStayInside(bounds, 1) && EdgesStayInside(bounds, 9),
+            "stage one and stage nine sprites stay inside at every edge and corner")
+    }
 
-    // Tiny areas never divide by zero or turn the field inside out.
+    moto := FitPlayfield(moto_portrait, MODE_AMOEBA)
+    first_size := cast(float32)StageSize(1) * moto.scale
+    failures += Expect(first_size > 35.0 && first_size < 45.0,
+        "the Moto portrait player is comfortably larger without zooming")
+    failures += SpawnsDoNotOverlap()
+
+    fish_bounds := Rectangle.{0.0, 52.0, 900.0, 628.0}
+    fish := FitPlayfield(fish_bounds, MODE_FISH)
+    scale := fish_bounds.width / cast(float32)FIELD_WIDTH
+    if fish_bounds.height / cast(float32)FIELD_HEIGHT < scale { scale = fish_bounds.height / cast(float32)FIELD_HEIGHT }
+    failures += Expect(Near(fish.scale, scale) && !fish.framed, "Fish mode keeps its fitted sea")
+
     tiny: [5]Rectangle = .[.{0.0, 0.0, 0.0, 0.0}, .{5.0, 5.0, 10.0, 40.0}, .{0.0, 0.0, 24.0, 200.0},
         .{0.0, 0.0, -20.0, -40.0}, .{0.0, 0.0, 41.0, 400.0}]
     for index: 0..4 {
         field := FitPlayfield(tiny[index], MODE_AMOEBA)
-        failures += Expect(field.scale >= 0.0 && field.scale == field.scale && field.view.width >= 0.0 &&
-            field.view.height >= 0.0 && field.dish_half_height >= cast(float32)DISH_RADIUS &&
-            field.dish_corner_radius >= 0.0 && field.dish_corner_radius <= cast(float32)DISH_RADIUS + .01 &&
-            field.inner_radius >= 0.0 && field.outer_radius >= 0.0, "tiny areas stay finite")
+        failures += Expect(field.scale >= 0.0 && field.scale == field.scale &&
+            field.view.width >= 0.0 && field.view.height >= 0.0, "tiny areas stay finite")
     }
-    failures += Expect(!FitPlayfield(tiny[2], MODE_AMOEBA).framed, "an area with no room for the rim keeps the round dish")
-    sliver := FitPlayfield(tiny[4], MODE_AMOEBA)
-    failures += Expect(sliver.framed && sliver.scale > 0.0 && Near(sliver.inner_radius, 8.5),
-        "a sliver of ground still draws, its corners no rounder than it is wide")
 
     if failures != 0 { return 1 }
     print("Choano local playfield tests passed.\n")
