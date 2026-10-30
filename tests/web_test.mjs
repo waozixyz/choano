@@ -25,7 +25,7 @@ try{
  await command('Runtime.enable');await command('Page.enable');await command('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});
 
  const press=async(key,code,vk)=>{await command('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:vk});await command('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:vk})};
- const click=async(x,y)=>{await command('Input.dispatchMouseEvent',{type:'mousePressed',x,y,button:'left',clickCount:1});await command('Input.dispatchMouseEvent',{type:'mouseReleased',x,y,button:'left',clickCount:1});await delay(120)};
+ const click=async(x,y)=>{await command('Input.dispatchMouseEvent',{type:'mousePressed',x,y,button:'left',clickCount:1});await delay(80);await command('Input.dispatchMouseEvent',{type:'mouseReleased',x,y,button:'left',clickCount:1});await delay(120)};
  const touch=(type,x,y)=>command('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y}]});
  const where=()=>evaluate('[Module.choanoX,Module.choanoY]');
  // One held contact drags far right, past the pad, then points each way from
@@ -99,6 +99,11 @@ try{
  if(!await evaluate('document.querySelectorAll("header,footer,button,#loading").length===0 && Module.canvas.clientWidth===innerWidth && Module.canvas.clientHeight===innerHeight'))throw Error('HTML app chrome remains');
  await shot(process.env.CHOANO_SCREENSHOT);
  await downloadsOpen('landscape title');await wardrobe(true);
+ const lockedSize=await dimensions();
+ await click(lockedSize.w/2+80,lockedSize.h-98);
+ await until('Module.choanoFishLocked && Module.choanoFishLockMessage');
+ await click(actionCenter(lockedSize.w,'Settings',true),26);await until('Module.choanoPage===3');
+ await press('Escape','Escape',27);await until('Module.choanoPage===0');
  await press('ArrowRight','ArrowRight',39);await delay(150);
  let size=await dimensions();await click(size.w/2,size.h-44);await until('Module.choanoPage===1 && Math.abs(Module.choanoX-245)<1');
  if(await evaluate('Module.choanoMode')!==0)throw Error('Fish mode was playable before it was earned');

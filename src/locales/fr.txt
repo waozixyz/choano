@@ -3,3 +3,7 @@ Choano
 ---
 [choano_tagline]
 Mange ou sois mangé
+---
+[choano_fish_unlock]
+Atteignez la taille maximale en Amibe pour débloquer Poisson
+---

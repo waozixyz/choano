@@ -3,3 +3,7 @@ Choano
 ---
 [choano_tagline]
 Mangia o vieni mangiato
+---
+[choano_fish_unlock]
+Raggiungi la dimensione massima in Ameba per sbloccare Pesce
+---

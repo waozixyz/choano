@@ -4,6 +4,7 @@ Prefs :: #import "preferences";
 Accessories :: #import "accessories";
 Sprites :: #import "sprites";
 Math :: #import "std/math";
+Words :: #import "ui_strings";
 #import "kryon/session"
 #import "kryon/geometry"
 #import "kryon/button_props"
@@ -321,21 +322,27 @@ RoundAction :: (session: Session, key: u64, text: string, bounds: Rectangle) -> 
     return PlainButton(session, key, text, bounds, BUTTON_NORMAL, false, false)
 }
 
+IconScale :: (hovered: bool, pressed: bool) -> float32 {
+    if pressed { return .92 }
+    return ifx hovered then 1.08 else 1.0
+}
+
 IconButton :: (session: Session, key: u64, bounds: Rectangle, path: string, label: string) -> bool {
     pressed := false
+    hovered := false
     focused := false
     #if !#defined(CHOANO_PORTABLE) {
         previous := TreePrevious(session, TreeCurrentParent(session), key, cast(s32)WidgetKind.WidgetKindButton)
         pressed = TreePressedAt(session, previous)
+        hovered = TreeHoveredAt(session, previous)
         focused = TreeFocusVisibleAt(session, previous)
     }
     icon := bounds
-    if pressed {
-        icon.x += bounds.width * .04
-        icon.y += bounds.height * .04
-        icon.width *= .92
-        icon.height *= .92
-    }
+    scale := IconScale(hovered, pressed)
+    icon.x += bounds.width * (1.0 - scale) * .5
+    icon.y += bounds.height * (1.0 - scale) * .5
+    icon.width *= scale
+    icon.height *= scale
     if focused {
         unused Box(session, BoxProps.{.key = key + 30000, .bounds = bounds,
             .border = ColorFromPacked(0xffd8ee99), .radius = 26.0})
@@ -348,7 +355,7 @@ IconButton :: (session: Session, key: u64, bounds: Rectangle, path: string, labe
             .asset_path = path, .bounds = shadow, .fit = ImageFit.ImageFitContain,
             .tint = 0x00000022, .smooth = true})
     }
-    unused Image(session, ImageProps.{.key = key + 1, .asset_path = path,
+    unused Image(session, ImageProps.{.key = key + 40000, .asset_path = path,
         .bounds = icon, .smooth = true, .alt_text = label,
         .tint = ifx pressed then cast(u32)0xd8d8d8ff else 0,
         .fit = ImageFit.ImageFitContain})
@@ -373,13 +380,35 @@ TitleBackdrop :: (session: Session, viewport: Rectangle) {
     extension: u32 = ifx fish then cast(u32)0x06324dff else cast(u32)0x0d6b83ff
     unused Box(session, BoxProps.{.key = cast(u64)50100, .bounds = TitleBackdropBounds(viewport),
         .fill = ColorFromPacked(extension)})
-    unused Image(session, ImageProps.{.key = cast(u64)50101, .asset_path = path,
-        .bounds = TitleBackdropBounds(viewport), .fit = ImageFit.ImageFitCover, .smooth = true,
-        .alt_text = "Choano title artwork"})
+    TitleArtwork(session, viewport, path, portrait, cast(u64)50101)
     unused Image(session, ImageProps.{.key = cast(u64)50102, .asset_path = "assets/choano/title-logo.png",
         .bounds = TitleLogoBounds(viewport), .fit = ImageFit.ImageFitContain, .smooth = true,
         .alt_text = "Choano"})
 }
+// Keep original JPEGs intact; the verified helper patches remove only the
+// baked lettering. Both layers use the same cover transform, so they cannot
+// stretch or drift apart when the surface changes shape.
+TitleArtwork :: (session: Session, viewport: Rectangle, path: string, portrait: bool, key: u64) {
+    unused Image(session, ImageProps.{.key = key, .asset_path = path,
+        .bounds = viewport, .fit = ImageFit.ImageFitCover, .smooth = true,
+        .alt_text = "Choano title artwork"})
+    width: float32 = ifx portrait then 1024.0 else 1536.0
+    height: float32 = ifx portrait then 1536.0 else 1024.0
+    scale := viewport.width / width
+    if viewport.height / height > scale { scale = viewport.height / height }
+    region := ifx portrait then Rectangle.{64.0, 160.0, 896.0, 256.0} else Rectangle.{256.0, 64.0, 1024.0, 272.0}
+    patch := ifx portrait then "assets/choano/title-clean-portrait.png" else "assets/choano/title-clean-landscape.png"
+    if fish {
+        region = ifx portrait then Rectangle.{32.0, 64.0, 960.0, 256.0} else Rectangle.{472.0, 16.0, 568.0, 160.0}
+        patch = ifx portrait then "assets/choano/title-clean-fish-portrait.png" else "assets/choano/title-clean-fish-landscape.png"
+    }
+    unused Image(session, ImageProps.{.key = key + 100, .asset_path = patch,
+        .bounds = Rectangle.{viewport.x + (viewport.width - width * scale) * .5 + region.x * scale,
+            viewport.y + (viewport.height - height * scale) * .5 + region.y * scale,
+            region.width * scale, region.height * scale},
+        .fit = ImageFit.ImageFitContain, .smooth = true})
+}
+
 // A game's top bar: deep water with a glowing edge, a rounded Back or Pause
 // button and a bold centred title.
 GameBar :: (session: Session, viewport: Rectangle, key: u64, title: string, leading: bool, playing: bool) -> bool {
@@ -494,9 +523,14 @@ ModePicker :: (session: Session, bounds: Rectangle) {
         if fish_unlocked { Pick(true) } else { fish_lock_message = true }
     }
     if !fish_unlocked && fish_lock_message {
-        unused Text(session, TextProps.{.key = cast(u64)50122, .text = "Reach full size in Amoeba to unlock Fish",
-            .bounds = Rectangle.{bounds.x, bounds.y + bounds.height, bounds.width, 16.0},
-            .font = 13, .align = TextAlign.TextAlignCenter})
+        hint := Rectangle.{bounds.x, bounds.y - 44.0, bounds.width, 40.0}
+        unused Box(session, BoxProps.{.key = cast(u64)50123, .bounds = hint,
+            .fill = ColorFromPacked(0x0a2438ee), .radius = 10.0})
+        unused WidgetPaletteUse(session, WidgetPalette.{.text = 0xffffffff})
+        unused Text(session, TextProps.{.key = cast(u64)50122, .text = Words.FishUnlock(Words.Language()),
+            .bounds = Rectangle.{hint.x + 8.0, hint.y + 4.0, hint.width - 16.0, 32.0},
+            .font = 12, .align = TextAlign.TextAlignCenter, .vertical_align = TextAlign.TextAlignCenter})
+        unused WidgetPaletteRestore(session)
     }
 }
 
@@ -513,8 +547,7 @@ Backdrop :: (session: Session) {
     extension: u32 = ifx fish then cast(u32)0x06324dff else cast(u32)0x0d6b83ff
     unused Box(session, BoxProps.{.key = cast(u64)50100, .bounds = area,
         .fill = ColorFromPacked(extension)})
-    unused Image(session, ImageProps.{.key = cast(u64)50100, .asset_path = path,
-        .bounds = area, .fit = ImageFit.ImageFitContain, .smooth = true})
+    TitleArtwork(session, area, path, portrait, cast(u64)50101)
 }
 MenuBounds :: (count: s32) -> Rectangle {
     width := area.width - 48.0

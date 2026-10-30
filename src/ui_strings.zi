@@ -1,0 +1,46 @@
+#import "std/byte_text_linux"
+#import "std/c_string"
+// The Fish explanation follows the host language, with English fallback.
+#if #defined(PLATFORM_WEB) {
+    #import "std/web"
+} else #if #defined(ANDROID_BUILD) {
+    c :: #system_library "c";
+    SystemProperty :: (name: *u8, value: *u8) -> s32 #foreign c "__system_property_get";
+} else #if !#defined(CHOANO_PORTABLE) {
+    #import "std/environment_linux"
+}
+language_bytes: [128]u8;
+Language :: () -> string {
+    #if #defined(PLATFORM_WEB) {
+        navigator := WebAsObject(WebGet(WebGlobal, WebName("navigator")))
+        language := WebAsObject(WebGet(navigator, WebName("language")))
+        count := WebCopyString(language, language_bytes[:])
+        return TextView(language_bytes[0:count])
+    } else #if #defined(ANDROID_BUILD) {
+        property: [32]u8
+        unused CopyCString("persist.sys.locale", property[:])
+        count := SystemProperty(*property[0], *language_bytes[0])
+        return TextView(language_bytes[0:count])
+    } else #if !#defined(CHOANO_PORTABLE) {
+        value := EnvironmentText("LC_ALL")
+        if value == "" { value = EnvironmentText("LC_MESSAGES") }
+        if value == "" { value = EnvironmentText("LANG") }
+        return value
+    } else { return "en" }
+}
+FishUnlock :: (language: string) -> string {
+    code := language
+    if code.count > 2 { code = code[0:2] }
+    if code == "es" { return "Alcanza el tamaño máximo en Ameba para desbloquear Pez" }
+    if code == "pt" { return "Atinja o tamanho máximo em Ameba para desbloquear Peixe" }
+    if code == "fr" { return "Atteignez la taille maximale en Amibe pour débloquer Poisson" }
+    if code == "de" { return "Erreiche die volle Größe als Amöbe, um Fisch freizuschalten" }
+    if code == "it" { return "Raggiungi la dimensione massima in Ameba per sbloccare Pesce" }
+    if code == "cs" { return "Dosáhni plné velikosti v Amébě a odemkni Rybu" }
+    if code == "id" { return "Capai ukuran penuh di Amoeba untuk membuka Ikan" }
+    if code == "ru" { return "Достигните полного размера в режиме «Амёба», чтобы открыть «Рыбу»" }
+    if code == "ja" { return "アメーバで最大サイズに成長すると魚をアンロックできます" }
+    if code == "ko" { return "아메바에서 최대 크기에 도달하면 물고기가 잠금 해제됩니다" }
+    if code == "zh" { return "在变形虫模式中长到最大体型即可解锁鱼类模式" }
+    return "Reach full size in Amoeba to unlock Fish"
+}

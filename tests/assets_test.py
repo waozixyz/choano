@@ -125,7 +125,7 @@ for name, digest in files.items():
             assert len(set(raw)) > 1, name
             samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
             assert max(map(abs, samples)) <= .12 * 32767, 'Effect too loud: ' + name
-assert len([p for p in actual if p.endswith('.png')]) == 191
+assert len([p for p in actual if p.endswith('.png')]) == 195
 assert len([p for p in actual if p.endswith('.jpg')]) == 4
 assert len([p for p in actual if p.endswith('.wav')]) == 7
 assert not (ROOT / 'assets/original').exists()
@@ -152,11 +152,50 @@ for name, size in [('title-portrait.jpg', (1024, 1536)), ('title-landscape.jpg',
                    ('fish/title-portrait.jpg', (1024, 1536)), ('fish/title-landscape.jpg', (1536, 1024))]:
     with Image.open(ROOT / 'assets/choano' / name) as image:
         assert image.mode == 'RGB' and image.size == size, name
-        assert largest_pink_component(image, title_regions[name]) < 1000, 'Baked logo remains: ' + name
+        # Original artwork is retained; a separate patch removes its baked logo.
+        pass
 
 for name, minimum in [('organisms-hd.png',1254)]:
     with (ROOT / 'assets/choano' / name).open('rb') as handle:
         header=handle.read(33)
     assert min(struct.unpack('>II',header[16:24])) >= minimum, name
 
-print('Choano local asset and package tests passed: 188 PNGs, 4 JPEG titles, 6 quiet chimes and the shark loop.')
+print('Choano local asset and package tests passed: 195 PNGs, 4 JPEG titles, 6 quiet chimes and the shark loop.')
+
+# UI labels must stay within the bundled Latin font's coverage. In particular,
+# a check or padlock must be geometry/an image, never a missing text glyph.
+import re
+import subprocess
+font = Path(subprocess.check_output(['ziran', 'pkg', 'path', 'kryon', '--locked'], text=True).strip()) / 'assets/fonts/LiberationSans-Regular.ttf'
+# Read the font cmap with the standard library (CI needs no fontTools install).
+data = font.read_bytes()
+tables = {data[12+i*16:16+i*16].decode(): struct.unpack_from('>II', data, 20+i*16) for i in range(struct.unpack_from('>H', data, 4)[0])}
+offset, size = tables['cmap']
+cmap = data[offset:offset+size]
+covered = set()
+for i in range(struct.unpack_from('>H', cmap, 2)[0]):
+    sub = struct.unpack_from('>I', cmap, 8+i*8)[0]
+    if struct.unpack_from('>H', cmap, sub)[0] != 4: continue
+    count = struct.unpack_from('>H', cmap, sub+6)[0]//2
+    end = sub+14
+    start = end+count*2+2
+    for j in range(count):
+        lo = struct.unpack_from('>H', cmap, start+j*2)[0]
+        hi = struct.unpack_from('>H', cmap, end+j*2)[0]
+        covered.update(range(lo, hi+1))
+for name in ('shell.zi', 'app.zi', 'accessories.zi'):
+    source = re.sub(r'//[^\n]*', '', (ROOT/'src'/name).read_text())
+    for text in re.findall(r'"([^"\n]*)"', source):
+        assert all(ord(c) in covered or c in '\n\t' for c in text), (name,text)
+for name in ('gear', 'wardrobe', 'lock'):
+    image = Image.open(ROOT/f'assets/choano/{name}.png').convert('RGBA')
+    assert image.size == (1024,1024)
+    assert all(image.getpixel(point)[3] == 0 for point in ((0,0),(1023,0),(0,1023),(1023,1023)))
+
+for path in (ROOT/'assets/choano/achievement-locales').glob('*.json'):
+    text = json.loads(path.read_text())['choano_fish_unlock']
+    assert text and text in (ROOT/'src/locales'/f'{path.stem}.txt').read_text()
+    assert text in (ROOT/'src/ui_strings.zi').read_text()
+for name in ('portrait', 'landscape', 'fish-portrait', 'fish-landscape'):
+    with Image.open(ROOT/f'assets/choano/title-clean-{name}.png') as image:
+        assert largest_pink_component(image.convert('RGB'), (0,0,*image.size)) < 1000

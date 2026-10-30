@@ -3,3 +3,7 @@ Choano
 ---
 [choano_tagline]
 Friss oder wirst gefressen
+---
+[choano_fish_unlock]
+Erreiche die volle Größe als Amöbe, um Fisch freizuschalten
+---

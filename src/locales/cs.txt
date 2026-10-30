@@ -3,3 +3,7 @@ Choano
 ---
 [choano_tagline]
 Jez, nebo budeš snězen
+---
+[choano_fish_unlock]
+Dosáhni plné velikosti v Amébě a odemkni Rybu
+---

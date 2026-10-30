@@ -3,3 +3,7 @@ Choano
 ---
 [choano_tagline]
 먹거나 먹히거나
+---
+[choano_fish_unlock]
+아메바에서 최대 크기에 도달하면 물고기가 잠금 해제됩니다
+---

@@ -89,6 +89,8 @@ main :: () -> s32 {
                 visible = true
                 App.PauseClock()
             }
+            WebSet(WebModule, WebName("choanoFishLocked"), WebBool(!Shell.fish_unlocked))
+            WebSet(WebModule, WebName("choanoFishLockMessage"), WebBool(Shell.fish_lock_message))
             WebSet(WebModule, WebName("choanoWardrobeOpen"), WebBool(Shell.wardrobe_open))
             WebSet(WebModule, WebName("choanoPage"), WebNumber(cast(float64)App.NavigationPage()))
             WebSet(WebModule, WebName("choanoScore"), WebNumber(cast(float64)Game.game.score))

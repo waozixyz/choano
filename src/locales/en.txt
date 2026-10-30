@@ -3,3 +3,7 @@ Choano
 ---
 [choano_tagline]
 Eat or be eaten
+---
+[choano_fish_unlock]
+Reach full size in Amoeba to unlock Fish
+---

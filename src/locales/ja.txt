@@ -3,3 +3,7 @@ Choano
 ---
 [choano_tagline]
 食べるか、食べられるか
+---
+[choano_fish_unlock]
+アメーバで最大サイズに成長すると魚をアンロックできます
+---

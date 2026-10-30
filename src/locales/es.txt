@@ -3,3 +3,7 @@ Choano
 ---
 [choano_tagline]
 Come o sé comido
+---
+[choano_fish_unlock]
+Alcanza el tamaño máximo en Ameba para desbloquear Pez
+---

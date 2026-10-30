@@ -30,6 +30,9 @@ main :: () -> s32 {
             backdrop := Shell.TitleBackdropBounds(bounds)
             logo := Shell.TitleLogoBounds(bounds)
             icon := Shell.WardrobeIconBounds(bounds)
+            settings := Shell.SettingsIconBounds(bounds)
+            if !Expect(Inside(settings, bounds) && settings.width >= 48.0 &&
+                Clear(icon, settings) && icon.x < settings.x, "corner icons stay inside safe insets") { return 1 }
             game_icon := Shell.GameWardrobeIconBounds(bounds)
             if !Expect(backdrop.x == bounds.x && backdrop.y == bounds.y &&
                 backdrop.width == bounds.width && backdrop.height == bounds.height,
@@ -75,6 +78,9 @@ main :: () -> s32 {
         Shell.ButtonContrast(Shell.BUTTON_PRIMARY) >= 4.5 &&
         Shell.ButtonContrast(Shell.BUTTON_DISABLED) >= 4.5,
         "all button states meet WCAG AA contrast") { return 1 }
+    if !Expect(Near(Shell.IconScale(false, true), .92, .001) &&
+        Near(Shell.IconScale(true, false), 1.08, .001) && Shell.IconScale(false, false) == 1.0,
+        "image buttons shrink on press and grow on hover") { return 1 }
     Shell.fish_hint_pending = true
     Shell.run_fish = false
     if !Expect(!Shell.TakeFishHint() && Shell.fish_hint_pending,

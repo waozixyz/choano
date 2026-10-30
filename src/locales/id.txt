@@ -3,3 +3,7 @@ Choano
 ---
 [choano_tagline]
 Makan atau dimakan
+---
+[choano_fish_unlock]
+Capai ukuran penuh di Amoeba untuk membuka Ikan
+---
