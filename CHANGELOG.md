@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- Release movement keys to stop swimming in compatible game libraries, with the same diagonal steering as desktop.
+
 ## [0.1.3] - 2026-10-30
 
 - Load Choano correctly in Arcade by publishing its artwork and sound under the paths the game requests.

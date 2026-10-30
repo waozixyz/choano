@@ -1,4 +1,4 @@
-.PHONY: all test native portable web appimage appimage-test android android-gplay
+.PHONY: all test input-test native portable web appimage appimage-test android android-gplay
 all: native portable
 native:
 	ziran build --project --locked native
@@ -31,3 +31,8 @@ test:
 	./build/accessories-test/accessories_test
 	ziran build --project --locked --target=c --exe --entry shell_test:main -o build/shell-test tests/shell_test.zi
 	./build/shell-test/shell_test
+	python3 tests/frame_input_test.py
+
+# Actual Frame and portable Apps input contracts; uses an existing VM library.
+input-test:
+	python3 tests/frame_input_test.py

@@ -9,6 +9,7 @@
 #import "kryon/tree_input"
 #import "kryon/test_driver"
 #import "kryon/Frame"
+#import "kryon/frame_snapshot"
 #import "std/c_string"
 #import "std/byte_text_linux"
 Timer :: #import "std/timer_linux";
@@ -22,22 +23,10 @@ ApplicationDirectory :: () -> *u8 #foreign windows_raylib "GetApplicationDirecto
 windows_c :: #system_library "c";
 ChangeDirectory :: (path: *u8) -> s32 #foreign windows_c "_chdir";
 
-// raylib's key codes: arrows, then WASD.
-KEY_RIGHT :: 262
-KEY_LEFT :: 263
-KEY_DOWN :: 264
-KEY_UP :: 265
-
-KeyIsDown :: (key: s32) -> bool { return TestDriverKeyDown(key) || RaylibKeyDown(key) }
-
-UpdateHeldInput :: () {
-    SetHeldInput(KeyIsDown(KEY_LEFT) || KeyIsDown(65), KeyIsDown(KEY_RIGHT) || KeyIsDown(68),
-        KeyIsDown(KEY_UP) || KeyIsDown(87), KeyIsDown(KEY_DOWN) || KeyIsDown(83))
-}
-
 DrawGameFrame :: (session: Session) -> bool {
+    if !RaylibFrameInputBegin(session) { return false }
+    defer { FrameInputEnd(session) }
     BeginRaylibFrame()
-    UpdateHeldInput()
     KeyboardModifiersSend(session, RaylibModifiers())
     key := RaylibPressedKey()
     if key == 0 { key = RaylibRepeatedKey() }
@@ -52,9 +41,10 @@ DrawGameFrame :: (session: Session) -> bool {
         codepoint = RaylibTypedCodepoint()
     }
     viewport := RaylibViewport()
-    pointer := TestDriverPointer(session, PollPointer())
+    snapshot := CaptureFrameInput(session)
+    pointer := snapshot.pointer
     TreePointerUpdate(session, pointer)
-    PointerWheelSend(session, pointer.x, pointer.y, TestDriverWheel(RaylibWheelMove()))
+    PointerWheelSend(session, pointer.x, pointer.y, snapshot.wheel)
     if BeginFrame(session, cast(u64)1, viewport) != FrameStatus.FrameOk {
         unused EndRaylibFrame()
         return false

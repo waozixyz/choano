@@ -1,0 +1,120 @@
+// Actual Choano node/2 bundle through the published Apps and widget boundary.
+#import "apps/host"
+#import "apps/protocol"
+#import "apps/tree"
+#import "kryon/session"
+#import "kryon/app_protocol"
+#import "kryon/geometry"
+#import "std/bundle_host"
+#import "std/byte_text_linux"
+
+#import "kryon/Desktop"
+#import "kryon/hosted_app"
+#import "kryon/hosted_values"
+#import "kryon/widget_host"
+#import "kryon/frame_snapshot"
+#import "kryon/input_protocol"
+#import "kryon/tree"
+#import "kryon/Frame"
+#import "std/file"
+#import "std/c_string"
+
+Allow :: (context: *void, node: *AppNode, name: string) -> bool {
+    unused context; unused node
+    return name == "AppRecordHost" || name == "SaveAppRecordHost"
+}
+Service :: (context: *void, node: *AppNode, module: *u8, function: *u8, arguments: *HostValue, count: s32, result: *HostValue) -> s32 {
+    unused context; unused node; unused module; unused arguments; unused count
+    if TextFromCString(function) == "AppRecordHost" {
+        value := "1s100"
+        result.* = HostValue.{.kind = cast(s32)HostString, .type_name = HostTextData("string"),
+            .data = HostTextData(value), .length = cast(usize)value.count}
+    } else { result.* = HostScalar("bool", 1) }
+    return 1
+}
+using HostValueKind;
+
+Widgets :: (context: *void, node: *AppNode, module: *u8, function: *u8, arguments: *HostValue, count: s32, result: *HostValue) -> s32 {
+    return WidgetHostCall(context, module, function, arguments, count, result)
+}
+Save :: (context: *void, node: *AppNode) -> bool { return true }
+
+Asset :: (path: string) -> bool { return path == "" || (path.count >= 14 && path[:14] == "assets/choano/") }
+Draw :: (host: *AppHost, sample: FrameInputSnapshot, key: s32 = 0) -> bool {
+    runtime := AppHostActiveRuntime(host)
+    session := runtime.app.session
+    if !FrameInputBegin(session, sample) { return false }
+    defer { FrameInputEnd(session) }
+    WidgetHostBegin(session, Asset)
+    defer { WidgetHostEnd() }
+    BeginDesktopFrame()
+    if BeginFrame(session, cast(u64)1, .{0.0, 0.0, 900.0, 680.0}) != FrameStatus.FrameOk { return false }
+    runtime.app.key = key
+    runtime.legacy.frame.now += .016
+    if !AppHostRun(host, APP_FRAME) { TreeCancel(session); return false }
+    return EndFrame(session) == FrameStatus.FrameOk
+}
+PlayerPosition :: (session: Session) -> Vector2 {
+    for index: cast(s32)0..TreeCount(session) - 1 {
+        item := TreeNodeAt(session, index)
+        if item.key == cast(u64)1000 { return .{item.bounds.x, item.bounds.y} }
+    }
+    return .{-9999.0, -9999.0}
+}
+PlayerX :: (session: Session) -> float32 { return PlayerPosition(session).x }
+main :: () -> s32 {
+    if !OpenDesktopSized(900, 680) { print("portable input: desktop open failed\n"); return 1 }
+    defer { CloseDesktop() }
+    session := SessionOpen()
+    defer { unused SessionClose(session) }
+    bytes, found := ReadEntireFile("work/frame-input-adoption/guest.zx")
+    host: AppHost
+    platform := AppPlatform.{.host_api = 41, .allows = Allow, .call = Service, .widgets = Widgets, .save = Save}
+    digest, digest_found := ReadEntireFile("work/frame-input-adoption/portable.sha256")
+    if !found || !digest_found || !AppHostStart(*host, bytes, "local.test", "xyz.waozi.choano", "choano",
+        digest, "input-test", platform, "", "en", APPS_NODE_PROTOCOL) { return 2 }
+    defer { unused AppHostStop(*host) }
+    runtime := AppHostActiveRuntime(*host)
+    runtime.app.session = session
+    runtime.app.bounds = .{0.0, 0.0, 900.0, 680.0}
+    runtime.legacy.frame = .{.session = session, .width = 900, .height = 680, .now = 1.0}
+    sample := FrameInputSnapshot.{.available = true, .focused = true}
+    if !Draw(*host, sample, KeyEnter) || !Draw(*host, sample) { return 3 }
+    start := PlayerX(session)
+    if start == -9999.0 { return 4 }
+    sample.keys[68] = cast(u8)(FrameKeyHeld | FrameKeyPressed)
+    for index: 0..9 { if !Draw(*host, sample) { return 5 } }
+    moved := PlayerX(session)
+    if moved <= start + 3.0 { return 6 }
+    sample.keys[68] = cast(u8)FrameKeyReleased
+    for index: 0..39 { if !Draw(*host, sample) { return 7 } }
+    stopped := PlayerX(session)
+    for index: 0..9 { if !Draw(*host, sample) { return 8 } }
+    if PlayerX(session) > stopped + .5 { return 9 }
+    sample.keys[65] = cast(u8)(FrameKeyHeld | FrameKeyRepeated)
+    for index: 0..9 { if !Draw(*host, sample) { return 10 } }
+    if PlayerX(session) >= stopped - 3.0 { return 11 }
+    sample.focused = false
+    for index: 0..39 { if !Draw(*host, sample) { return 13 } }
+    lost := PlayerX(session)
+    for index: 0..9 { if !Draw(*host, sample) { return 14 } }
+    if PlayerX(session) < lost - .5 { return 15 }
+    sample.focused = true
+    sample.keys = .{}
+    sample.keys[KeyRight] = cast(u8)FrameKeyHeld
+    sample.keys[KeyDown] = cast(u8)FrameKeyHeld
+    before := PlayerPosition(session)
+    for index: 0..9 { if !Draw(*host, sample) { return 16 } }
+    after := PlayerPosition(session)
+    if after.x <= before.x + 3.0 || after.y <= before.y + 3.0 { return 17 }
+    if !Draw(*host, sample, KeyEscape) { return 18 }
+    paused := PlayerX(session)
+    for index: 0..9 { if !Draw(*host, sample) { return 19 } }
+    if PlayerX(session) != paused { return 20 }
+    if AppHostBack(*host) < 0 { return 21 }
+    if !Draw(*host, sample, 82) || !Draw(*host, sample) { return 22 }
+    // Capture cannot be used after the callback or under another session.
+    if CaptureFrameInput(session).available { return 12 }
+    print("Choano local portable input test passed: held/repeat/release through Apps and WidgetHost.\n")
+    return 0
+}

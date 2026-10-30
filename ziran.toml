@@ -7,7 +7,7 @@ tool = "kryon"
 
 [toolchain]
 git = "https://github.com/ziranlang/ziran.git"
-ref = "master"
+ref = "5461202417d48e2b31122354419179b262d7530c"
 
 [dependencies.kryon]
 git = "https://github.com/kryonlabs/kryon.git"
@@ -35,7 +35,7 @@ working_directory = "."
 
 [dependencies.apps]
 git = "https://github.com/waozixyz/apps.git"
-ref = "master"
+ref = "0c26d33c226fd7c57bc5e36247d0652d223bac10"
 
 [dependencies.entity]
 git = "https://github.com/waozixyz/entity.git"

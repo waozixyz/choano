@@ -50,6 +50,7 @@ in ignored `ziran.local.toml`.
 ```sh
 ziran fetch --locked
 make test
+make input-test
 make all
 ./build/Choano-native
 make web
@@ -60,6 +61,16 @@ python3 -m http.server --directory build/web
 `~/emsdk/upstream/emscripten/emcc` or `emcc` from PATH. `make all` produces
 `build/Choano-native` and `build/choano.zx`. Window tests use only a fresh
 private Xvfb display; browser tests use a disposable headless Chromium profile.
+`make input-test` exercises the actual Frame and a portable game through the
+current Apps host. If Ziran is installed through a launcher, set `ZIRAN_ROOT`
+to its existing build tree (or `ZIRAN_LIB` to its `build/libziran.a`).
+
+Movement reads Kryon’s owned frame snapshot on desktop, Windows, browser and
+compatible portable hosts. Keyboard shortcuts and text keep their existing
+event queues; the floating stick, simulation clock and tick clamp are unchanged.
+The portable source now requires a host with `frame_snapshot.CaptureFrameInputHost`;
+Arcade 0.7.113 does not provide it. A new portable release must wait for a
+compatible host.
 
 ## Linux AppImage
 

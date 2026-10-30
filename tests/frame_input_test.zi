@@ -1,0 +1,85 @@
+#import "kryon/Desktop"
+// Exercise Choano's actual Frame and movement policy with owned host input.
+App :: #import "app";
+Game :: #import "game";
+Shell :: #import "shell";
+Nav :: #import "game2d/navigation";
+#import "kryon/key_input"
+#import "kryon/frame_snapshot"
+#import "kryon/input_protocol"
+#import "kryon/session"
+#import "kryon/tree"
+#import "kryon/tree_input"
+#import "kryon/Frame"
+#import "kryon/geometry"
+
+test_clock: s64 = 1000;
+#program_export
+ClockMillisecondsHost :: () -> s64 { test_clock += 16; return test_clock }
+
+Step :: (session: Session, sample: FrameInputSnapshot, key: s32 = 0) -> bool {
+    if !FrameInputBegin(session, sample) { return false }
+    defer { FrameInputEnd(session) }
+    unused KeyboardSend(session, key)
+    if BeginFrame(session, cast(u64)1, .{0.0, 0.0, 900.0, 680.0}) != FrameStatus.FrameOk { return false }
+    App.last_tick = -1.0
+    ok := App.Frame(session, .{0.0, 0.0, 900.0, 680.0}) == 0
+    TreeCancel(session)
+    return ok
+}
+Same :: (a: Game.GameInput, b: Game.GameInput) -> bool {
+    return a.left == b.left && a.right == b.right && a.up == b.up && a.down == b.down
+}
+Expect :: (value: bool, name: string) -> bool {
+    if !value { print("Choano frame input failed: %\n", name) }
+    return value
+}
+main :: () -> s32 {
+    session := SessionOpen()
+    defer { unused SessionClose(session) }
+    Shell.loaded = true; Shell.muted = true
+    Shell.state = Nav.GameNavigation.{.page = 1, .running = true, .controls_selected = true}
+    Game.StartGame(cast(u32)42, Game.MODE_FISH)
+    frame := FrameInputSnapshot.{.available = true, .focused = true}
+    keys: [8]s32 = .[KeyLeft, 65, KeyRight, 68, KeyUp, 87, KeyDown, 83]
+    for key: keys {
+        frame.keys = .{}
+        frame.keys[key] = cast(u8)(FrameKeyHeld | FrameKeyPressed)
+        if !Step(session, frame) { return 1 }
+        input := App.held_input
+        if !Expect(input.left || input.right || input.up || input.down, "arrow/WASD held") { return 1 }
+        frame.keys[key] = cast(u8)(FrameKeyHeld | FrameKeyRepeated)
+        if !Step(session, frame) || !Expect(Same(App.held_input, input), "repeat preserves sustained direction") { return 1 }
+        frame.keys[key] = cast(u8)FrameKeyReleased
+        if !Step(session, frame) || !Expect(Same(App.held_input, Game.GameInput.{}), "release clears direction") { return 1 }
+    }
+    frame.keys = .{}
+    frame.keys[65] = cast(u8)FrameKeyHeld; frame.keys[87] = cast(u8)FrameKeyHeld
+    if !Step(session, frame) { return 1 }
+    Game.game.player_velocity_x = 0.0; Game.game.player_velocity_y = 0.0
+    Game.MovePlayer(App.held_input, .1)
+    if !Expect(Game.game.player_velocity_x < 0.0 && Game.game.player_velocity_x == Game.game.player_velocity_y,
+        "diagonal preserves both axes and normalization") { return 1 }
+    frame.focused = false
+    if !Step(session, frame) || !Expect(Same(App.held_input, Game.GameInput.{}), "focus loss cannot retain keys") { return 1 }
+    frame.focused = true
+    if !Step(session, frame) || !Expect(App.held_input.left && App.held_input.up, "regain accepts held without shortcut") { return 1 }
+    frame.keys = .{}
+    frame.keys[88] = cast(u8)FrameKeyHeld
+    Game.game.dash_cooldown = 0.0; Game.game.dash_timer = 0.0
+    if !Step(session, frame) || !Expect(Game.game.dash_timer == 0.0, "held X alone does not invent dash events") { return 1 }
+    if !Step(session, frame, 88) || !Expect(Game.game.dash_timer > 0.0, "legacy X event still dashes") { return 1 }
+    before := Game.game.player_x
+    if !Step(session, frame, 32) || !Expect(!Shell.Playing() && Game.game.player_x == before, "Pause freezes run") { return 1 }
+    if !Expect(App.NavigateBack(), "Back resumes") || !Step(session, frame) || !Expect(Shell.Playing(), "same run resumes") { return 1 }
+    if !Step(session, frame, 82) || !Expect(Game.game.elapsed == 0.0, "restart remains available") { return 1 }
+    unused TypedCodepointSend(session, 97)
+    unused FrameInputBegin(session, frame)
+    unused CaptureFrameInput(session)
+    text: [8]u8
+    if !Expect(TypedTextTake(session, text[:]) == "a", "capture leaves text queue intact") { return 1 }
+    FrameInputEnd(session)
+    if !Expect(!CaptureFrameInput(session).available, "callback end invalidates publication") { return 1 }
+    print("Choano local Frame snapshot tests passed.\n")
+    return 0
+}

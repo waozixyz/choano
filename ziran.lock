@@ -19,6 +19,14 @@
       "url": "https://github.com/open-quantum-safe/liboqs.git"
     },
     {
+      "commit": "0c26d33c226fd7c57bc5e36247d0652d223bac10",
+      "dependencies": {"crypto": "pc23fbf455e97614d", "kryon": "pdd22085a09dedfd1"},
+      "id": "p1d00a48434a023b7",
+      "name": "Apps",
+      "ref": "0c26d33c226fd7c57bc5e36247d0652d223bac10",
+      "url": "https://github.com/waozixyz/apps.git"
+    },
+    {
       "commit": "fafa2cea97d0cb379d832086ba45a989fa6f9c8e",
       "dependencies": {},
       "id": "p5a77c9c35110e925",
@@ -53,24 +61,8 @@
       "url": "https://github.com/LoupVaillant/Monocypher.git"
     },
     {
-      "commit": "5b67236a8e355e67ce4f8cc0389b9ce3805b874b",
-      "dependencies": {"crypto": "pc23fbf455e97614d", "kryon": "pa65b3130af69e6e0"},
-      "id": "p9928fc15e7b93288",
-      "name": "Apps",
-      "ref": "master",
-      "url": "https://github.com/waozixyz/apps.git"
-    },
-    {
-      "commit": "f761e3292a2952ab2397032c8628fd85c79e6d5d",
-      "dependencies": {"raylib": "p5a77c9c35110e925"},
-      "id": "pa65b3130af69e6e0",
-      "name": "kryon",
-      "ref": "master",
-      "url": "https://github.com/kryonlabs/kryon.git"
-    },
-    {
       "commit": "e8cc64d1731eecfab07e9fe55cc4fcd8368ae8fb",
-      "dependencies": {"daochi_client": "p7de54c8ad98fe034", "kryon": "pa65b3130af69e6e0", "monocypher": "p809b4d31a48625a3", "qrcode": "p0dfa70137405b096"},
+      "dependencies": {"daochi_client": "p7de54c8ad98fe034", "kryon": "pdd22085a09dedfd1", "monocypher": "p809b4d31a48625a3", "qrcode": "p0dfa70137405b096"},
       "id": "pb85975f45ad5e9e0",
       "name": "Entity",
       "ref": "master",
@@ -85,6 +77,14 @@
       "url": "https://github.com/ziranlang/crypto.git"
     },
     {
+      "commit": "b8ff4618fdb1eff6172faa18475137b43c33dfa3",
+      "dependencies": {"raylib": "p5a77c9c35110e925"},
+      "id": "pdd22085a09dedfd1",
+      "name": "kryon",
+      "ref": "master",
+      "url": "https://github.com/kryonlabs/kryon.git"
+    },
+    {
       "commit": "9cc6872f75447c3a24c16764f9829d0f58751cb0",
       "dependencies": {},
       "id": "pe1027b9d16704793",
@@ -94,7 +94,7 @@
     },
     {
       "commit": "d32e4b606ece83e8869c954f66c334f44f7b4838",
-      "dependencies": {"kryon": "pa65b3130af69e6e0"},
+      "dependencies": {"kryon": "pdd22085a09dedfd1"},
       "id": "pe878ed78ee9f8300",
       "name": "Game2D",
       "ref": "master",
@@ -102,12 +102,12 @@
     }
   ],
   "root": {
-    "dependencies": {"apps": "p9928fc15e7b93288", "entity": "pb85975f45ad5e9e0", "game2d": "pe878ed78ee9f8300", "kryon": "pa65b3130af69e6e0", "mingcute": "pe1027b9d16704793"},
+    "dependencies": {"apps": "p1d00a48434a023b7", "entity": "pb85975f45ad5e9e0", "game2d": "pe878ed78ee9f8300", "kryon": "pdd22085a09dedfd1", "mingcute": "pe1027b9d16704793"},
     "name": "Choano"
   },
   "toolchain": {
-    "commit": "68e76ca202cc4080a5d2b4996756370314d80e8c",
-    "ref": "master",
+    "commit": "5461202417d48e2b31122354419179b262d7530c",
+    "ref": "5461202417d48e2b31122354419179b262d7530c",
     "url": "https://github.com/ziranlang/ziran.git"
   }
 }

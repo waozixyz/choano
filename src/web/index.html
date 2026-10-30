@@ -12,16 +12,12 @@
 </style>
 <main><canvas id="canvas" tabindex="0" aria-label="Choano"></canvas></main>
 <script>
-var Module={assetRevision:'__CHOANO_ASSET_REVISION__',buildRevision:'__CHOANO_BUILD_REVISION__',locateFile(path,prefix){return prefix+path+'?v='+Module.buildRevision},canvas:document.getElementById('canvas'),keys:{},sounds:{},muted:false,
+var Module={assetRevision:'__CHOANO_ASSET_REVISION__',buildRevision:'__CHOANO_BUILD_REVISION__',locateFile(path,prefix){return prefix+path+'?v='+Module.buildRevision},canvas:document.getElementById('canvas'),sounds:{},muted:false,
  onRuntimeInitialized(){Module.canvas.focus()},
  onAbort(){console.error('Choano could not open.')},
  setMuted(value){this.muted=value;for(const sound of Object.values(this.sounds))sound.muted=value;if(this.loop)this.loop.muted=value},
  music(on){this.musicOn=on;if(!on){if(this.loop){this.loop.pause();this.loop.currentTime=0}return}if(!this.loop){this.loop=new Audio('assets/choano/audio/shark-music.wav?v='+this.assetRevision);this.loop.loop=true;this.loop.volume=.45}this.loop.muted=!!this.muted;this.loop.play().catch(()=>{})},
  playSound(path){if(this.muted)return;for(const playing of Object.values(this.sounds)){playing.pause();playing.currentTime=0}const sound=this.sounds[path]||(this.sounds[path]=new Audio(path+'?v='+this.assetRevision));sound.volume=.6;sound.play().catch(()=>{})},printErr(text){console.error(text)}};
-const directions={ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right',ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down'};
-addEventListener('keydown',e=>{if(Module.profileVisible)return;const key=directions[e.key];if(key){Module.keys[key]=true;e.preventDefault()}});
-addEventListener('keyup',e=>{const key=directions[e.key];if(key)Module.keys[key]=false});
-addEventListener('blur',()=>Module.keys={});
 let started=false;async function start(){if(started)return;started=true;try{
  const manifestResponse=await fetch('assets/manifest.json?v='+Module.assetRevision,{cache:'no-store'});if(!manifestResponse.ok)throw Error('Asset manifest unavailable');const manifest=await manifestResponse.json();
  const paths=Object.keys(manifest.files);const loaded=new Map();let next=0;

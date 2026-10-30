@@ -8,31 +8,20 @@ Timer :: #import "std/timer_linux";
 #import "kryon/tree"
 #import "kryon/tree_input"
 #import "kryon/Frame"
+#import "kryon/frame_snapshot"
 
 #program_export
 ClockMillisecondsHost :: () -> s64 { return Timer.MonotonicMilliseconds() }
 
-choano_sdl :: #system_library "SDL2";
-KeyboardState :: (count: *s32) -> *u8 #foreign choano_sdl "SDL_GetKeyboardState";
-
-KeyIsDown :: (scancode: s32) -> bool {
-    count: s32 = 0
-    state := KeyboardState(*count)
-    if state == null || scancode < 0 || scancode >= count { return false }
-    return state[scancode] != cast(u8)0
-}
-
-UpdateHeldInput :: () {
-    SetHeldInput(KeyIsDown(80) || KeyIsDown(4), KeyIsDown(79) || KeyIsDown(7),
-        KeyIsDown(82) || KeyIsDown(26), KeyIsDown(81) || KeyIsDown(22))
-}
-
 DrawGameFrame :: (session: Session) -> bool {
+    if !DesktopFrameInputBegin(session) { return false }
+    defer { FrameInputEnd(session) }
     BeginDesktopFrame()
     viewport: Rectangle = DesktopViewport()
-    pointer: PointerFrame = PollPointer()
+    snapshot := CaptureFrameInput(session)
+    pointer := snapshot.pointer
     TreePointerUpdate(session, pointer)
-    PointerWheelSend(session, pointer.x, pointer.y, DesktopWheelMove())
+    PointerWheelSend(session, pointer.x, pointer.y, snapshot.wheel)
     if BeginFrame(session, cast(u64)1, viewport) != FrameStatus.FrameOk { return false }
     if Frame(session, viewport) != 0 { TreeCancel(session); return false }
     if EndFrame(session) != FrameStatus.FrameOk { return false }
@@ -48,7 +37,6 @@ main :: () -> s32 {
     if !SessionValid(session) { CloseDesktop(); return 1 }
     ok: bool = true
     while ok && PollDesktop() {
-        UpdateHeldInput()
         KeyboardModifiersSend(session, DesktopModifiers())
         key: s32 = DesktopPressedKey()
         if key != 0 { KeyboardSend(session, key) }

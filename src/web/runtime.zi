@@ -5,6 +5,7 @@ using Canvas :: #import "kryon/Canvas";
 #import "kryon/tree"
 #import "kryon/tree_input"
 #import "kryon/Frame"
+#import "kryon/frame_snapshot"
 #import "kryon/page_core"
 #import "kryon/key_input"
 #import "kryon/text_input_props"
@@ -27,8 +28,6 @@ ClockMillisecondsHost :: () -> s64 { return cast(s64)PageNow() }
 // Every installer of the newest release: APKs, AppImage and Windows.
 DOWNLOADS_URL :: "https://github.com/waozixyz/choano/releases/latest";
 
-Held :: (keys: s32, name: string) -> bool { return WebAsBool(WebGet(keys, WebName(name))) }
-
 #program_export
 main :: () -> s32 {
     if !OpenCanvas() || !BundleStorageOpen() { return 1 }
@@ -50,10 +49,12 @@ main :: () -> s32 {
     saved := PageNow()
     WebSet(WebModule, WebName("choanoReady"), WebBool(true))
     while PollCanvas() {
+        if !CanvasFrameInputBegin(session) { return 1 }
+        defer { FrameInputEnd(session) }
         scope := WebScope()
         Entity.EntityHostPump()
         viewport := CanvasViewport()
-        pointer := PollPointer()
+        pointer := CaptureFrameInput(session).pointer
         key := CanvasPressedKey()
         TreePointerUpdate(session, pointer)
         KeyboardModifiersSend(session, CanvasModifiers())
@@ -73,8 +74,6 @@ main :: () -> s32 {
                 if !Entity.EntityHostBack() && Entity.EntityHostSave() { visible = false }
             }
         } else {
-            keys := WebGetObject(WebModule, WebName("keys"))
-            App.SetHeldInput(Held(keys, "left"), Held(keys, "right"), Held(keys, "up"), Held(keys, "down"))
             now := PageNow() / 1000.0
             if Progress.ProgressPump(now, App.AmoebaStage(), cast(s64)(WebAsNumber(WebCall0(WebGetObject(WebGlobal, WebName("Date")), WebName("now"))) / 1000.0)) {
                 Game.StartGame(cast(u32)PageNow(), Game.game.mode); App.PauseClock()

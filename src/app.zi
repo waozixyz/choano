@@ -3,6 +3,8 @@
     #import "kryon/AndroidSurface"
 }
 #import "kryon/session"
+#import "kryon/frame_snapshot"
+#import "kryon/input_protocol"
 #if !#defined(CHOANO_PORTABLE) {
     #import "kryon/tree_input"
 }
@@ -57,8 +59,14 @@ PauseClock :: () { last_tick = -1.0; held_input = .{} }
 last_tick: float64 = -1.0;
 held_input: GameInput;
 
-SetHeldInput :: (left: bool, right: bool, up: bool, down: bool) {
-    held_input = .{.left = left, .right = right, .up = up, .down = down}
+// Only map observations here; MovePlayer owns key priority and normalization.
+FrameMovement :: (frame: FrameInputSnapshot) -> GameInput {
+    if !frame.available || !frame.focused { return .{} }
+    return .{
+        .left = ((frame.keys[KeyLeft] | frame.keys[65]) & cast(u8)FrameKeyHeld) != 0,
+        .right = ((frame.keys[KeyRight] | frame.keys[68]) & cast(u8)FrameKeyHeld) != 0,
+        .up = ((frame.keys[KeyUp] | frame.keys[87]) & cast(u8)FrameKeyHeld) != 0,
+        .down = ((frame.keys[KeyDown] | frame.keys[83]) & cast(u8)FrameKeyHeld) != 0}
 }
 score_text: [16]u8;
 lives_text: [16]u8;
@@ -522,6 +530,7 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     defer { unused WidgetPaletteRestore(session) }
     unused Box(session, BoxProps.{.key = cast(u64)49000, .bounds = viewport,
         .fill = ColorFromPacked(0x051120ff)})
+    held_input = FrameMovement(CaptureFrameInput(session))
     now := cast(float64)Clock.Milliseconds() / 1000.0
     #if #defined(CHOANO_PORTABLE) {
         key := Clock.PressedKey()
