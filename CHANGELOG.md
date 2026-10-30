@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Fill Fish mode in portrait and landscape, enlarge and color-size its sea life, and mark edible green versus dangerous red.
 - Dress the player in a persistent halo, ribbon, or crown, show progress toward the next amoeba size, and make the Swipe control choice clearer.
 - Make Amoeba creatures larger inside the full visible dish, keep every sprite inside its container, and soften cumulative growth.
 - Enlarge the Amoeba game on portrait screens while keeping its safety rim and responsive fit.

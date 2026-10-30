@@ -63,6 +63,7 @@ save_failed: bool;
 fish_unlocked: bool;
 fish: bool;
 run_fish: bool;
+fish_hint_pending: bool = true;
 accessory: s32;
 accessories_owned: s32;
 accessories_stage: s32;
@@ -111,6 +112,12 @@ SyncAccessoryGrowth :: (stage: s32) {
 }
 FishRun :: () -> bool { return run_fish }
 
+TakeFishHint :: () -> bool {
+    if !run_fish { return false }
+    if !fish_hint_pending { return false }
+    fish_hint_pending = false
+    return true
+}
 TakeDash :: () -> bool { result := dash_requested; dash_requested = false; return result }
 // This frame's touch heading. A release leaves it zero, letting the game coast.
 Touch :: (held: bool, x: float32, y: float32) {

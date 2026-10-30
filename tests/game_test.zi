@@ -192,7 +192,7 @@ main :: () -> s32 {
     }
 
     if Expect(StageSize(1) == 22 && StageSize(10) == 94 &&
-        FishSize(1) == 11 && FishSize(10) == 47, "one-based stage sizes") != 0 { return 1 }
+        FishSize(1) == 22 && FishSize(10) == 94, "one-based stage sizes") != 0 { return 1 }
     game.player_x = 500.0
     game.player_y = 209.0
     unused ClampPoint(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage))
@@ -286,7 +286,7 @@ main :: () -> s32 {
     for index: cast(s32)0..game.enemy_count - 1 {
         fish := game.enemies[index]
         if Expect(fish.kind == KIND_FISH && fish.active && fish.stage == 1 && fish.velocity_x != 0.0 &&
-            DistanceSquared(fish.x, fish.y, game.player_x, game.player_y) >= 89.0 * 89.0, "starting fish swim away from the player") != 0 { return 1 }
+            DistanceSquared(fish.x, fish.y, game.player_x, game.player_y) >= 85.0 * 85.0, "starting fish swim away from the player") != 0 { return 1 }
         if Expect(fish.species >= 0 && fish.species < FISH_SPECIES &&
             (index == 0 || fish.species != game.enemies[index - 1].species), "starting fish look different from each other") != 0 { return 1 }
     }
@@ -320,7 +320,7 @@ main :: () -> s32 {
     if Expect(game.player_velocity_x < cruising * 1.2, "a dash needs its cooldown") != 0 { return 1 }
     game.player_y = 500.0
     unused SeaClamp(*game.player_x, *game.player_y, cast(float32)FishSize(game.player_stage))
-    if Expect(game.player_y <= cast(float32)SEA_BOTTOM, "the fish stays above the sand") != 0 { return 1 }
+    if Expect(game.player_y <= SeaBottom(), "the fish stays above the sand") != 0 { return 1 }
 
     StartGame(4244, MODE_FISH)
     game.enemy_count = 0
@@ -437,7 +437,7 @@ main :: () -> s32 {
     seahorse := game.enemies[0]
     lobster := game.enemies[1]
     starfish := game.enemies[2]
-    sand := cast(float32)SEA_BOTTOM
+    sand := SeaBottom()
     if Expect(highest[0] - lowest[0] > 10.0 && highest[0] < sand - 20.0, "a seahorse bobs in open water") != 0 { return 1 }
     if Expect(lobster.y == sand - cast(float32)FishSize(lobster.stage) * .5 && highest[1] - lowest[1] < .01 &&
         (lobster.x - 100.0) * lobster.velocity_x > 0.0, "a lobster crawls along the sand") != 0 { return 1 }
@@ -507,7 +507,7 @@ main :: () -> s32 {
             body_width: float32
             body_height: float32
             BodyHalf(KIND_SEAHORSE, horse.stage, *body_width, *body_height)
-            if Expect(horse.y >= cast(float32)SEA_TOP + body_height && horse.y <= cast(float32)SEA_BOTTOM - body_height,
+            if Expect(horse.y >= cast(float32)SEA_TOP + body_height && horse.y <= SeaBottom() - body_height,
                 "a seahorse spawns wholly in the water") != 0 { return 1 }
         }
         top_stage := game.player_stage + 2
@@ -595,7 +595,7 @@ main :: () -> s32 {
     // most five pearls behind it.
     game.enemy_count = 0
     unused SpawnTurtle()
-    game.enemies[0].x = 60.0
+    game.enemies[0].x = 140.0
     game.enemies[0].velocity_x = cast(float32)TURTLE_SPEED
     game.enemies[0].y = 200.0
     game.turtle_timer = 9999.0
@@ -611,8 +611,8 @@ main :: () -> s32 {
         if game.enemies[0].y < turtle_low { turtle_low = game.enemies[0].y }
         if game.enemies[0].y > turtle_high { turtle_high = game.enemies[0].y }
     }
-    moved := game.enemies[0].x - 60.0
-    if Expect(moved > 45.0 && moved < 60.0, "the turtle glides slowly") != 0 { return 1 }
+    moved := game.enemies[0].x - 140.0
+    if Expect(moved > 60.0 && moved < 68.0, "the turtle glides slowly") != 0 { return 1 }
     if Expect(turtle_high - turtle_low > .5 && turtle_high - turtle_low < 12.0, "the turtle bobs gently") != 0 { return 1 }
     if Expect(first_pearl > 1.4 && first_pearl < 1.6, "the turtle drops a pearl after about 1.5 seconds") != 0 { return 1 }
     for step: 0..899 {

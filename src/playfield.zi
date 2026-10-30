@@ -48,8 +48,8 @@ CornerRadius :: (rect: Rectangle, radius: float32) -> float32 {
 
 // A portrait amoeba dish fills the area: the arena's width spans the ground
 // inside the rim and it grows down the screen as a rounded rectangle about
-// the dish's centre. Landscape, the sea and areas too small for a rim keep
-// the whole field fitted and centred.
+    // the dish's centre. Landscape keeps the whole field fitted and centred;
+    // the sea extends its logical water across every remaining pixel.
 FitPlayfield :: (bounds: Rectangle, mode: s32) -> Playfield {
     width := cast(float32)FIELD_WIDTH
     height := cast(float32)FIELD_HEIGHT
@@ -71,6 +71,7 @@ FitPlayfield :: (bounds: Rectangle, mode: s32) -> Playfield {
     if scale != scale || scale < 0.0 { scale = 0.0 }
     view := Rectangle.{bounds.x + (bounds.width - width * scale) * .5,
         bounds.y + (bounds.height - height * scale) * .5, width * scale, height * scale}
+    if mode == MODE_FISH { view = bounds }
     return Playfield.{.area = bounds, .view = view, .origin = .{view.x, view.y}, .scale = scale,
         .outer_frame = view, .inner_playable = view,
         .dish_half_height = cast(float32)DISH_RADIUS, .dish_corner_radius = 0.0}

@@ -60,6 +60,7 @@ score_text: [16]u8;
 lives_text: [16]u8;
 frenzy_text: [24]u8;
 stage_text: [48]u8;
+size_text: [24]u8;
 path_buffers: [16][128]u8;
 path_buffer_index: s32;
 
@@ -90,7 +91,6 @@ FramePath :: (kind: string, side: string, stage: s32, frame: s32) -> string {
     path_buffer_index += 1
     return TextUntilNul(path_buffer[:])
 }
-
 FrameCount :: (kind: string, stage: s32) -> s32 {
     if kind == "player" { return 4 }
     return 3
@@ -107,7 +107,8 @@ PaintOrganism :: (session: Session, kind: string, side: string, stage: s32, fram
     PaintCell(session, "assets/choano/organisms-hd.png", OrganismSource(kind, stage, frame), side, bounds, key)
 }
 // One cell of SHEET fitted into BOUNDS, mirrored when it faces left.
-PaintCell :: (session: Session, sheet: string, source: Rectangle, side: string, bounds: Rectangle, key: u64) {
+PaintCellTinted :: (session: Session, sheet: string, source: Rectangle, side: string, bounds: Rectangle,
+    key: u64, tint: u32) {
     fitted := bounds
     if source.width > source.height {
         fitted.height = bounds.height * source.height / source.width
@@ -121,11 +122,14 @@ PaintCell :: (session: Session, sheet: string, source: Rectangle, side: string, 
             .{fitted.x + fitted.width, fitted.y + fitted.height}, .{fitted.x, fitted.y + fitted.height}]
         unused Image(session, ImageProps.{.key = key, .asset_path = sheet,
             .bounds = fitted, .source = source, .smooth = true,
-            .mesh = ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
+            .tint = tint, .mesh = ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
     } else {
         unused Image(session, ImageProps.{.key = key, .asset_path = sheet,
-            .bounds = fitted, .source = source, .smooth = true, .fit = ImageFit.ImageFitStretch})
+            .bounds = fitted, .source = source, .smooth = true, .tint = tint, .fit = ImageFit.ImageFitStretch})
     }
+}
+PaintCell :: (session: Session, sheet: string, source: Rectangle, side: string, bounds: Rectangle, key: u64) {
+    PaintCellTinted(session, sheet, source, side, bounds, key, 0)
 }
 // The player floats in its rest pose: a slow bob and breath, and a lean
 // into its swim. The swim poses' stretching tails made it lurch about.
@@ -133,9 +137,10 @@ DrawPlayer :: (session: Session, side: string, stage: s32, animation: float64,
     velocity_y: float32, x: float32, y: float32, key: u64) {
     accessory := Shell.WearingAccessory()
     if game.mode == MODE_FISH {
-        size := cast(float32)FishSize(stage)
-        Float(session, FISH_SHEET, FishSource(0), side, size * FISH_LENGTH, animation,
-            velocity_y / FISH_SPEED, .04, x, y, key)
+        size := FishVisualSize(stage)
+        player_source := FishSource(0)
+        FloatTinted(session, FISH_SHEET, player_source, side, FitWidth(player_source, FishVisualSize(stage)),
+            animation, velocity_y / FISH_SPEED, .04, x, y, key, PLAYER_FISH_COLOR)
         Float(session, Accessories.PreviewAssetPath(accessory),
             Rectangle.{0.0, 0.0, cast(float32)Accessories.SOURCE_SIZE, cast(float32)Accessories.SOURCE_SIZE},
             side, size, animation, 0.0, 0.0, x, y, key + 1)
@@ -152,8 +157,8 @@ DrawPlayer :: (session: Session, side: string, stage: s32, animation: float64,
 FISH_LENGTH :: 1.3;
 // Draws SOURCE WIDTH wide at x, y, bobbing by BOB of its width, breathing,
 // and tilted by LEAN (-1 to 1) towards its heading.
-Float :: (session: Session, sheet: string, source: Rectangle, side: string, size: float32, animation: float64,
-    lean: float32, bob: float32, x: float32, y: float32, key: u64) {
+FloatTinted :: (session: Session, sheet: string, source: Rectangle, side: string, size: float32, animation: float64,
+    lean: float32, bob: float32, x: float32, y: float32, key: u64, tint: u32) {
     breath := cast(float32)Trig.Sin(animation * 4.4)
     width := size * (1.0 + breath * .03)
     height := size * source.height / source.width * (1.0 - breath * .03)
@@ -174,8 +179,45 @@ Float :: (session: Session, sheet: string, source: Rectangle, side: string, size
     }
     unused Image(session, ImageProps.{.key = key, .asset_path = sheet,
         .bounds = GameBounds(Rectangle.{x - width * .5, y - height * .5, width, height}), .source = source,
-        .smooth = true, .mesh = ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
+        .smooth = true, .tint = tint, .mesh = ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
 }
+Float :: (session: Session, sheet: string, source: Rectangle, side: string, size: float32, animation: float64,
+    lean: float32, bob: float32, x: float32, y: float32, key: u64) {
+    FloatTinted(session, sheet, source, side, size, animation, lean, bob, x, y, key, 0)
+}
+CueBounds :: (source: Rectangle, size: float32, animation: float64, bob: float32, x: float32, y: float32,
+    pulse: float32) -> Rectangle {
+    width := FitWidth(source, size)
+    height := width * source.height / source.width
+    padding := size * (.08 + .025 * pulse)
+    centered := y + cast(float32)Trig.Sin(animation * 2.6) * size * bob
+    return Rectangle.{x - width * .5 - padding, centered - height * .5 - padding,
+        width + padding * 2.0, height + padding * 2.0}
+}
+
+DrawCue :: (session: Session, enemy: Enemy, source: Rectangle, size: float32, animation: float64,
+    bob: float32, key: u64) {
+    cue := CreatureCue(enemy)
+    if cue == CUE_NONE { return }
+    pulse: float32 = 0.0
+    border: u32 = 0xe8fff2e8
+    fill: u32 = 0x52ff8f30
+    if cue == CUE_DANGER {
+        pulse = (cast(float32)Trig.Sin(animation * 4.0) + 1.0) * .5
+        alpha := cast(u32)(172.0 + pulse * 72.0)
+        border = cast(u32)0xff5f7a | (alpha << cast(u32)24)
+        fill = 0x64ff5f7a
+    }
+    bounds := CueBounds(source, size, animation, bob, enemy.x, enemy.y, pulse)
+    outer := GameBounds(bounds)
+    unused Box(session, BoxProps.{.key = key, .bounds = outer, .fill = ColorFromPacked(fill),
+        .border = ColorFromPacked(border), .radius = outer.height * .5})
+    inner := GameBounds(Rectangle.{bounds.x + 2.0, bounds.y + 2.0, bounds.width - 4.0, bounds.height - 4.0})
+    inner_border := ifx cue == CUE_DANGER then cast(u32)0xffe2e8ff else cast(u32)0xf4fffaf0
+    unused Box(session, BoxProps.{.key = key + 500, .bounds = inner, .fill = ColorFromPacked(0x00000000),
+        .border = ColorFromPacked(inner_border), .radius = inner.height * .5})
+}
+
 DrawSea :: (session: Session) {
     unused Image(session, ImageProps.{.key = cast(u64)1, .asset_path = "assets/choano/fish/sea.png",
         .bounds = view, .fit = ImageFit.ImageFitStretch, .smooth = true})
@@ -183,15 +225,22 @@ DrawSea :: (session: Session) {
         enemy := game.enemies[index]
         key := cast(u64)(2000 + index)
         if enemy.kind == KIND_JELLY {
-            Float(session, FISH_SHEET, FishSource(FISH_JELLY), "right", 30.0, enemy.animation, 0.0, .08,
+            source := FishSource(FISH_JELLY)
+            DrawCue(session, enemy, source, JELLY_SIZE, enemy.animation, .08, key)
+            Float(session, FISH_SHEET, source, "right", JELLY_SIZE, enemy.animation, 0.0, .08,
                 enemy.x, enemy.y, key)
         } else if enemy.kind == KIND_SHARK {
             side := ifx enemy.velocity_x < 0.0 then "left" else "right"
-            Float(session, HUNTER_SHEET, HunterSource(HUNTER_SHARK), side, cast(float32)SHARK_LENGTH,
+            source := HunterSource(HUNTER_SHARK)
+            DrawCue(session, enemy, source, cast(float32)SHARK_LENGTH, enemy.animation, .02, key)
+            Float(session, HUNTER_SHEET, source, side, cast(float32)SHARK_LENGTH,
                 enemy.animation, enemy.velocity_y / 60.0, .02, enemy.x, enemy.y, key)
         } else if enemy.kind == KIND_SARDINE {
             side := ifx enemy.velocity_x < 0.0 then "left" else "right"
-            Float(session, HUNTER_SHEET, HunterSource(HUNTER_SARDINE), side, cast(float32)SARDINE_SIZE * FISH_LENGTH,
+            source := HunterSource(HUNTER_SARDINE)
+            size := cast(float32)SARDINE_SIZE * FISH_VISUAL_LENGTH
+            DrawCue(session, enemy, source, size, enemy.animation, .03, key)
+            Float(session, HUNTER_SHEET, source, side, size,
                 enemy.animation, enemy.velocity_y / 40.0, .03, enemy.x, enemy.y, key)
         } else if SeaAnimal(enemy.kind) {
             source := AnimalSource(enemy.kind - KIND_SEAHORSE)
@@ -199,22 +248,25 @@ DrawSea :: (session: Session) {
             // The starfish turns slowly about; the others lean into their bob.
             lean := enemy.velocity_y / 60.0
             if enemy.kind == KIND_STARFISH { lean = cast(float32)Trig.Sin(enemy.animation * .8 + cast(float64)enemy.phase) }
-            // A seahorse stands as tall as its body in the game.
-            longest := cast(float32)FishSize(enemy.stage) * (ifx enemy.kind == KIND_SEAHORSE then SEAHORSE_HEIGHT else FISH_LENGTH)
-            Float(session, ANIMAL_SHEET, source, side, FitWidth(source, longest), enemy.animation, lean,
-                ifx enemy.kind == KIND_SEAHORSE then .02 else .01, enemy.x, enemy.y, key)
+            bob: float32 = ifx enemy.kind == KIND_SEAHORSE then .02 else .01
+            visual_size := FishVisualSize(enemy.stage)
+            DrawCue(session, enemy, source, visual_size, enemy.animation, bob, key)
+            FloatTinted(session, ANIMAL_SHEET, source, side, FitWidth(source, visual_size), enemy.animation, lean,
+                bob, enemy.x, enemy.y, key, FishStageColor(enemy.stage))
         } else if enemy.kind == KIND_TURTLE {
             side := ifx enemy.velocity_x < 0.0 then "left" else "right"
             Float(session, TURTLE_SHEET, TurtleSource(), side, cast(float32)TURTLE_WIDTH, enemy.animation * .5,
                 enemy.velocity_y / 40.0, .01, enemy.x, enemy.y, key)
         } else if enemy.kind == KIND_PEARL {
-            Float(session, FISH_SHEET, FishSource(FISH_PEARL), "right", 13.0, enemy.animation * 2.0, 0.0, .1,
+            Float(session, FISH_SHEET, FishSource(FISH_PEARL), "right", PEARL_SIZE, enemy.animation * 2.0, 0.0, .1,
                 enemy.x, enemy.y, key)
         } else {
             side := ifx enemy.velocity_x < 0.0 then "left" else "right"
-            Float(session, FISH_SHEET, FishSource(4 + enemy.species % FISH_SPECIES), side,
-                cast(float32)FishSize(enemy.stage) * FISH_LENGTH, enemy.animation, enemy.velocity_y / 40.0, .03,
-                enemy.x, enemy.y, key)
+            source := FishSource(4 + enemy.species % FISH_SPECIES)
+            visual_size := FishVisualSize(enemy.stage)
+            DrawCue(session, enemy, source, visual_size, enemy.animation, .03, key)
+            FloatTinted(session, FISH_SHEET, source, side, FitWidth(source, visual_size),
+                enemy.animation, enemy.velocity_y / 40.0, .03, enemy.x, enemy.y, key, FishStageColor(enemy.stage))
         }
     }
 }
@@ -256,6 +308,7 @@ DrawGame :: (session: Session, bounds: Rectangle) {
     view = field.view
     view_scale = field.scale
     SetDishFrame(field.dish_half_height, field.dish_corner_radius, field.framed)
+    if game.mode == MODE_FISH { SetSeaBounds(view.width / view_scale, view.height / view_scale) }
     path_buffer_index = 0
     if game.mode == MODE_FISH {
         DrawSea(session)
@@ -267,6 +320,25 @@ DrawGame :: (session: Session, bounds: Rectangle) {
     side := ifx game.player_facing == 0 then "left" else "right"
     DrawPlayer(session, side, game.player_stage, game.player_animation, game.player_velocity_y,
         game.player_x, game.player_y, cast(u64)1000)
+    if game.hint_timer > 0.0 { DrawFishHint(session, bounds) }
+}
+
+DrawFishHint :: (session: Session, bounds: Rectangle) {
+    width := bounds.width - 24.0
+    if width > 520.0 { width = 520.0 }
+    hint := Rectangle.{bounds.x + (bounds.width - width) * .5, bounds.y + 12.0, width, 58.0}
+    unused Box(session, BoxProps.{.key = cast(u64)49020, .bounds = hint,
+        .fill = ColorFromPacked(0x061c29e8), .border = ColorFromPacked(0x80cbd8cc), .radius = 18.0})
+    unused Box(session, BoxProps.{.key = cast(u64)49021,
+        .bounds = Rectangle.{hint.x + 14.0, hint.y + 16.0, 12.0, 12.0},
+        .fill = ColorFromPacked(0x74f39cff), .border = ColorFromPacked(0xe8fff2ff), .radius = 6.0})
+    unused Text(session, TextProps.{.key = cast(u64)49022, .text = "Eat glowing green fish",
+        .bounds = Rectangle.{hint.x + 34.0, hint.y + 8.0, width - 46.0, 20.0}, .font = 13})
+    unused Box(session, BoxProps.{.key = cast(u64)49023,
+        .bounds = Rectangle.{hint.x + 14.0, hint.y + 36.0, 12.0, 12.0},
+        .fill = ColorFromPacked(0xff5f7aff), .border = ColorFromPacked(0xffe2e8ff), .radius = 6.0})
+    unused Text(session, TextProps.{.key = cast(u64)49024, .text = "Avoid red",
+        .bounds = Rectangle.{hint.x + 34.0, hint.y + 29.0, width - 46.0, 20.0}, .font = 13})
 }
 
 DrawDish :: (session: Session) {
@@ -312,6 +384,16 @@ DrawHud :: (session: Session, bar: Rectangle) {
     if at < cast(s32)lives_text.count { lives_text[at] = cast(u8)0 }
     HudText(session, TextUntilNul(lives_text[:]), Rectangle.{bar.x + 118.0, bar.y, 48.0, bar.height},
         cast(u64)3021, 20, TextAlign.TextAlignStart)
+    if fish {
+        size_digits: [12]u8
+        at := CopyText("SIZE ", size_text[:], 0)
+        at = CopyText(FormatInteger(cast(s64)game.player_stage, size_digits[:]), size_text[:], at)
+        at = CopyText("/", size_text[:], at)
+        at = CopyText(FormatInteger(cast(s64)PLAYER_STAGE_LAST, size_digits[:]), size_text[:], at)
+        if at < cast(s32)size_text.count { size_text[at] = cast(u8)0 }
+        HudText(session, TextUntilNul(size_text[:]), Rectangle.{bar.x + 166.0, bar.y + 15.0, 76.0, 20.0},
+            cast(u64)3022, 12, TextAlign.TextAlignStart)
+    }
 
     label := "SCORE"
     if game.frenzy >= 2 {
@@ -337,7 +419,8 @@ DrawHud :: (session: Session, bar: Rectangle) {
         cast(u64)3000, 12, TextAlign.TextAlignEnd)
     danger := Rectangle.{right - 42.0, middle - 15.0, 30.0, 30.0}
     if shark { PaintCell(session, HUNTER_SHEET, HunterSource(HUNTER_SHARK), "right", danger, cast(u64)3002) }
-    else if fish { PaintCell(session, FISH_SHEET, FishStageSource(avoid_stage), "right", danger, cast(u64)3002) }
+    else if fish { PaintCellTinted(session, FISH_SHEET, FishStageSource(avoid_stage), "right", danger,
+        cast(u64)3002, FishStageColor(avoid_stage)) }
     else { PaintOrganism(session, "enemy", "right", avoid_stage, AnimationFrame(game.elapsed, 3), danger, cast(u64)3002) }
     if !fish { DrawGrowthMeter(session, bar) }
 }
@@ -451,6 +534,7 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
         .accent = ColorFromPacked(0xe0609aff)})
     if Shell.TakeStart() {
         StartGame(cast(u32)Clock.Milliseconds(), ifx Shell.FishRun() then MODE_FISH else MODE_AMOEBA)
+        if Shell.TakeFishHint() { game.hint_timer = FISH_HINT_SECONDS }
         last_tick = now
         held_input = .{}
     }
