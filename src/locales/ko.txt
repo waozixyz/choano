@@ -1,0 +1,5 @@
+[choano_title]
+Choano
+---
+[choano_tagline]
+먹거나 먹히거나

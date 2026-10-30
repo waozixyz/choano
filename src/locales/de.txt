@@ -1,0 +1,5 @@
+[choano_title]
+Choano
+---
+[choano_tagline]
+Friss oder wirst gefressen

@@ -1,0 +1,5 @@
+[choano_title]
+Choano
+---
+[choano_tagline]
+Mange ou sois mangé

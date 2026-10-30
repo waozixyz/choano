@@ -1,0 +1,5 @@
+[choano_title]
+Choano
+---
+[choano_tagline]
+吃，还是被吃
