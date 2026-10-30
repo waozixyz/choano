@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-30
+
+- Load title artwork and creatures correctly in the Linux AppImage on newer Linux distributions.
+
 ## [0.1.0] - 2026-10-30
 
 - Cover the title screen with both mode's artwork, crop it cleanly at every

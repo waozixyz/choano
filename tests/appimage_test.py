@@ -42,6 +42,10 @@ def inspect_contents():
     assert 'not found' not in linked, linked
     for library in ('libSDL2-2.0.so.0', 'libcairo.so.2', 'libpango-1.0.so.0', 'libpangocairo-1.0.so.0'):
         assert f'{library} => {appdir}/usr/bin/../lib/{library}' in linked, (library, linked)
+    # The art decoder the game opens at run time, with no loader modules of the host's.
+    assert (appdir / 'usr/lib/libgdk_pixbuf-2.0.so.0').is_file(), 'GdkPixbuf is not bundled'
+    modules = (appdir / 'usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache').read_text().splitlines()
+    assert all(line.startswith('#') for line in modules), modules
 
 
 def stop(*processes):
@@ -117,7 +121,9 @@ def run_title(command, cwd, fish, shot):
             folder = Path(os.readlink(f'/proc/{pid}/cwd'))
             assert folder.parts[-3:] == ('usr', 'share', 'choano') and SCRATCH / 'tmp' in folder.parents, folder
             maps = Path(f'/proc/{pid}/maps').read_text()
-            assert f'{folder.parents[1]}/lib/libSDL2-2.0.so.0' in maps, 'bundled SDL2 is not the one loaded'
+            for library in ('libSDL2-2.0.so.0', 'libgdk_pixbuf-2.0.so.0', 'libglib-2.0.so.0'):
+                assert f'{folder.parents[1]}/lib/{library}' in maps, f'bundled {library} is not the one loaded'
+            assert '/gdk-pixbuf-2.0/2.10.0/loaders/' not in maps, 'a GdkPixbuf loader module was loaded'
             play(window, fish, launch, pid)
     finally:
         # The image's runtime waits for the game it unpacked, so the game goes first.

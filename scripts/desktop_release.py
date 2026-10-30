@@ -42,6 +42,23 @@ TOOLS = {
 }
 # linuxdeploy accepts only standard square icon sizes.
 ICON_SIZE = 160
+# Kryon opens GdkPixbuf at run time to decode the art, so linuxdeploy only
+# bundles it when named. The image carries the build host's copy, its PNG and
+# JPEG loaders built in, and an empty module list in place of the host's.
+PIXBUF = 'libgdk_pixbuf-2.0.so.0'
+PIXBUF_MODULES = 'usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache'
+# Loads the AppDir's GdkPixbuf as the game does and decodes each named image;
+# prints where every library it loaded came from.
+DECODE_PROBE = '''
+import ctypes, sys
+pixbuf = ctypes.CDLL(sys.argv[1], mode=ctypes.RTLD_GLOBAL)
+pixbuf.gdk_pixbuf_new_from_file.restype = ctypes.c_void_p
+pixbuf.gdk_pixbuf_new_from_file.argtypes = [ctypes.c_char_p, ctypes.c_void_p]
+for name in sys.argv[2:]:
+    if not pixbuf.gdk_pixbuf_new_from_file(name.encode(), None):
+        sys.exit('cannot decode ' + name)
+print('\\n'.join(sorted({line.split()[-1] for line in open('/proc/self/maps') if '.so' in line})))
+'''
 SETUP = ROOT / 'build/Choano-setup.exe'
 WINDOWS = ROOT / 'build/windows'
 WINDOWS_PACKAGING = ROOT / 'packaging/windows'
@@ -123,7 +140,39 @@ def stage_appdir(appdir, binary, version):
     metainfo.mkdir(parents=True)
     shutil.copy2(PACKAGING / f'{APP_ID}.appdata.xml', metainfo)
     desktop_icon(appdir / f'usr/share/icons/hicolor/{ICON_SIZE}x{ICON_SIZE}/apps/{APP_ID}.png')
+    modules = appdir / PIXBUF_MODULES
+    modules.parent.mkdir(parents=True)
+    modules.write_text('# No loader modules: PNG and JPEG are built into the bundled GdkPixbuf.\n')
     return appdir
+
+
+def system_library(soname):
+    """The build host's 64-bit copy of a shared library, from the linker cache."""
+    ldconfig = shutil.which('ldconfig') or '/sbin/ldconfig'
+    listing = subprocess.run([ldconfig, '-p'], text=True, capture_output=True, check=True).stdout
+    for line in listing.splitlines():
+        name, _, path = line.strip().partition(' => ')
+        if name.split(' ', 1)[0] == soname and 'x86-64' in name:
+            return Path(path)
+    raise SystemExit(f'desktop release: the build host has no {soname}; install libgdk-pixbuf-2.0-0')
+
+
+def check_image_decoders(appdir):
+    """The AppDir's own GdkPixbuf, GLib and codecs decode Choano's JPEG and PNG
+    art with only its empty module list, so no host loader is needed."""
+    lib = (appdir / 'usr/lib').resolve()
+    env = {k: v for k, v in os.environ.items() if not k.startswith(('GDK_PIXBUF', 'LD_'))}
+    env['GDK_PIXBUF_MODULE_FILE'] = str(appdir / PIXBUF_MODULES)
+    art = [ROOT / 'assets/choano/title-landscape.jpg', ROOT / 'assets/choano/fish/turtle-hd.png']
+    result = subprocess.run([sys.executable, '-I', '-c', DECODE_PROBE, lib / PIXBUF, *art],
+                            env=env, text=True, capture_output=True)
+    if result.returncode:
+        raise SystemExit(f'desktop release: the bundled {PIXBUF} cannot decode the art: '
+                         f'{result.stderr.strip() or result.stdout.strip()}')
+    for path in map(Path, result.stdout.split()):
+        if path.name.startswith(('libgdk_pixbuf', 'libglib-', 'libgobject-', 'libgio-', 'libgmodule-',
+                                 'libjpeg', 'libpng')) and lib not in path.parents:
+            raise SystemExit(f'desktop release: the bundled {PIXBUF} loaded the host\'s {path}')
 
 
 def build_native():
@@ -152,10 +201,16 @@ def build_appimage(rebuild_native=True):
         '--executable', appdir / 'usr/bin' / EXECUTABLE,
         '--desktop-file', share / f'applications/{APP_ID}.desktop',
         '--icon-file', share / f'icons/hicolor/{ICON_SIZE}x{ICON_SIZE}/apps/{APP_ID}.png',
+        '--library', system_library(PIXBUF),
         '--custom-apprun', PACKAGING / 'AppRun',
         '--output', 'appimage', cwd=BUILD, env=env)
     if not APPIMAGE.exists():
         raise SystemExit('desktop release: linuxdeploy finished without build/Choano.AppImage')
+    try:
+        check_image_decoders(appdir)
+    except SystemExit:
+        APPIMAGE.unlink()
+        raise
     return APPIMAGE
 
 

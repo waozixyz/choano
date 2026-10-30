@@ -146,22 +146,42 @@ class DesktopReleaseTest(unittest.TestCase):
 
     def test_launcher_starts_in_its_read_only_share_folder(self):
         game = self.appdir / 'usr/bin/Choano'
-        game.write_text('#!/bin/sh\nprintf "%s\\n" "$PWD" "$CHOANO_DATA" "$@"\n')
+        game.write_text('#!/bin/sh\nprintf "%s\\n" "$PWD" "$GDK_PIXBUF_MODULE_FILE" "$CHOANO_DATA" "$@"\n')
         shutil.copy2(ROOT / 'packaging/linux/AppRun', self.appdir / 'AppRun')
         for folder, _, _ in os.walk(self.appdir):
             os.chmod(folder, 0o555)
         caller = SCRATCH / 'caller'
         caller.mkdir()
         env = {k: v for k, v in os.environ.items() if k not in ('APPDIR', 'CHOANO_DATA')}
+        # A host's own loader list never reaches the bundled GdkPixbuf.
+        env['GDK_PIXBUF_MODULE_FILE'] = '/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/2.10.0/loaders.cache'
+        modules = str(self.appdir / desktop.PIXBUF_MODULES)
         for data, expected in (('profile', caller / 'profile'), ('/srv/choano', Path('/srv/choano'))):
             out = subprocess.run([self.appdir / 'AppRun', '--flag', 'two words'], cwd=caller,
                                  env=dict(env, APPDIR=str(self.appdir), CHOANO_DATA=data),
                                  capture_output=True, text=True, check=True).stdout.splitlines()
-            self.assertEqual(out, [str(self.appdir / 'usr/share/choano'), str(expected), '--flag', 'two words'])
+            self.assertEqual(out, [str(self.appdir / 'usr/share/choano'), modules, str(expected),
+                                   '--flag', 'two words'])
         # Opened as AppDir/AppRun without the AppImage runtime's APPDIR.
         out = subprocess.run([self.appdir / 'AppRun'], cwd=caller, env=env,
                              capture_output=True, text=True, check=True).stdout.splitlines()
-        self.assertEqual(out[:2], [str(self.appdir / 'usr/share/choano'), ''])
+        self.assertEqual(out[:3], [str(self.appdir / 'usr/share/choano'), modules, ''])
+
+    def test_image_decoders_come_only_from_the_appdir(self):
+        lines = (self.appdir / desktop.PIXBUF_MODULES).read_text().splitlines()
+        self.assertTrue(lines and all(line.startswith('#') for line in lines),
+                        'the module list names no loader, so no host module loads')
+        # GdkPixbuf linked into an AppDir that lacks its GLib takes the host's.
+        host = desktop.system_library(desktop.PIXBUF)
+        lib = self.appdir / 'usr/lib'
+        shutil.copy2(host, lib / desktop.PIXBUF)
+        with self.assertRaises(SystemExit) as failure:
+            desktop.check_image_decoders(self.appdir)
+        self.assertIn("loaded the host's", str(failure.exception))
+        (lib / desktop.PIXBUF).write_bytes(b'not a library')
+        with self.assertRaises(SystemExit) as failure:
+            desktop.check_image_decoders(self.appdir)
+        self.assertIn('cannot decode the art', str(failure.exception))
 
     def test_tools_are_pinned_and_a_mismatch_is_rejected(self):
         for name, (url, digest) in desktop.TOOLS.items():

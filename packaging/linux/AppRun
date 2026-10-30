@@ -7,5 +7,9 @@ case "${CHOANO_DATA:-/}" in
 	/*) ;;
 	*) CHOANO_DATA="$PWD/$CHOANO_DATA"; export CHOANO_DATA ;;
 esac
+# The art decodes through the bundled GdkPixbuf's built-in PNG and JPEG
+# loaders; its empty module list keeps the host's loader modules out.
+GDK_PIXBUF_MODULE_FILE="$HERE/usr/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
+export GDK_PIXBUF_MODULE_FILE
 cd "$HERE/usr/share/choano" || exit 1
 exec "$HERE/usr/bin/Choano" "$@"
