@@ -36,7 +36,6 @@ BUTTON_DISABLED :: ButtonStyle.{.fill = 0xe3e7eaff, .text = 0x243348ff};
 TitleLayout :: struct {
     character_safe: Rectangle
     mode: Rectangle
-    wardrobe: Rectangle
     continue_button: Rectangle
     play: Rectangle
 }
@@ -67,6 +66,7 @@ fish_hint_pending: bool = true;
 accessory: s32;
 accessories_owned: s32;
 accessories_stage: s32;
+wardrobe_unseen: bool;
 wardrobe_open: bool;
 // The Fish Dash button, beside the play area's touch controls.
 dash_requested: bool;
@@ -100,11 +100,13 @@ SelectAccessory :: (id: s32) {
     Save()
 }
 SetAccessoryProgress :: (stage: s32) {
+    previous_owned := accessories_owned
     record := Accessories.RecordForStage(stage)
     record.selected = ifx Accessories.Available(record.highest_stage, accessory) then accessory else Accessories.ACCESSORY_HALO
     accessory = record.selected
     accessories_owned = record.owned
     accessories_stage = record.highest_stage
+    wardrobe_unseen = wardrobe_unseen || (record.owned & ~previous_owned) != 0
     Save()
 }
 SyncAccessoryGrowth :: (stage: s32) {
@@ -179,11 +181,39 @@ ButtonWidth :: (text: string, minimum: float32 = 140.0, maximum: float32 = 320.0
     return width
 }
 
+ActionButtonWidth :: (text: string) -> float32 {
+    width: float32 = 24.0
+    for text { width += ButtonGlyphWidth(it) }
+    if width < 72.0 { width = 72.0 }
+    return width
+}
+
 ButtonRadius :: (height: float32) -> float32 { return height * .5 }
+
+TitleBackdropBounds :: (viewport: Rectangle) -> Rectangle { return viewport }
+
+TitleLogoBounds :: (viewport: Rectangle) -> Rectangle {
+    portrait := viewport.height > viewport.width
+    margin: float32 = ifx portrait then 24.0 else 48.0
+    width := viewport.width - margin * 2.0
+    if width < 180.0 { width = viewport.width - 16.0 }
+    if width < 120.0 { width = viewport.width }
+    return Rectangle.{viewport.x + (viewport.width - width) * .5,
+        viewport.y + 58.0, width, ifx width * .30 < viewport.height * .26 then width * .30 else viewport.height * .26}
+}
+
+WardrobeIconBounds :: (viewport: Rectangle) -> Rectangle {
+    return Rectangle.{viewport.x + viewport.width - 60.0, viewport.y, 52.0, 52.0}
+}
+
+GameWardrobeIconBounds :: (viewport: Rectangle) -> Rectangle {
+    return Rectangle.{viewport.x + 16.0 + ActionButtonWidth("Pause"),
+        viewport.y, 52.0, 52.0}
+}
 
 PlainButton :: (session: Session, key: u64, text: string, bounds: Rectangle,
     style: ButtonStyle, disabled: bool = false, hug_width: bool = true,
-    mark: bool = false) -> bool {
+    mark: bool = false, show_text: bool = true, show_lock: bool = false) -> bool {
     if hug_width {
         width := ButtonWidth(text)
         bounds.x += (bounds.width - width) * .5
@@ -196,37 +226,61 @@ PlainButton :: (session: Session, key: u64, text: string, bounds: Rectangle,
     unused Box(session, BoxProps.{.key = key + 20000,
         .bounds = Rectangle.{bounds.x + 2.0, bounds.y + 3.0, bounds.width, bounds.height},
         .fill = ColorFromPacked(shadowColor), .radius = radius})
-    unused Box(session, BoxProps.{.key = key, .bounds = bounds,
+    unused Box(session, BoxProps.{.key = key + 21000, .bounds = bounds,
         .fill = ColorFromPacked(fill), .border = ColorFromPacked(0x10203f33), .radius = radius})
     font: s32 = 18
     padding: float32 = 14.0
     label_bounds := Rectangle.{bounds.x + padding, bounds.y, bounds.width - padding * 2.0, bounds.height}
-    if mark {
-        label_bounds.x += 12.0
-        label_bounds.width -= 12.0
-        unused Text(session, TextProps.{.key = key + 11000, .text = "✓",
-            .bounds = Rectangle.{bounds.x + 14.0, bounds.y, 20.0, bounds.height},
-            .font = font, .align = TextAlign.TextAlignCenter,
-            .vertical_align = TextAlign.TextAlignCenter})
+    if mark || show_lock {
+        label_bounds.x += 16.0
+        label_bounds.width -= 16.0
     }
-    strong: [1]TextRange = .[.{0, cast(s32)text.count}]
-    unused WidgetPaletteUse(session, WidgetPalette.{.background = fill, .base = fill,
-        .text = textColor, .selected = fill, .selected_text = textColor,
-        .border = 0x10203f33, .danger = textColor, .warning = textColor, .success = textColor})
-    unused Text(session, TextProps.{.key = key + 10000, .text = text,
-        .bounds = label_bounds, .font = font, .strong = strong[:], .align = TextAlign.TextAlignCenter,
-        .vertical_align = TextAlign.TextAlignCenter})
-    unused WidgetPaletteRestore(session)
+    if mark {
+        // Draw the check as geometry; Android's bundled font has no tick glyph.
+        for index: 0..8 {
+            step := cast(float32)index
+            x := bounds.x + 15.0 + step * 1.5
+            y := bounds.y + bounds.height * .5 + (ifx index < 3 then step else 6.0 - step) * 1.5
+            unused Box(session, BoxProps.{.key = key + 11000 + cast(u64)index,
+                .bounds = Rectangle.{x, y, 3.0, 3.0}, .fill = ColorFromPacked(textColor), .radius = 1.5})
+        }
+    }
+    if show_lock {
+        x := bounds.x + 16.0
+        y := bounds.y + bounds.height * .5
+        unused Box(session, BoxProps.{.key = key + 11000,
+            .bounds = Rectangle.{x + 2.0, y - 11.0, 10.0, 13.0},
+            .fill = ColorFromPacked(textColor), .radius = 5.0})
+        unused Box(session, BoxProps.{.key = key + 11001,
+            .bounds = Rectangle.{x + 4.0, y - 9.0, 6.0, 10.0},
+            .fill = ColorFromPacked(fill), .radius = 3.0})
+        unused Box(session, BoxProps.{.key = key + 11002,
+            .bounds = Rectangle.{x, y - 2.0, 14.0, 12.0},
+            .fill = ColorFromPacked(textColor), .radius = 3.0})
+        unused Box(session, BoxProps.{.key = key + 11003,
+            .bounds = Rectangle.{x + 6.0, y + 1.0, 2.0, 5.0},
+            .fill = ColorFromPacked(fill), .radius = 1.0})
+    }
+    if show_text {
+        strong: [1]TextRange = .[.{0, cast(s32)text.count}]
+        unused WidgetPaletteUse(session, WidgetPalette.{.background = fill, .base = fill,
+            .text = textColor, .selected = fill, .selected_text = textColor,
+            .border = 0x10203f33, .danger = textColor, .warning = textColor, .success = textColor})
+        unused Text(session, TextProps.{.key = key + 10000, .text = text,
+            .bounds = label_bounds, .font = font, .strong = strong[:], .align = TextAlign.TextAlignCenter,
+            .vertical_align = TextAlign.TextAlignCenter})
+        unused WidgetPaletteRestore(session)
+    }
     return Button(session, ButtonProps.{.key = key, .id = cast(s32)key, .bounds = bounds,
         .label = text, .disabled = disabled, .invisible = true}) != 0
 }
 
 Action :: (session: Session, key: u64, text: string, bounds: Rectangle) -> bool {
-    return PlainButton(session, key, text, bounds, BUTTON_NORMAL)
+    return PlainButton(session, key, text, bounds, BUTTON_NORMAL, false, false)
 }
 
 PrimaryAction :: (session: Session, key: u64, text: string, bounds: Rectangle) -> bool {
-    return PlainButton(session, key, text, bounds, BUTTON_PRIMARY)
+    return PlainButton(session, key, text, bounds, BUTTON_PRIMARY, false, false)
 }
 
 TitleLayoutFor :: (bounds: Rectangle, resumable: bool) -> TitleLayout {
@@ -237,32 +291,26 @@ TitleLayoutFor :: (bounds: Rectangle, resumable: bool) -> TitleLayout {
     if mode_width > bounds.width - cast(float32)16.0 { mode_width = bounds.width - cast(float32)16.0 }
     bottom := bounds.y + bounds.height - cast(float32)16.0
     play_label := ifx resumable then "New game" else "Play"
-    wardrobe_width := ButtonWidth("Wardrobe")
     continue_width := ButtonWidth("Continue")
     play_width := ButtonWidth(play_label, 220.0)
-    stack_height: float32 = 52.0 + 12.0 + 52.0 + 16.0 + 56.0
+    stack_height: float32 = 52.0 + 16.0 + 56.0
     if resumable { stack_height += 52.0 + 12.0 }
     top := bottom - stack_height
     mode := Rectangle.{bounds.x + (bounds.width - mode_width) * cast(float32).5, top, mode_width, cast(float32)52.0}
     mode.y = top
     mode.height = 52.0
-    wardrobe := Rectangle.{bounds.x + (bounds.width - wardrobe_width) * cast(float32).5,
-        mode.y + mode.height + cast(float32)12.0, wardrobe_width, cast(float32)52.0}
-    wardrobe.y = mode.y + mode.height + cast(float32)12.0
-    wardrobe.height = cast(float32)52.0
     result := TitleLayout.{
         .mode = mode,
-        .wardrobe = wardrobe,
         .character_safe = Rectangle.{bounds.x + 8.0, bounds.y + safe_top, bounds.width - 16.0, safe_bottom - safe_top},
     }
     if resumable {
         result.continue_button = Rectangle.{bounds.x + (bounds.width - continue_width) * .5,
-            wardrobe.y + wardrobe.height + 12.0, continue_width, 52.0}
+            mode.y + mode.height + 12.0, continue_width, 52.0}
         result.play = Rectangle.{bounds.x + (bounds.width - play_width) * .5,
             result.continue_button.y + result.continue_button.height + 16.0, play_width, 56.0}
     } else {
         result.play = Rectangle.{bounds.x + (bounds.width - play_width) * .5,
-            wardrobe.y + wardrobe.height + 16.0, play_width, 56.0}
+            mode.y + mode.height + 16.0, play_width, 56.0}
     }
     if result.character_safe.y + result.character_safe.height > result.mode.y {
         result.character_safe.height = result.mode.y - result.character_safe.y - 12.0
@@ -270,12 +318,47 @@ TitleLayoutFor :: (bounds: Rectangle, resumable: bool) -> TitleLayout {
     return result
 }
 RoundAction :: (session: Session, key: u64, text: string, bounds: Rectangle) -> bool {
-    return PlainButton(session, key, text, bounds, BUTTON_NORMAL)
+    return PlainButton(session, key, text, bounds, BUTTON_NORMAL, false, false)
+}
+
+WardrobeIconButton :: (session: Session, key: u64, bounds: Rectangle) -> bool {
+    unused Box(session, BoxProps.{.key = key + 30000, .bounds = bounds,
+        .fill = ColorFromPacked(0xf7f2e8ff), .border = ColorFromPacked(0x10203fff),
+        .radius = bounds.height * .5})
+    item := WearingAccessory()
+    source := Accessories.SourceContentBounds(item)
+    icon := Rectangle.{bounds.x + 8.0, bounds.y + 8.0, bounds.width - 16.0, bounds.height - 16.0}
+    unused Image(session, ImageProps.{.key = key + 1, .asset_path = Accessories.PreviewAssetPath(item),
+        .bounds = icon, .source = source, .smooth = true, .alt_text = "Wardrobe",
+        .fit = ImageFit.ImageFitContain})
+    if wardrobe_unseen {
+        unused Box(session, BoxProps.{.key = key + 2,
+            .bounds = Rectangle.{bounds.x + bounds.width - 18.0, bounds.y + 4.0, 12.0, 12.0},
+            .fill = ColorFromPacked(0xa82361ff), .border = ColorFromPacked(0xffffffff), .radius = 6.0})
+    }
+    return Button(session, ButtonProps.{.key = key, .id = cast(s32)key, .bounds = bounds,
+        .label = "Wardrobe", .invisible = true}) != 0
+}
+
+TitleBackdrop :: (session: Session, viewport: Rectangle) {
+    portrait := viewport.height > viewport.width
+    path := ifx portrait then "assets/choano/title-portrait.jpg" else "assets/choano/title-landscape.jpg"
+    if fish { path = ifx portrait then "assets/choano/fish/title-portrait.jpg" else "assets/choano/fish/title-landscape.jpg" }
+    extension: u32 = ifx fish then cast(u32)0x06324dff else cast(u32)0x0d6b83ff
+    unused Box(session, BoxProps.{.key = cast(u64)50100, .bounds = TitleBackdropBounds(viewport),
+        .fill = ColorFromPacked(extension)})
+    unused Image(session, ImageProps.{.key = cast(u64)50101, .asset_path = path,
+        .bounds = TitleBackdropBounds(viewport), .fit = ImageFit.ImageFitCover, .smooth = true,
+        .alt_text = "Choano title artwork"})
+    unused Image(session, ImageProps.{.key = cast(u64)50102, .asset_path = "assets/choano/title-logo.png",
+        .bounds = TitleLogoBounds(viewport), .fit = ImageFit.ImageFitContain, .smooth = true,
+        .alt_text = "Choano"})
 }
 // A game's top bar: deep water with a glowing edge, a rounded Back or Pause
 // button and a bold centred title.
 GameBar :: (session: Session, viewport: Rectangle, key: u64, title: string, leading: bool, playing: bool) -> bool {
     bounds := Rectangle.{viewport.x, viewport.y, viewport.width, BAR_HEIGHT}
+    if !leading { return false }
     unused Box(session, BoxProps.{.key = key, .bounds = bounds, .fill = ColorFromPacked(0x0a2438ff)})
     if leading {
         unused Box(session, BoxProps.{.key = key + 1,
@@ -290,13 +373,13 @@ GameBar :: (session: Session, viewport: Rectangle, key: u64, title: string, lead
     }
     if !leading { return false }
     label := ifx playing then "Pause" else "Back"
-    width := ButtonWidth(label)
+    width := ActionButtonWidth(label)
     return RoundAction(session, key + 3, ifx playing then "Pause" else "Back",
-        Rectangle.{bounds.x + 8.0, bounds.y + 4.0, width, 44.0})
+        Rectangle.{bounds.x + 8.0, bounds.y, width, 52.0})
 }
 HudVisible :: () -> bool { return state.running && state.page == Nav.GAME_PLAYING }
 
-Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64) -> Rectangle {
+LoadPreferences :: () {
     if !loaded {
         loaded = true
         saved := Prefs.Load()
@@ -311,7 +394,11 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64) -> Rect
         accessories_stage = saved.accessories_stage
         if fish_unlocked && accessories_stage < 10 { SetAccessoryProgress(10) }
     }
-    if key == 256 && wardrobe_open && state.page == Nav.GAME_TITLE { wardrobe_open = false }
+}
+
+Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64, full_viewport: Rectangle = .{}) -> Rectangle {
+    LoadPreferences()
+    if key == 256 && wardrobe_open { wardrobe_open = false }
     else if key == 256 { unused Back() }
     else if key == 32 && state.page == Nav.GAME_PLAYING { Nav.GameNavigationPause(*state) }
     else if key == 257 && state.page == Nav.GAME_TITLE { Start() }
@@ -326,28 +413,46 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64) -> Rect
     if state.page == Nav.GAME_SETTINGS { title = "SETTINGS" }
     if state.page == Nav.GAME_CONTROLS { title = "CONTROLS" }
     bar = Rectangle.{viewport.x, viewport.y, viewport.width, BAR_HEIGHT - 3.0}
+    if state.page == Nav.GAME_TITLE { TitleBackdrop(session, ifx full_viewport.width > 0.0 then full_viewport else viewport) }
     if GameBar(session, viewport, cast(u64)50000, title, state.page != Nav.GAME_TITLE, playing) { unused Back() }
-    right := viewport.x + viewport.width - 8.0
-    action_y := viewport.y + 4.0
-    if downloads_available && state.page == Nav.GAME_TITLE &&
-    Action(session, cast(u64)50012, "Downloads",
-        Rectangle.{right - ButtonWidth("Downloads"), action_y, ButtonWidth("Downloads"), 44.0}) {
-        downloads_requested = true
+    if playing {
+        if WardrobeIconButton(session, cast(u64)50014, GameWardrobeIconBounds(viewport)) {
+            wardrobe_open = true
+            wardrobe_unseen = false
+            Nav.GameNavigationPause(*state)
+        }
     }
-    if downloads_available && state.page == Nav.GAME_TITLE { right -= ButtonWidth("Downloads") + cast(float32)8.0 }
+    right := viewport.x + viewport.width - 8.0
+    action_y := viewport.y
+    if state.page == Nav.GAME_TITLE {
+        if WardrobeIconButton(session, cast(u64)50013, WardrobeIconBounds(viewport)) {
+            wardrobe_open = true
+            wardrobe_unseen = false
+        }
+        right -= 60.0
+    }
+    if settings_available {
+        settings_width := ActionButtonWidth("Settings")
+        if Action(session, cast(u64)50011, "Settings", Rectangle.{right - settings_width, action_y, settings_width, 52.0}) {
+            Nav.GameNavigationSettings(*state)
+        }
+        right -= settings_width + 8.0
+    }
+    downloads_width := ActionButtonWidth("Downloads")
+    download_clicked := false
+    if downloads_available && state.page == Nav.GAME_TITLE {
+        download_clicked = Action(session, cast(u64)50012, "Downloads",
+            Rectangle.{right - downloads_width, action_y, downloads_width, 52.0})
+        if download_clicked { downloads_requested = true }
+    }
+    if downloads_available && state.page == Nav.GAME_TITLE { right -= downloads_width + cast(float32)8.0 }
     if profile_available && !playing {
-        profile_width := ButtonWidth("Profile")
-        if Action(session, cast(u64)50010, "Profile", Rectangle.{right - profile_width, action_y, profile_width, 44.0}) {
+        profile_width := ActionButtonWidth("Profile")
+        if Action(session, cast(u64)50010, "Profile", Rectangle.{right - profile_width, action_y, profile_width, 52.0}) {
             profile_requested = true
             Nav.GameNavigationPause(*state)
         }
         right -= profile_width + 8.0
-    }
-    if settings_available {
-        settings_width := ButtonWidth("Settings")
-        if Action(session, cast(u64)50011, "Settings", Rectangle.{right - settings_width, action_y, settings_width, 44.0}) {
-            Nav.GameNavigationSettings(*state)
-        }
     }
     area = Rectangle.{viewport.x, viewport.y + BAR_HEIGHT, viewport.width, viewport.height - BAR_HEIGHT}
     return area
@@ -371,7 +476,7 @@ ModePicker :: (session: Session, bounds: Rectangle) {
 Mode :: (session: Session, key: u64, text: string, selected: bool, locked: bool, bounds: Rectangle) -> bool {
     active := selected && !locked
     return PlainButton(session, key, text, bounds, ifx active then BUTTON_SELECTED else BUTTON_NORMAL,
-        locked, false, active)
+        locked, false, active, true, locked)
 }
 Backdrop :: (session: Session) {
     if area.width <= 0.0 || area.height <= 0.0 { return }
@@ -404,22 +509,16 @@ Row :: (session: Session, bounds: Rectangle, row: s32, text: string, primary: bo
 }
 
 End :: (session: Session, now: float64, over: bool) {
-    if state.page == Nav.GAME_TITLE {
-        Backdrop(session)
+    if wardrobe_open {
+        Wardrobe(session)
+    } else if state.page == Nav.GAME_TITLE {
         resumable := state.running && !over && run_fish == fish
         layout := TitleLayoutFor(area, resumable)
-        if wardrobe_open {
-            Wardrobe(session)
-        } else {
-            if Action(session, cast(u64)50112, "Wardrobe", layout.wardrobe) {
-                wardrobe_open = true
-            }
-            ModePicker(session, layout.mode)
-            if resumable && Action(session, cast(u64)50111, "Continue", layout.continue_button) {
-                Nav.GameNavigationResume(*state)
-            }
-            if PrimaryAction(session, cast(u64)50110, ifx resumable then "New game" else "Play", layout.play) { Start() }
+        ModePicker(session, layout.mode)
+        if resumable && Action(session, cast(u64)50111, "Continue", layout.continue_button) {
+            Nav.GameNavigationResume(*state)
         }
+        if PrimaryAction(session, cast(u64)50110, ifx resumable then "New game" else "Play", layout.play) { Start() }
     } else if state.page == Nav.GAME_CONTROLS {
         if !WantsBoard() { Backdrop(session) }
         choice := Controls.GameControlsChoice(session, Controls.GameControlsProps.{.key = cast(u64)51000,
@@ -491,7 +590,6 @@ End :: (session: Session, now: float64, over: bool) {
 Wardrobe :: (session: Session) {
     width := area.width - 32.0
     if width > 560.0 { width = 560.0 }
-    if width < 500.0 { width = 500.0 }
     height: float32 = 292.0
     if area.height - 48.0 < height { height = area.height - 48.0 }
     bounds := Rectangle.{area.x + (area.width - width) * .5,
@@ -502,12 +600,12 @@ Wardrobe :: (session: Session) {
         .bounds = Rectangle.{bounds.x + 26.0, bounds.y + 14.0, width - 122.0, 32.0}})
     close_width := ButtonWidth("Close")
     if RoundAction(session, cast(u64)50302, "Close", Rectangle.{bounds.x + width - close_width - 16.0,
-        bounds.y + 10.0, close_width, 44.0}) {
+        bounds.y + 8.0, close_width, 52.0}) {
         wardrobe_open = false
     }
     card_width := (width - 32.0 - 16.0) / 3.0
     for id: cast(s32)0..Accessories.ACCESSORY_COUNT - 1 {
-        card := Rectangle.{bounds.x + 16.0 + cast(float32)id * (card_width + 8.0), bounds.y + 58.0, card_width, 216.0}
+        card := Rectangle.{bounds.x + 16.0 + cast(float32)id * (card_width + 8.0), bounds.y + 68.0, card_width, height - 80.0}
         if AccessoryCard(session, id, card) { SelectAccessory(id) }
     }
 }
@@ -519,6 +617,7 @@ AccessoryCard :: (session: Session, id: s32, bounds: Rectangle) -> bool {
         .border = ifx selected then ColorFromPacked(0xff8bc3ff) else ColorFromPacked(0x80cbd8cc), .radius = 20.0})
     size: float32 = 104.0
     if bounds.width - 20.0 < size { size = bounds.width - 20.0 }
+    if bounds.height - 112.0 < size { size = bounds.height - 112.0 }
     preview := Rectangle.{bounds.x + (bounds.width - size) * .5, bounds.y + 18.0, size, size}
     unused Box(session, BoxProps.{.key = cast(u64)(50330 + id), .bounds = preview,
         .fill = ColorFromPacked(0x0d3f57e8), .border = ColorFromPacked(0x54d2ec66), .radius = size * .5})
@@ -533,15 +632,15 @@ AccessoryCard :: (session: Session, id: s32, bounds: Rectangle) -> bool {
         .fit = ImageFit.ImageFitStretch})
     locked := !AccessoryAvailable(id)
     if PlainButton(session, cast(u64)(50360 + id), Accessories.Name(id),
-        Rectangle.{bounds.x + 10.0, bounds.y + 132.0, bounds.width - 20.0, 52.0},
-        ifx selected then BUTTON_SELECTED else BUTTON_NORMAL, locked, true, selected) { return true }
+        Rectangle.{bounds.x + 10.0, bounds.y + size + 28.0, bounds.width - 20.0, 52.0},
+        ifx selected then BUTTON_SELECTED else BUTTON_NORMAL, locked, false, selected) { return true }
     if locked {
         unused Text(session, TextProps.{.key = cast(u64)(50370 + id), .text = Accessories.UnlockHint(id),
-            .bounds = Rectangle.{bounds.x + 8.0, bounds.y + 182.0, bounds.width - 16.0, 28.0}, .font = 12,
+            .bounds = Rectangle.{bounds.x + 8.0, bounds.y + size + 80.0, bounds.width - 16.0, 28.0}, .font = 12,
             .align = TextAlign.TextAlignCenter})
     } else if selected {
         unused Text(session, TextProps.{.key = cast(u64)(50371 + id), .text = "Worn",
-            .bounds = Rectangle.{bounds.x + 8.0, bounds.y + 182.0, bounds.width - 16.0, 28.0}, .font = 12,
+            .bounds = Rectangle.{bounds.x + 8.0, bounds.y + size + 80.0, bounds.width - 16.0, 28.0}, .font = 12,
             .align = TextAlign.TextAlignCenter})
     }
     return false

@@ -1,3 +1,7 @@
+#if #defined(ANDROID_BUILD) || #defined(PLATFORM_ANDROID) || #defined(__ANDROID__) {
+    #import "kryon/android_device"
+    #import "kryon/AndroidSurface"
+}
 #import "kryon/session"
 #if !#defined(CHOANO_PORTABLE) {
     #import "kryon/tree_input"
@@ -487,7 +491,8 @@ NavigationPage :: () -> s32 { return Shell.Page() }
 // Account progress that already reached full size unlocks Fish mode quietly
 // on this device too.
 AccountProgress :: (highest_stage: s32) {
-    Shell.SetAccessoryProgress(highest_stage)
+    Shell.LoadPreferences()
+    Shell.SyncAccessoryGrowth(highest_stage)
     if highest_stage >= PLAYER_STAGE_LAST { unused Shell.Unlock() }
 }
 // Account growth counts the amoeba dish only.
@@ -523,7 +528,18 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     } else {
         key := KeyboardTake(session)
     }
-    area := Shell.Begin(session, viewport, key, now)
+    controls := viewport
+    #if #defined(ANDROID_BUILD) || #defined(PLATFORM_ANDROID) || #defined(__ANDROID__) {
+        insets: AndroidWindowInsets
+        unused GetAndroidWindowInsets(*insets)
+        safe := SafeAreaForPolicy(insets, AndroidViewportPolicySafeArea())
+        density := AndroidLayoutZoom()
+        controls = Rectangle.{viewport.x + cast(float32)safe.left / density,
+            viewport.y + cast(float32)safe.top / density,
+            viewport.width - cast(float32)(safe.left + safe.right) / density,
+            viewport.height - cast(float32)(safe.top + safe.bottom) / density}
+    }
+    area := Shell.Begin(session, controls, key, now, viewport)
     SoundSetMuted(Shell.muted)
     SoundMusic(Shell.Playing() && SharkAlert())
     if Shell.WantsBoard() { DrawGame(session, area) }

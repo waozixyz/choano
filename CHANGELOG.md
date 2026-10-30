@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Fill the title window with the original artwork and a separate fitted logo; keep title actions above the art and Android controls inside safe insets.
+- Preserve saved sound, mode, and accessory progress before merging account growth.
+- Use readable solid pills and an equipped-accessory wardrobe icon on the title and beside Pause.
+
 - Fill Fish mode in portrait and landscape, enlarge and color-size its sea life, and mark edible green versus dangerous red.
 - Dress the player in a persistent halo, ribbon, or crown, show progress toward the next amoeba size, and make the Swipe control choice clearer.
 - Make Amoeba creatures larger inside the full visible dish, keep every sprite inside its container, and soften cumulative growth.

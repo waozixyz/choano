@@ -101,8 +101,8 @@
     "assets/choano/fish/hunters-hd.png": "24250bf02d3fc7ba30f9f8707e35d44989b2a8c1d9216e524731a66ad95f747c",
     "assets/choano/fish/sea-animals-hd.png": "a35328ff90625fc82ec2244d958915a8cd8d075565185a682a667d8267d55dec",
     "assets/choano/fish/sea.png": "c34278ef52051515e4f2708493dfaff1a25b03c769084cf240b88ad437f4eba7",
-    "assets/choano/fish/title-landscape.jpg": "54cdacb46e3d0f5d7b9b2e577f535036c2d83e72b7d242b4552241fb78d1e597",
-    "assets/choano/fish/title-portrait.jpg": "05da8673c21014dbf433ef54474dbdb414742f949d1b8bd67e4ca5061392d092",
+    "assets/choano/fish/title-landscape.jpg": "51a690065647f47616ce181004399404313c7bf3110099fe912c3304a4546838",
+    "assets/choano/fish/title-portrait.jpg": "cdcc998bcf761cf591348b32021c034a2861f7ad5a2267d8786ab7248615788b",
     "assets/choano/fish/turtle-hd.png": "99876e53ae7c1081f575173682b8764a92ff2aeb7ead318dbddc6debe74d173e",
     "assets/choano/icon.png": "a43552d889ddc86a6a27ca80566661ca7240b1552068c497a3e7e9360bd56c7e",
     "assets/choano/icons/xyz.waozi.choano.full_size.shape": "c00e893b89afae749a30ac4bdb5c50b4a7d58f4211f11280d083c2bc76c31d51",
@@ -209,9 +209,10 @@
     "assets/choano/title-animation-7.png": "29fb20073e11ee7cd375b95c94c9a071d53e06d5cb762f7450d9b95104e20dc8",
     "assets/choano/title-animation-8.png": "51bb4430d889115538527996c862190a74a464025003c02293510e3527f94b4d",
     "assets/choano/title-animation-9.png": "4c5db715ce69ff691cf0a59ad2ad3e2ed62ab38878cabbc3994523b4d5029ab4",
-    "assets/choano/title-landscape.jpg": "1ca6e31c1062a7cca41bace4cf1bb221291988aea4a1dd61271899c2f5f28307",
-    "assets/choano/title-portrait.jpg": "47b07722c474a67ee4a06b7644a3aff211503674391e363c17eb06a34ce60d6c",
+    "assets/choano/title-landscape.jpg": "d1fc93aa345157fd24f11e9ad604ad4c46439fb8e77cd9ae92f97b1df1b8a8e7",
+    "assets/choano/title-logo.png": "7c628ed9f07cdf4b13266ef6ba7b10fc44e0bd64d93f50b6d03405520d3e147d",
+    "assets/choano/title-portrait.jpg": "71ba8222009858966f544cfa7d14724da39896c9b25aa7959150445669b32e83",
     "assets/choano/title-screen.png": "0aaacd2526d9dcbf585309833c276e53ef9641e44bcad7d6555334ac950875b6"
   },
-  "sha256": "e76dc7a1bf3e2469b652417a3ff47ce9b9d982edabb7760ed72e61f49055d964"
+  "sha256": "39aa13642646a874dbb528a867f1b7ee52ef178b9415a196a66f805be3d7a491"
 }

@@ -10,6 +10,31 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 
+def largest_pink_component(image, region):
+    active = bytearray(red > 180 and green < 120 and blue > 140 and red - green > 60
+                       for red, green, blue in image.crop(region).getdata())
+    visited = bytearray(len(active))
+    width, height = image.crop(region).size
+    largest = 0
+    for start, is_active in enumerate(active):
+        if not is_active or visited[start]:
+            continue
+        stack = [start]
+        visited[start] = 1
+        size = 0
+        while stack:
+            offset = stack.pop()
+            size += 1
+            y, x = divmod(offset, width)
+            for neighbor_y, neighbor_x in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
+                if 0 <= neighbor_y < height and 0 <= neighbor_x < width:
+                    neighbor = neighbor_y * width + neighbor_x
+                    if active[neighbor] and not visited[neighbor]:
+                        visited[neighbor] = 1
+                        stack.append(neighbor)
+        largest = max(largest, size)
+    return largest
+
 def jpeg_details(data):
     offset = 2
     while offset + 4 < len(data):
@@ -54,6 +79,25 @@ for name, digest in files.items():
                 alpha_bbox[0], alpha_bbox[1], width - alpha_bbox[2], height - alpha_bbox[3])), name
         if path.name == 'turtle-hd.png':
             assert (width, height) == (640, 427) and header[25] == 6, name
+        if path.name == 'title-logo.png':
+            assert width >= 2048 and header[25] == 6, name
+            with Image.open(path) as image:
+                assert image.mode == 'RGBA', name
+                alpha = image.getchannel('A')
+                alpha_bbox = alpha.getbbox()
+                assert alpha_bbox, name
+                margins = (alpha_bbox[0], alpha_bbox[1],
+                           width - alpha_bbox[2], height - alpha_bbox[3])
+                assert min(margins) > 0 and max(margins) - min(margins) <= 2, name
+                # Transparent space around/between letters, not an opaque panel.
+                artwork = image.crop(alpha_bbox)
+                artwork.thumbnail((512, 256))
+                pixels = list(artwork.getdata())
+                opaque = [(r, g, b) for r, g, b, a in pixels if a >= 250]
+                assert .35 < len(opaque) / len(pixels) < .88, name
+                assert sum(r > 150 and r - g > 40 and b > 70
+                           for r, g, b in opaque) > len(opaque) * .55, name
+                assert sum(max(r, g, b) < 110 for r, g, b in opaque) > len(opaque) * .005, name
         if path.name.startswith('blob-'):
             assert (width, height) == (39, 39) and header[25] == 6, name
     elif path.name == 'shark-music.wav':
@@ -81,7 +125,7 @@ for name, digest in files.items():
             assert len(set(raw)) > 1, name
             samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
             assert max(map(abs, samples)) <= .12 * 32767, 'Effect too loud: ' + name
-assert len([p for p in actual if p.endswith('.png')]) == 187
+assert len([p for p in actual if p.endswith('.png')]) == 188
 assert len([p for p in actual if p.endswith('.jpg')]) == 4
 assert len([p for p in actual if p.endswith('.wav')]) == 7
 assert not (ROOT / 'assets/original').exists()
@@ -98,21 +142,21 @@ for path in (ROOT / 'assets/choano/achievement-locales').glob('*.json'):
     assert {k for a in awards['achievements'] for k in (a['title_key'], a['description_key'])} <= set(values), path
     assert values.get('fish_first_hint', '').strip(), path
 assert '[dependencies.arcade]' not in (ROOT / 'ziran.toml').read_text()
-print('Choano local asset and package tests passed: 187 PNGs, 4 JPEG titles, 6 quiet chimes and the shark loop.')
-
-original_titles = {
-    'title-portrait.jpg': '47b07722c474a67ee4a06b7644a3aff211503674391e363c17eb06a34ce60d6c',
-    'title-landscape.jpg': '1ca6e31c1062a7cca41bace4cf1bb221291988aea4a1dd61271899c2f5f28307',
-    'fish/title-portrait.jpg': '05da8673c21014dbf433ef54474dbdb414742f949d1b8bd67e4ca5061392d092',
-    'fish/title-landscape.jpg': '54cdacb46e3d0f5d7b9b2e577f535036c2d83e72b7d242b4552241fb78d1e597',
+title_regions = {
+    'title-portrait.jpg': (78, 173, 941, 395),
+    'title-landscape.jpg': (280, 88, 1255, 320),
+    'fish/title-portrait.jpg': (40, 70, 980, 307),
+    'fish/title-landscape.jpg': (480, 25, 1035, 170),
 }
 for name, size in [('title-portrait.jpg', (1024, 1536)), ('title-landscape.jpg', (1536, 1024)),
                    ('fish/title-portrait.jpg', (1024, 1536)), ('fish/title-landscape.jpg', (1536, 1024))]:
     with Image.open(ROOT / 'assets/choano' / name) as image:
         assert image.mode == 'RGB' and image.size == size, name
-    assert hashlib.sha256((ROOT / 'assets/choano' / name).read_bytes()).hexdigest() == original_titles[name], name
+        assert largest_pink_component(image, title_regions[name]) < 1000, 'Baked logo remains: ' + name
 
 for name, minimum in [('organisms-hd.png',1254)]:
     with (ROOT / 'assets/choano' / name).open('rb') as handle:
         header=handle.read(33)
     assert min(struct.unpack('>II',header[16:24])) >= minimum, name
+
+print('Choano local asset and package tests passed: 188 PNGs, 4 JPEG titles, 6 quiet chimes and the shark loop.')

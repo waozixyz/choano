@@ -17,33 +17,51 @@ Clear :: (first: Rectangle, second: Rectangle) -> bool {
         first.y + first.height <= second.y || second.y + second.height <= first.y
 }
 
+Near :: (first: float32, second: float32, tolerance: float32 = 1.0) -> bool {
+    return first >= second - tolerance && first <= second + tolerance
+}
+
 main :: () -> s32 {
-    layouts: [3]Rectangle = .[.{0.0, 0.0, 720.0, 1560.0}, .{0.0, 0.0, 1560.0, 720.0},
-        .{0.0, 0.0, 900.0, 628.0}]
+    layouts: [4]Rectangle = .[.{0.0, 0.0, 720.0, 1560.0}, .{0.0, 0.0, 1560.0, 720.0},
+        .{0.0, 0.0, 900.0, 628.0}, .{18.0, 28.0, 376.0, 800.0}]
     for bounds: layouts {
         for resumable: 0..1 {
             layout := Shell.TitleLayoutFor(bounds, resumable == 1)
+            backdrop := Shell.TitleBackdropBounds(bounds)
+            logo := Shell.TitleLogoBounds(bounds)
+            icon := Shell.WardrobeIconBounds(bounds)
+            game_icon := Shell.GameWardrobeIconBounds(bounds)
+            if !Expect(backdrop.x == bounds.x && backdrop.y == bounds.y &&
+                backdrop.width == bounds.width && backdrop.height == bounds.height,
+                "title art covers the whole window") { return 1 }
+            if !Expect(Inside(logo, bounds) && logo.y >= 52.0 &&
+                logo.width <= bounds.width - 16.0,
+                "the separate title logo scales without cropping") { return 1 }
+            if !Expect(icon.width >= 48.0 && icon.height >= 48.0 && Inside(icon, bounds),
+                "the wardrobe icon is a safe tappable target") { return 1 }
+            if !Expect(game_icon.width == 52.0 && game_icon.height == 52.0 &&
+                game_icon.x > 8.0 && Inside(game_icon, bounds),
+                "the in-game wardrobe icon sits beside Pause") { return 1 }
             if !Expect(layout.mode.y >= layout.character_safe.y + layout.character_safe.height,
                 "title buttons do not cover the character safe zone") { return 1 }
-            if !Expect(Inside(layout.mode, bounds) && Inside(layout.wardrobe, bounds) &&
+            if !Expect(Inside(layout.mode, bounds) &&
                 Inside(layout.play, bounds), "title buttons stay on screen") { return 1 }
             if resumable == 1 && !Inside(layout.continue_button, bounds) { return 2 }
-            if !Expect(Clear(layout.mode, layout.character_safe) && Clear(layout.wardrobe, layout.character_safe) &&
+            if !Expect(Clear(layout.mode, layout.character_safe) &&
                 Clear(layout.play, layout.character_safe), "title controls avoid painted characters") { return 1 }
             if !Expect(layout.mode.width == 320.0 && layout.mode.height == 52.0 &&
-                layout.wardrobe.height == 52.0 && layout.play.height == 56.0,
+                layout.play.height == 56.0,
                 "title controls use fixed logical sizes and a taller Play button") { return 1 }
             if !Expect(layout.mode.x + layout.mode.width * .5 == bounds.x + bounds.width * .5,
                 "the segmented control is centered") { return 1 }
-            if !Expect(layout.wardrobe.width >= 140.0 && layout.wardrobe.width <= 320.0 &&
-                layout.play.width >= 220.0 && layout.play.width <= 320.0 &&
-                layout.wardrobe.y == layout.mode.y + 64.0,
+            if !Expect(layout.play.width >= 220.0 && layout.play.width <= 320.0 &&
+                Near(layout.play.y - layout.mode.y, ifx resumable == 1 then 132.0 else 68.0),
                 "hugging title buttons clamp their widths and keep their gaps") { return 1 }
             if resumable == 1 {
-                if !Expect(layout.continue_button.y == layout.wardrobe.y + 64.0 &&
-                    layout.play.y == layout.continue_button.y + 68.0,
+                if !Expect(layout.continue_button.y == layout.mode.y + 64.0 &&
+                    Near(layout.play.y - layout.continue_button.y, 68.0),
                     "resumable buttons keep fixed gaps") { return 1 }
-            } else if !Expect(layout.play.y == layout.wardrobe.y + 68.0,
+            } else if !Expect(Near(layout.play.y - layout.mode.y, 68.0),
                 "Play keeps its gap") { return 1 }
         }
     }

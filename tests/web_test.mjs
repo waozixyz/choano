@@ -1,16 +1,16 @@
 // Real browser input against a disposable headless Chromium profile.
 import {spawn} from 'node:child_process';
 import {createServer} from 'node:http';
-import {readFile,mkdtemp,rm,writeFile} from 'node:fs/promises';
-import {tmpdir} from 'node:os';
+import {readFile,mkdtemp,mkdir,rm,writeFile} from 'node:fs/promises';
 import {join,extname,resolve} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 const root=resolve(process.argv[2]||'build/web');
 const types={'.html':'text/html','.js':'text/javascript','.wasm':'application/wasm','.png':'image/png','.wav':'audio/wav','.json':'application/json'};
 const missing=[],errors=[];
-const server=createServer(async(req,res)=>{const url=new URL(req.url,'http://x');const path=url.pathname;try{if(['/game.js','/game.wasm','/assets/manifest.json'].includes(path)&&!url.searchParams.has('v'))throw Error('Unversioned cached asset');const file=resolve(root,'.'+(path==='/'?'/index.html':path));if(!file.startsWith(root+'/'))throw Error('Path');const data=await readFile(file);res.writeHead(200,{'Content-Type':types[extname(file)]||'application/octet-stream'});res.end(data)}catch{missing.push(path);res.writeHead(404);res.end()}});
+const server=createServer(async(req,res)=>{const url=new URL(req.url,'http://x');const path=url.pathname;if(path==='/browser-storage.html'){res.writeHead(200,{'Content-Type':'text/html'});res.end('<!doctype html><title>Browser storage setup</title><link rel="icon" href="/assets/choano/icon.png">');return}try{if(['/game.js','/game.wasm','/assets/manifest.json'].includes(path)&&!url.searchParams.has('v'))throw Error('Unversioned cached asset');const file=resolve(root,'.'+(path==='/'?'/index.html':path));if(!file.startsWith(root+'/'))throw Error('Path');const data=await readFile(file);res.writeHead(200,{'Content-Type':types[extname(file)]||'application/octet-stream'});res.end(data)}catch{missing.push(path);res.writeHead(404);res.end()}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
-const profile=await mkdtemp(join(tmpdir(),'choano-browser-'));
+await mkdir('work',{recursive:true});
+const profile=await mkdtemp(resolve('work/choano-browser-'));
 const env={...process.env,YUE_DESKTOP_RECOVERY:'0'};for(const key of ['DISPLAY','WAYLAND_DISPLAY','XAUTHORITY','DBUS_SESSION_BUS_ADDRESS','SESSION_MANAGER'])delete env[key];
 const browser=spawn(process.env.CHROMIUM||'chromium',['--headless=new','--mute-audio','--no-sandbox','--disable-dev-shm-usage','--no-first-run','--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],{env,stdio:['ignore','ignore','pipe']});
 let browserFailure='',browserDiagnostics='';browser.on('error',error=>{browserFailure=error.message});browser.stderr.on('data',chunk=>{browserDiagnostics=(browserDiagnostics+chunk).slice(-2000)});
@@ -48,8 +48,8 @@ try{
   await command('Input.dispatchMouseEvent',{type:'mousePressed',x:before[0],y:before[1],button:'left',clickCount:1});await command('Input.dispatchMouseEvent',{type:'mouseReleased',x:before[0],y:before[1],button:'left',clickCount:1});await delay(200);
   if(Math.hypot(...(await where()).map((value,index)=>value-before[index]))>1)throw Error(label+': pointer movement or a click restarted the player');
  };
- const turns=async(label,ox,oy)=>{
-  await press('r','KeyR',82);await until('Math.abs(Module.choanoX-245)<1 && Math.abs(Module.choanoY-209)<1');await delay(100);
+ const turns=async(label,ox,oy,spawn=[245,209])=>{
+  await press('r','KeyR',82);await until(`Math.abs(Module.choanoX-${spawn[0]})<1 && Math.abs(Module.choanoY-${spawn[1]})<1`);await delay(100);
   await touch('touchStart',ox,oy);await delay(80);for(const x of [ox+60,ox+120,ox+180]){await touch('touchMove',x,oy);await delay(60)}await delay(250);
   const d=Math.SQRT1_2,legs=[['below the pad',0,1],['above the pad',0,-1],['left',-1,0],['right',1,0],['down-right',d,d],['up-left',-d,-d],['down-left',-d,d],['up-right',d,-d]];
   for(const [name,x,y] of legs){
@@ -61,11 +61,31 @@ try{
  };
  const shot=async path=>{if(path){const result=await command('Page.captureScreenshot',{format:'png'});await writeFile(path,Buffer.from(result.data,'base64'))}};
  const dimensions=()=>evaluate('({w:Module.canvas.clientWidth,h:Module.canvas.clientHeight})');
- // Clicks where the title's Downloads sits, left of Profile and Settings. The
+ // Match shell.zi's compact top action geometry.
+ const actionWidth=text=>Math.max(72,24+[...text].reduce((sum,c)=>sum+(' iIljtfr.,:'.includes(c)||c==="'"?5:'mwWM'.includes(c)?16:10),0));
+ const actionCenter=(width,label,title=false)=>{
+  let right=width-8-(title?60:0);
+  for(const text of ['Settings',...(title?['Downloads']:[]),'Profile']){
+   if(text===label)return right-actionWidth(text)/2;
+   right-=actionWidth(text)+8;
+  }
+  throw Error('Unknown action '+label);
+ };
+ const wardrobe=async title=>{
+  const {w}=await dimensions();
+  await click(title?w-34:16+actionWidth('Pause')+26,26);
+  await until('Module.choanoWardrobeOpen');
+  if(await evaluate('Module.choanoPage')!==(title?0:2))throw Error('Wardrobe did not preserve title/pause play');
+  const position=await where();await delay(350);
+  if(!title&&Math.hypot(...(await where()).map((v,i)=>v-position[i]))>.1)throw Error('Wardrobe advanced the game');
+  await press('Escape','Escape',27);await until('!Module.choanoWardrobeOpen');
+  if(!title){if(await evaluate('Module.choanoPage')!==2)throw Error('Closing wardrobe resumed play');await press('Escape','Escape',27);await until('Module.choanoPage===1')}
+ };
+ // Clicks where the title's compact Downloads pill sits, left of Settings and the wardrobe. The
  // new tab it opens is caught and cancelled, so nothing leaves this profile.
  const download=async()=>{
   await evaluate(`globalThis.caught||(globalThis.caught=[],addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a');if(a){caught.push({href:a.href,target:a.target,rel:a.rel});e.preventDefault()}},true)),true`);
-  await click((await dimensions()).w-224,26);await delay(150);return evaluate('caught.splice(0)')};
+  await click(actionCenter((await dimensions()).w,'Downloads',true),26);await delay(150);return evaluate('caught.splice(0)')};
  const downloadsOpen=async label=>{
   const opened=await download();
   if(opened.length!==1||opened[0].href!=='https://github.com/waozixyz/choano/releases/latest'||opened[0].target!=='_blank'||!opened[0].rel.includes('noopener'))throw Error(label+': Downloads did not open the latest release in a new tab: '+JSON.stringify(opened));
@@ -76,10 +96,11 @@ try{
  if(!await evaluate('Module.FS.stat("/assets/choano/organisms-hd.png").size>1000000'))throw Error('High-resolution organisms not loaded');
  if(!await evaluate('document.querySelectorAll("header,footer,button,#loading").length===0 && Module.canvas.clientWidth===innerWidth && Module.canvas.clientHeight===innerHeight'))throw Error('HTML app chrome remains');
  await shot(process.env.CHOANO_SCREENSHOT);
- await downloadsOpen('landscape title');
+ await downloadsOpen('landscape title');await wardrobe(true);
  await press('ArrowRight','ArrowRight',39);await delay(150);
- let size=await dimensions();await click(size.w/2,52+(size.h-52)*.75+24);await until('Module.choanoPage===1 && Math.abs(Module.choanoX-245)<1');
+ let size=await dimensions();await click(size.w/2,size.h-44);await until('Module.choanoPage===1 && Math.abs(Module.choanoX-245)<1');
  if(await evaluate('Module.choanoMode')!==0)throw Error('Fish mode was playable before it was earned');
+ await wardrobe(false);
  await downloadsHidden('during play');if(await evaluate('Module.choanoPage')!==1)throw Error('A click in the top bar left the game');
  if(await evaluate("(Module.music(true),Module.musicOn===true&&Module.loop.loop===true&&(Module.music(false),Module.loop.paused))")!==true)throw Error('The shark loop does not start and stop');
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.game.png');
@@ -100,30 +121,47 @@ try{
  await turns('Amoeba landscape',300,200);if(await evaluate('Module.choanoDishFrame')!==false)throw Error('The landscape dish took the portrait rim');
  await press('Escape','Escape',27);await until('Module.choanoPage===2');const paused=await evaluate('Module.choanoX');await delay(350);if(await evaluate('Module.choanoX')!==paused)throw Error('Pause advanced the game');
  await downloadsHidden('while paused');
- await click(size.w-48,26);await until('Module.choanoPage===3');await click(size.w/2,52+(size.h-52-194)/2+38);await until('Module.choanoPage===4');
+ await click(actionCenter(size.w,'Settings'),26);await until('Module.choanoPage===3');await click(size.w/2,52+(size.h-52-212)/2+42);await until('Module.choanoPage===4');
  await press('2','Digit2',50);await until('Module.choanoPage===3');await press('Escape','Escape',27);await until('Module.choanoPage===2');await press('Escape','Escape',27);await until('Module.choanoPage===1');
- await press('Escape','Escape',27);await until('Module.choanoPage===2');await click(size.w-130,26);await until('Module.profileVisible');await press('Escape','Escape',27);await until('!Module.profileVisible');await delay(150);await press('Escape','Escape',27);await until('Module.choanoPage===1');await delay(150);
+ await press('Escape','Escape',27);await until('Module.choanoPage===2');await click(actionCenter(size.w,'Profile'),26);await until('Module.profileVisible');await press('Escape','Escape',27);await until('!Module.profileVisible');await delay(150);await press('Escape','Escape',27);await until('Module.choanoPage===1');await delay(150);
  await press('r','KeyR',82);await until('Math.abs(Module.choanoX-245)<1');
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.game.png');
  await command('Emulation.setDeviceMetricsOverride',{width:390,height:740,deviceScaleFactor:1,mobile:true});await delay(350);
  const touchBefore=await evaluate('Module.choanoX');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:165,y:630}]});await delay(350);await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  if(await evaluate('Module.choanoX')-touchBefore<8)throw Error('In-app direction pad did not swim right');
  await press('m','KeyM',77);await until('Module.muted');await delay(1500);
- await command('Page.reload');await until('Module.choanoReady && Module.choanoPage===0');await delay(300);await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.portrait.png');
- await downloadsOpen('portrait title');
+ await command('Page.reload');await until('globalThis.Module?.choanoReady && Module.choanoPage===0');await delay(300);await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.portrait.png');
+ await downloadsOpen('portrait title');await wardrobe(true);
  if(!await evaluate('Module.muted'))throw Error('Sound preference was not retained');
  await press('Enter','Enter',13);await until('Module.choanoPage===1');
  // Swipe steering again, in portrait, then Fish mode as if earned.
- const prefer=async text=>{await evaluate(`(Module.FS.writeFile('/kryon-apps/choano/preferences.v1','${text}'),new Promise(r=>Module.FS.syncfs(false,r)))`);await command('Page.reload');await until('Module.choanoReady && Module.choanoPage===0');await delay(300);await press('Enter','Enter',13);await until('Module.choanoPage===1');await delay(200)};
+ // Stop the app before replacing its IDBFS record so its in-memory settings
+ // cannot overwrite the seed. Preserve the real saved entry’s filesystem metadata.
+ const prefer=async text=>{
+  await command('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/browser-storage.html`});
+  await until('document.title==="Browser storage setup"');
+  await evaluate(`new Promise((resolve,reject)=>{
+   const request=indexedDB.open('/kryon-apps');request.onerror=()=>reject(request.error);
+   request.onsuccess=()=>{const db=request.result,tx=db.transaction('FILE_DATA','readwrite'),store=tx.objectStore('FILE_DATA');
+    const entry=store.get('/kryon-apps/choano/preferences.v1');
+    entry.onsuccess=()=>{if(!entry.result){tx.abort();return}store.put({...entry.result,contents:new TextEncoder().encode(${JSON.stringify(text)}),timestamp:new Date()},'/kryon-apps/choano/preferences.v1')};
+    tx.oncomplete=()=>{db.close();resolve(true)};tx.onabort=tx.onerror=()=>{db.close();reject(Error('Could not seed existing preferences'))};
+   };
+  })`);
+  await command('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});
+  await until('globalThis.Module?.choanoReady && Module.choanoPage===0');await delay(300);
+  await press('Enter','Enter',13);await until('Module.choanoPage===1');await delay(200);
+ };
  // A tall phone textures the whole area and rims the arena; the sea keeps its shape.
  await command('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
  await prefer('1s110');if(await evaluate('Module.choanoMode')!==0)throw Error('Amoeba mode did not start');
  if(await evaluate('Module.choanoDishFrame')!==true)throw Error('The portrait dish has no rimmed arena');
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.portrait-game.png');await turns('Amoeba portrait',195,400);
- await prefer('1s111');if(await evaluate('Module.choanoMode')!==1)throw Error('Fish mode did not start once earned');if(await evaluate('Module.choanoDishFrame')!==false)throw Error('Fish mode kept the dish rim');await turns('Fish portrait',195,400);
- await command('Emulation.clearDeviceMetricsOverride');await delay(350);await press('r','KeyR',82);await delay(200);await turns('Fish landscape',300,200);
+ await prefer('1s111');
+ if(await evaluate('Module.choanoMode')!==1)throw Error('Fish mode did not start once earned');if(await evaluate('Module.choanoDishFrame')!==false)throw Error('Fish mode kept the dish rim');await turns('Fish portrait',195,400,await where());
+ await command('Emulation.clearDeviceMetricsOverride');await delay(350);await press('r','KeyR',82);await delay(200);await turns('Fish landscape',300,200,await where());
  if(missing.length)throw Error('Missing assets: '+missing.join(', '));if(errors.length)throw Error(errors.join('\n'));
- console.log('Choano local browser tests passed: app title/chrome, title-only Downloads to the latest release, locked Fish mode, choice, keyboard/click no start/held free touch steering/clean turns after long drags in Amoeba and Fish, landscape and portrait/round landscape and rimmed portrait dish/release glide/tap no start/pad, pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
+ console.log('Choano local browser tests passed: app title/chrome, title-only Downloads to the latest release, locked Fish mode, choice, keyboard/click no start/held free touch steering/clean turns after long drags in Amoeba and Fish, landscape and portrait/round landscape and rimmed portrait dish/release glide/tap no start/pad, title and playing wardrobe/pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
 }finally{
  const exited=!browser.pid||browser.exitCode!==null?Promise.resolve():new Promise(r=>browser.once('exit',r));
  if(socket?.readyState===WebSocket.OPEN)await command('Browser.close').catch(()=>{});

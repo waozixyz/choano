@@ -19,6 +19,7 @@ Entity :: #import "entity/native_host";
 App :: #import "app";
 Game :: #import "game";
 Progress :: #import "progress";
+Shell :: #import "shell";
 
 #program_export
 ClockMillisecondsHost :: () -> s64 { return cast(s64)PageNow() }
@@ -88,6 +89,7 @@ main :: () -> s32 {
                 visible = true
                 App.PauseClock()
             }
+            WebSet(WebModule, WebName("choanoWardrobeOpen"), WebBool(Shell.wardrobe_open))
             WebSet(WebModule, WebName("choanoPage"), WebNumber(cast(float64)App.NavigationPage()))
             WebSet(WebModule, WebName("choanoScore"), WebNumber(cast(float64)Game.game.score))
             WebSet(WebModule, WebName("choanoX"), WebNumber(cast(float64)Game.game.player_x))
