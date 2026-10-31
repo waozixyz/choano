@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build Choano from its locked shared packages; Arcade only consumes it."""
 import argparse
-import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -24,33 +24,23 @@ def package(name):
     return Path(subprocess.check_output([ZIRAN, 'pkg', 'path', name, *LOCKED], text=True).strip())
 
 
-def renderer_links(descriptor):
-    artifact = descriptor.parent.resolve()
-    rows = dict(line.split('\t', 1) for line in descriptor.read_text().splitlines())
-    if any(rows.get(key) != value for key, value in
-           {'schema': '1', 'artifact': 'renderer-raylib', 'platform': 'linux-x86_64-gnu'}.items()):
-        raise RuntimeError('Unexpected renderer artifact descriptor')
-    def verified(relative):
-        path = (artifact / relative).resolve()
-        if not path.is_relative_to(artifact):
-            raise RuntimeError('Renderer output escapes artifact')
-        with path.open('rb') as source:
-            digest = hashlib.file_digest(source, 'sha256').hexdigest()
-        if rows.get(relative) != digest:
-            raise RuntimeError('Renderer output hash mismatch: ' + relative)
-        return path
-    metadata = json.loads(verified('renderer.json').read_text())
-    if metadata['schema'] != 1 or metadata['platform'] != 'linux-x86_64-gnu':
-        raise RuntimeError('Unexpected MediaAudio renderer artifact')
-    return [str(verified(path)) for path in metadata['archives']] + metadata['link_flags']
+def shared_script(owner, name):
+    spec = importlib.util.spec_from_file_location(name, package(owner) / 'scripts' / (name + '.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def renderer_links():
+    artifacts = shared_script('ziran', 'ziran_artifacts')
+    renderers = shared_script('kryon', 'renderer_artifact')
+    artifact = artifacts.request('kryon:renderer-raylib', 'linux-x86_64-gnu', project=ROOT, ziran=ZIRAN)
+    return renderers.renderer_link(renderers.renderer_metadata(artifact), preloads=False)
 
 
 def native():
-    # The desktop renderer and MediaAudio provider have separate link inputs.
-    artifact = Path(subprocess.check_output([ZIRAN, 'pkg', 'artifact',
-        'kryon:renderer-raylib', '--platform', 'linux-x86_64-gnu', *LOCKED], text=True).strip())
     # Preserve dependency-owned archive order before its platform libraries.
-    links = renderer_links(artifact)
+    links = renderer_links()
     links.extend(shlex.split(os.environ.get('LDLIBS', '')))
     run(ZIRAN, 'build', '--project', *LOCKED, 'native',
         env={**os.environ, 'LDLIBS': shlex.join(links)})
