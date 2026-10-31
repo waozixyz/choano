@@ -29,6 +29,11 @@
       "file": "assets/choano/shop.png",
       "prompt": "One game UI Shop icon for Choano. Match the existing Settings gear glossy hand-painted bubbly illustration, pink highlights and dark plum outline, without neon rim or glow. An unmistakable friendly market stall, frontal view, pink and soft aqua striped awning, rounded counter and golden crown on the counter. No letters, words, currency, people or scenery. Strong simple silhouette readable at 48 logical pixels. Free-standing object on genuine transparent background, even padding, no white circle, button plate or badge.",
       "source": "Generated with built-in imagegen through Harmony generate_image using assets/choano/gear.png as the style reference. Original 1254 by 1254 RGBA. Cropped to 1000 by 1000 at (127,127), resized to 820 by 820 and centered on a transparent 1024 by 1024 canvas; original colors and alpha retained."
+    },
+    {
+      "file": "assets/choano/accessory-ribbon.png",
+      "prompt": "Replace the erroneous golden halo with a red-pink satin ribbon bow with two fabric loops, center knot and two short tails; glossy hand-painted 2D Choano game sprite. Square 512x512 RGBA, transparent background, bow centered in the upper half within x96..416,y32..300; lower half transparent; no creature, text or extra items.",
+      "source": "Built-in imagegen through Harmony generate_image; generated 512x512 RGBA PNG copied without pixel changes. Alpha bounds (96,48)-(416,231)."
     }
   ]
 }

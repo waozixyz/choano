@@ -37,3 +37,26 @@ Choano
 [choano_settings_save_error]
 Не удалось сохранить
 ---
+[choano_shop_halo]
+Нимб
+---
+[choano_shop_ribbon]
+Бант
+---
+[choano_shop_crown]
+Корона
+---
+[choano_shop_halo_requirement]
+Доступен с начала
+---
+[choano_shop_ribbon_requirement]
+Достигните размера 5
+в режиме «Амёба»
+---
+[choano_shop_crown_requirement]
+Достигните полного размера (9)
+в режиме «Амёба»
+---
+[choano_shop_close]
+Закрыть
+---

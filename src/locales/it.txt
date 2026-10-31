@@ -37,3 +37,26 @@ Fatto
 [choano_settings_save_error]
 Salvataggio non riuscito
 ---
+[choano_shop_halo]
+Aureola
+---
+[choano_shop_ribbon]
+Fiocco
+---
+[choano_shop_crown]
+Corona
+---
+[choano_shop_halo_requirement]
+Disponibile dall’inizio
+---
+[choano_shop_ribbon_requirement]
+Raggiungi la dimensione 5
+in Ameba
+---
+[choano_shop_crown_requirement]
+Raggiungi la dimensione massima (9)
+in Ameba
+---
+[choano_shop_close]
+Chiudi
+---

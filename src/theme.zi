@@ -1,0 +1,36 @@
+// Parse once; every rendering host receives the same KSS-derived palette.
+using Styles :: #import "kss/Kss";
+Source :: #import "theme_source";
+#import "kryon/widget_palette"
+#import "kryon/session"
+
+loaded: bool;
+palette: WidgetPalette;
+
+Load :: (path: string) -> bool {
+    if path != Source.PATH { return false }
+    if loaded { return true }
+    parsed := ParseStyleRules(BeginStyleRules(Source.SOURCE, path, KssDefaultEnvironment()))
+    if parsed.overflow || parsed.parser.status != cast(s32)Styles.KssStatus.KssStatusDone { return false }
+    canvas := KssColorTokenValue(parsed.parser, "canvas")
+    surface := KssColorTokenValue(parsed.parser, "surface")
+    text := KssColorTokenValue(parsed.parser, "text")
+    accent := KssColorTokenValue(parsed.parser, "accent")
+    ink := KssColorTokenValue(parsed.parser, "accent-ink")
+    border := KssColorTokenValue(parsed.parser, "border")
+    danger := KssColorTokenValue(parsed.parser, "danger")
+    warning := KssColorTokenValue(parsed.parser, "warning")
+    success := KssColorTokenValue(parsed.parser, "success")
+    if !canvas.found || !surface.found || !text.found || !accent.found || !ink.found ||
+        !border.found || !danger.found || !warning.found || !success.found { return false }
+    palette = .{.background = canvas.color, .base = surface.color, .text = text.color,
+        .selected = accent.color, .selected_text = ink.color, .border = border.color,
+        .danger = danger.color, .warning = warning.color, .success = success.color}
+    loaded = true
+    return true
+}
+
+Use :: (session: Session, path: string) -> bool {
+    if !Load(path) { return false }
+    return WidgetPaletteUse(session, palette)
+}

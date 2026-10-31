@@ -37,3 +37,26 @@ Terminé
 [choano_settings_save_error]
 Impossible d’enregistrer
 ---
+[choano_shop_halo]
+Auréole
+---
+[choano_shop_ribbon]
+Ruban
+---
+[choano_shop_crown]
+Couronne
+---
+[choano_shop_halo_requirement]
+Disponible dès le début
+---
+[choano_shop_ribbon_requirement]
+Atteignez la taille 5
+en Amibe
+---
+[choano_shop_crown_requirement]
+Atteignez la taille maximale (9)
+en Amibe
+---
+[choano_shop_close]
+Fermer
+---

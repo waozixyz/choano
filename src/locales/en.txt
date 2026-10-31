@@ -37,3 +37,26 @@ Done
 [choano_settings_save_error]
 Could not save settings
 ---
+[choano_shop_halo]
+Halo
+---
+[choano_shop_ribbon]
+Ribbon
+---
+[choano_shop_crown]
+Crown
+---
+[choano_shop_halo_requirement]
+Available from start
+---
+[choano_shop_ribbon_requirement]
+Reach size 5
+in Amoeba
+---
+[choano_shop_crown_requirement]
+Reach full size (9)
+in Amoeba
+---
+[choano_shop_close]
+Close
+---

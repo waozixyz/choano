@@ -1,0 +1,42 @@
+Theme :: #import "theme";
+#import "kryon/Desktop"
+#import "kryon/app_context_host"
+#import "kryon/hosted_values"
+#import "std/c_string"
+#import "std/bundle_host"
+#import "kryon/session"
+#import "kryon/widget_palette"
+
+// This is the actual host protocol used by Entity's AppThemeColor calls.
+ProfileColor :: (token: string) -> u32 {
+    context: AppContext
+    module_name: [32]u8
+    function_name: [32]u8
+    unused CopyCString("app_theme", module_name[:])
+    unused CopyCString("AppThemeColorHost", function_name[:])
+    argument := HostValue.{.kind = cast(s32)HostValueKind.HostString,
+        .type_name = HostTextData("string"), .data = HostTextData(token), .length = cast(usize)token.count}
+    result: HostValue
+    if AppContextCall(cast(*void)(*context), *module_name[0], *function_name[0], *argument, 1, *result) != 1 { return 0 }
+    return cast(u32)result.integer
+}
+
+main :: () -> s32 {
+    session := SessionOpen()
+    defer { unused SessionClose(session) }
+    host := WidgetPalette.{.background = 0x112233ff, .base = 0x334455ff, .text = 0xffeeddff}
+    if !WidgetPaletteUse(session, host) { return 1 }
+    if !Theme.Use(session, "src/choano.kss") { return 2 }
+    if ProfileColor("canvas") != cast(u32)0x051120ff || ProfileColor("text") != cast(u32)0xdbeaffff { return 3 }
+    // A button's palette must return to the KSS theme, for shop/HUD labels
+    // and AppThemeColor queries made by shared Entity Profile alike.
+    if !WidgetPaletteUse(session, WidgetPalette.{.background = 0xf7f2e8ff, .text = 0x10203fff}) { return 4 }
+    if !WidgetPaletteRestore(session) || ProfileColor("canvas") != cast(u32)0x051120ff ||
+        ProfileColor("text") != cast(u32)0xdbeaffff || ProfileColor("surface") != cast(u32)0x162b42ff || ProfileColor("accent") != cast(u32)0x99ccffff { return 5 }
+    if !WidgetPaletteRestore(session) || ProfileColor("canvas") != cast(u32)0x112233ff ||
+        ProfileColor("text") != cast(u32)0xffeeddff { return 6 }
+    if !WidgetPaletteRestore(session) { return 7 }
+    if Theme.Use(session, "missing.kss") { return 8 }
+    print("Choano local KSS theme and nested module color tests passed.\n")
+    return 0
+}

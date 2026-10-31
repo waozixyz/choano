@@ -17,12 +17,12 @@ test_clock: s64 = 1000;
 #program_export
 ClockMillisecondsHost :: () -> s64 { test_clock += 16; return test_clock }
 
-Step :: (session: Session, sample: FrameInputSnapshot, key: s32 = 0) -> bool {
+Step :: (session: Session, sample: FrameInputSnapshot, key: s32 = 0, advance: bool = false) -> bool {
     if !FrameInputBegin(session, sample) { return false }
     defer { FrameInputEnd(session) }
     unused KeyboardSend(session, key)
     if BeginFrame(session, cast(u64)1, .{0.0, 0.0, 900.0, 680.0}) != FrameStatus.FrameOk { return false }
-    App.last_tick = -1.0
+    App.last_tick = ifx advance then cast(float64)test_clock / 1000.0 else -1.0
     ok := App.Frame(session, .{0.0, 0.0, 900.0, 680.0}) == 0
     TreeCancel(session)
     return ok
@@ -68,7 +68,7 @@ main :: () -> s32 {
     frame.keys[88] = cast(u8)FrameKeyHeld
     Game.game.dash_cooldown = 0.0; Game.game.dash_timer = 0.0
     if !Step(session, frame) || !Expect(Game.game.dash_timer == 0.0, "held X alone does not invent dash events") { return 1 }
-    if !Step(session, frame, 88) || !Expect(Game.game.dash_timer > 0.0, "legacy X event still dashes") { return 1 }
+    if !Step(session, frame, 88, true) || !Expect(Game.game.dash_timer > 0.0, "legacy X event still dashes") { return 1 }
     before := Game.game.player_x
     if !Step(session, frame, 32) || !Expect(!Shell.Playing() && Game.game.player_x == before, "Pause freezes run") { return 1 }
     if !Expect(App.NavigateBack(), "Back resumes") || !Step(session, frame) || !Expect(Shell.Playing(), "same run resumes") { return 1 }

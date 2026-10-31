@@ -37,3 +37,26 @@ Choano
 [choano_settings_save_error]
 설정을 저장하지 못했습니다
 ---
+[choano_shop_halo]
+후광
+---
+[choano_shop_ribbon]
+리본
+---
+[choano_shop_crown]
+왕관
+---
+[choano_shop_halo_requirement]
+처음부터 사용 가능
+---
+[choano_shop_ribbon_requirement]
+아메바에서
+크기 5 달성
+---
+[choano_shop_crown_requirement]
+아메바에서
+최대 크기(9) 달성
+---
+[choano_shop_close]
+닫기
+---

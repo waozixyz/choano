@@ -1,0 +1,16 @@
+// Choano's shared theme. The game and embedded modules use this one sheet.
+@pack choano;
+tokens {
+  color {
+    canvas: #051120;
+    surface: #162b42;
+    card: #162b42;
+    text: #dbeaff;
+    accent: #99ccff;
+    accent-ink: #051120;
+    border: #709fc5;
+    danger: #ff8888;
+    warning: #ffd080;
+    success: #80ddbb;
+  }
+}

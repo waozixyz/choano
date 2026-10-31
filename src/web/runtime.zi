@@ -12,6 +12,7 @@ using Canvas :: #import "kryon/Canvas";
 #import "kryon/text_input_props"
 #import "kryon/text_props"
 #import "kryon/text_widget"
+#import "kryon/widget_palette"
 #import "kryon/button_props"
 #import "kryon/button_widget"
 #import "kryon/open_uri"
@@ -69,15 +70,20 @@ main :: () -> s32 {
         BeginCanvasFrame()
         if BeginFrame(session, cast(u64)1, viewport) != FrameStatus.FrameOk { return 1 }
         if visible {
+            App.UsePalette(session)
             unused KeyboardTake(session)
             App.PauseClock()
             typed: [1024]u8
             input := TextFieldInputFor(key, CanvasModifiers(), TypedTextTake(session, typed[:]))
             bounds := Rectangle.{0.0, 52.0, viewport.width, viewport.height - 52.0}
-            if !Entity.EntityHostFrame(session, bounds, key, CanvasModifiers(), input, true) { return 1 }
+            if !Entity.EntityHostFrame(session, bounds, key, CanvasModifiers(), input, true) {
+                unused WidgetPaletteRestore(session)
+                return 1
+            }
             if App.ProfileHeader(session, viewport) || key == 256 {
                 if !Entity.EntityHostBack() && Entity.EntityHostSave() { visible = false }
             }
+            unused WidgetPaletteRestore(session)
         } else {
             now := PageNow() / 1000.0
             if Progress.ProgressPump(now, App.AmoebaStage(), cast(s64)(WebAsNumber(WebCall0(WebGetObject(WebGlobal, WebName("Date")), WebName("now"))) / 1000.0), !App.ProgressPlaying()) {

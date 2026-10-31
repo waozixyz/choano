@@ -77,6 +77,12 @@ for name, digest in files.items():
                 alpha_bbox = image.convert('RGBA').getchannel('A').getbbox()
             assert alpha_bbox and all(margin > 0 for margin in (
                 alpha_bbox[0], alpha_bbox[1], width - alpha_bbox[2], height - alpha_bbox[3])), name
+            if path.name == 'accessory-ribbon.png':
+                with Image.open(path) as ribbon:
+                    opaque = [pixel for pixel in ribbon.convert('RGBA').getdata() if pixel[3] >= 240]
+                assert opaque and sum(r > 150 and r > g * 1.5 and b > g
+                                      for r, g, b, a in opaque) > len(opaque) * .6, \
+                    'The ribbon must be the red-pink satin bow, not a second golden halo'
         if path.name == 'turtle-hd.png':
             assert (width, height) == (640, 427) and header[25] == 6, name
         if path.name == 'title-logo.png':

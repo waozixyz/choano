@@ -1,7 +1,13 @@
 # Changelog
 
-## Unreleased
+## [0.1.5] - 2026-10-31
 
+- Carry Choano’s theme into Profile and keep labels readable after using buttons.
+- Show headwear unlock requirements clearly in the Shop, and replace the mistaken halo with a satin ribbon bow.
+- Make edible creatures a little smaller while keeping larger threats easy to judge.
+- Keep headwear attached as the player bobs, breathes, turns and leans.
+- Give the score and growth meter separate rows, including on narrow screens.
+- Keep swimming, enemy movement and game timing consistent across device frame rates.
 - Play the existing event chimes and shark loop through shared Kryon MediaAudio, including compatible Apps hosts, while preserving cue priority and sound settings.
 
 ## [0.1.4] - 2026-10-30

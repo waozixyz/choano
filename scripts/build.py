@@ -20,6 +20,10 @@ def run(*args, **kwargs):
     subprocess.run(list(map(str, args)), check=True, **kwargs)
 
 
+def prepare_theme():
+    run(sys.executable, ROOT / "scripts/theme.py")
+
+
 def package(name):
     return Path(subprocess.check_output([ZIRAN, 'pkg', 'path', name, *LOCKED], text=True).strip())
 
@@ -96,5 +100,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('target', choices=['native', 'bundle', 'profile', 'web'])
     args = parser.parse_args()
+    prepare_theme()
     (ROOT / 'build').mkdir(exist_ok=True)
     {'native': native, 'bundle': bundle, 'profile': profile, 'web': web}[args.target]()

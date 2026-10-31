@@ -1,0 +1,82 @@
+#import "presentation"
+#import "kryon/geometry"
+Game :: #import "game";
+Words :: #import "ui_strings";
+
+Expect :: (condition: bool, message: string) -> bool {
+    if !condition { print("Choano presentation local test failed: %\n", message) }
+    return condition
+}
+Near :: (a: float32, b: float32) -> bool {
+    d := a - b
+    return d < .001 && d > -.001
+}
+
+main :: () -> s32 {
+    for side_index: 0..1 {
+        side := ifx side_index == 0 then "left" else "right"
+        for phase: 0..30 {
+            pose := FloatingPose(100.0, cast(float64)phase * .21, .8, .04, 200.0, 150.0, side)
+            body := LayerPoints(pose, 100.0, 76.0)
+            headwear := LayerPoints(pose, 100.0, 100.0)
+            // A shared anchor must map to the same point in both layer meshes.
+            for index: 0..1 {
+                body_middle := Vector2.{(body[index].x + body[index + 2].x) * .5,
+                    (body[index].y + body[index + 2].y) * .5}
+                item_middle := Vector2.{(headwear[index].x + headwear[index + 2].x) * .5,
+                    (headwear[index].y + headwear[index + 2].y) * .5}
+                if !Expect(Near(body_middle.x, item_middle.x) && Near(body_middle.y, item_middle.y),
+                    "body and headwear stay attached throughout bobbing, breathing and leaning in both facings") { return 1 }
+            }
+            bounds := QuadBounds(headwear)
+            for point: headwear {
+                if !Expect(point.x >= bounds.x - .001 && point.x <= bounds.x + bounds.width + .001 &&
+                    point.y >= bounds.y - .001 && point.y <= bounds.y + bounds.height + .001,
+                    "the widget bounds contain every rotated mesh corner") { return 1 }
+            }
+        }
+    }
+    widths: [5]float32 = .[320.0, 360.0, 390.0, 900.0, 1280.0]
+    for width: widths {
+        bar := Rectangle.{17.0, 29.0, width, 75.0}
+        layout := FitHud(bar)
+        if !Expect(layout.score_value.y + layout.score_value.height < layout.growth_label.y &&
+            layout.growth_label.y + layout.growth_label.height < layout.growth_meter.y &&
+            layout.growth_meter.y + layout.growth_meter.height <= bar.y + bar.height,
+            "score, growth label and meter occupy separate rows at phone and desktop widths") { return 1 }
+        if !Expect(layout.score_value.x >= bar.x + 156.0 &&
+            layout.score_value.x + layout.score_value.width < bar.x + width - 104.0,
+            "score clears the navigation and danger controls") { return 1 }
+        if !Expect(cast(float32)ScoreFont(layout.score_value.width, 10) * 10.0 * .6 <= layout.score_value.width,
+            "long scores fit the reserved width") { return 1 }
+    }
+    areas: [4]Rectangle = .[.{0.0, 78.0, 320.0, 490.0}, .{16.0, 24.0, 390.0, 760.0},
+        .{0.0, 52.0, 900.0, 628.0}, .{0.0, 52.0, 760.0, 240.0}]
+    for area: areas {
+        shop := ShopBounds(area)
+        for id: cast(s32)0..2 {
+            card := ShopCard(shop, id)
+            layout := FitAccessory(card, shop.width < 420.0)
+            if !Expect(card.y + card.height <= shop.y + shop.height &&
+                layout.preview.width > 0.0 && layout.requirement.height >= 36.0 &&
+                layout.requirement.y >= layout.button.y + layout.button.height &&
+                layout.requirement.y + layout.requirement.height <= card.y + card.height &&
+                layout.requirement.x >= card.x &&
+                layout.requirement.x + layout.requirement.width <= card.x + card.width,
+                "headwear requirements remain visible inside every card on phones and short landscape screens") { return 1 }
+        }
+    }
+    languages: [12]string = .["en", "es", "pt", "fr", "de", "it", "cs", "id", "ru", "ja", "ko", "zh"]
+    for language: languages {
+        labels := Words.ShopLabels(language)
+        if !Expect(labels.ribbon != labels.halo && labels.ribbon_requirement.count > 0 &&
+            labels.crown_requirement.count > 0 && labels.halo_requirement.count > 0 && labels.close.count > 0,
+            "every supported language names the bow and explains each unlock") { return 1 }
+    }
+    Game.StartGame(1234)
+    Game.game.player_stage = 4
+    if !Expect(Game.FoodVisualScale(4) < .9 && Game.FoodVisualScale(3) < .9 && Game.FoodVisualScale(5) == 1.0,
+        "edible creatures shrink while larger threats keep their size") { return 1 }
+    print("Choano local presentation tests passed.\n")
+    return 0
+}

@@ -37,3 +37,26 @@ Selesai
 [choano_settings_save_error]
 Pengaturan gagal disimpan
 ---
+[choano_shop_halo]
+Halo
+---
+[choano_shop_ribbon]
+Pita
+---
+[choano_shop_crown]
+Mahkota
+---
+[choano_shop_halo_requirement]
+Tersedia sejak awal
+---
+[choano_shop_ribbon_requirement]
+Capai ukuran 5
+di Amoeba
+---
+[choano_shop_crown_requirement]
+Capai ukuran penuh (9)
+di Amoeba
+---
+[choano_shop_close]
+Tutup
+---

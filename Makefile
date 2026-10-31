@@ -19,6 +19,7 @@ android:
 android-gplay:
 	python3 scripts/android.py build --edition gplay
 test:
+	python3 scripts/theme.py --check
 	python3 tests/release_test.py
 	python3 tests/build_test.py
 	python3 tests/desktop_release_test.py
@@ -28,6 +29,11 @@ test:
 	./build/game-test/game_test
 	ziran build --project $(LOCKED) --target=c --exe --entry playfield_test:main -o build/playfield-test tests/playfield_test.zi
 	./build/playfield-test/playfield_test
+	ziran build --project $(LOCKED) --target=c --exe --entry presentation_test:main -o build/presentation-test tests/presentation_test.zi
+	./build/presentation-test/presentation_test
+	python3 tests/theme_test.py
+	ziran build --project $(LOCKED) --target=c --exe --entry timing_test:main -o build/timing-test tests/timing_test.zi
+	./build/timing-test/timing_test
 	ziran build --project $(LOCKED) --target=c --define CHOANO_PROGRESS_TEST --exe --entry progress_test:main -o build/progress-test tests/progress_test.zi
 	./build/progress-test/progress_test
 	python3 tests/progress_storage_test.py

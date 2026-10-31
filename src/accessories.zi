@@ -41,17 +41,6 @@ Available :: (highest_stage: s32, id: s32) -> bool {
     return false
 }
 
-UnlockHint :: (id: s32) -> string {
-    if id == ACCESSORY_RIBBON { return "Reach stage 5" }
-    if id == ACCESSORY_CROWN { return "Reach full size" }
-    return ""
-}
-
-Name :: (id: s32) -> string {
-    if id == ACCESSORY_RIBBON { return "Ribbon" }
-    if id == ACCESSORY_CROWN { return "Crown" }
-    return "Halo"
-}
 AssetToken :: (id: s32) -> string {
     if id == ACCESSORY_RIBBON { return "ribbon" }
     if id == ACCESSORY_CROWN { return "crown" }
@@ -66,7 +55,7 @@ PreviewAssetPath :: (id: s32) -> string {
 
 SourceContentBounds :: (id: s32) -> Rectangle {
     if id == ACCESSORY_HALO { return Rectangle.{56.0, 48.0, 400.0, 250.0} }
-    if id == ACCESSORY_RIBBON { return Rectangle.{96.0, 32.0, 320.0, 288.0} }
+    if id == ACCESSORY_RIBBON { return Rectangle.{96.0, 48.0, 320.0, 183.0} }
     return Rectangle.{96.0, 32.0, 320.0, 261.0}
 }
 

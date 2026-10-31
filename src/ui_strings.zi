@@ -188,3 +188,52 @@ SettingsLabels :: (language: string) -> SettingsCopy {
         .done = "Done", .save_error = "Could not save settings"
     }
 }
+
+ShopCopy :: struct {
+    halo: string
+    ribbon: string
+    crown: string
+    halo_requirement: string
+    ribbon_requirement: string
+    crown_requirement: string
+    close: string
+}
+
+ShopLabels :: (language: string) -> ShopCopy {
+    code := language
+    if code.count > 2 { code = code[0:2] }
+    if code == "es" {
+        return .{.halo = "Halo", .ribbon = "Lazo", .crown = "Corona", .halo_requirement = "Disponible al empezar", .ribbon_requirement = "Alcanza el tamaño 5\nen Ameba", .crown_requirement = "Alcanza el tamaño máximo (9)\nen Ameba", .close = "Cerrar"}
+    }
+    if code == "pt" {
+        return .{.halo = "Auréola", .ribbon = "Laço", .crown = "Coroa", .halo_requirement = "Disponível desde o início", .ribbon_requirement = "Alcance o tamanho 5\nem Ameba", .crown_requirement = "Alcance o tamanho máximo (9)\nem Ameba", .close = "Fechar"}
+    }
+    if code == "fr" {
+        return .{.halo = "Auréole", .ribbon = "Ruban", .crown = "Couronne", .halo_requirement = "Disponible dès le début", .ribbon_requirement = "Atteignez la taille 5\nen Amibe", .crown_requirement = "Atteignez la taille maximale (9)\nen Amibe", .close = "Fermer"}
+    }
+    if code == "de" {
+        return .{.halo = "Heiligenschein", .ribbon = "Schleife", .crown = "Krone", .halo_requirement = "Von Anfang an verfügbar", .ribbon_requirement = "Erreiche Größe 5\nals Amöbe", .crown_requirement = "Erreiche volle Größe (9)\nals Amöbe", .close = "Schließen"}
+    }
+    if code == "it" {
+        return .{.halo = "Aureola", .ribbon = "Fiocco", .crown = "Corona", .halo_requirement = "Disponibile dall’inizio", .ribbon_requirement = "Raggiungi la dimensione 5\nin Ameba", .crown_requirement = "Raggiungi la dimensione massima (9)\nin Ameba", .close = "Chiudi"}
+    }
+    if code == "cs" {
+        return .{.halo = "Svatozář", .ribbon = "Mašle", .crown = "Koruna", .halo_requirement = "Dostupné od začátku", .ribbon_requirement = "Dosáhni velikosti 5\nv Amébě", .crown_requirement = "Dosáhni plné velikosti (9)\nv Amébě", .close = "Zavřít"}
+    }
+    if code == "id" {
+        return .{.halo = "Halo", .ribbon = "Pita", .crown = "Mahkota", .halo_requirement = "Tersedia sejak awal", .ribbon_requirement = "Capai ukuran 5\ndi Amoeba", .crown_requirement = "Capai ukuran penuh (9)\ndi Amoeba", .close = "Tutup"}
+    }
+    if code == "ru" {
+        return .{.halo = "Нимб", .ribbon = "Бант", .crown = "Корона", .halo_requirement = "Доступен с начала", .ribbon_requirement = "Достигните размера 5\nв режиме «Амёба»", .crown_requirement = "Достигните полного размера (9)\nв режиме «Амёба»", .close = "Закрыть"}
+    }
+    if code == "ja" {
+        return .{.halo = "光の輪", .ribbon = "リボン", .crown = "王冠", .halo_requirement = "最初から使用可能", .ribbon_requirement = "アメーバで\nサイズ5に成長", .crown_requirement = "アメーバで\n最大サイズ（9）に成長", .close = "閉じる"}
+    }
+    if code == "ko" {
+        return .{.halo = "후광", .ribbon = "리본", .crown = "왕관", .halo_requirement = "처음부터 사용 가능", .ribbon_requirement = "아메바에서\n크기 5 달성", .crown_requirement = "아메바에서\n최대 크기(9) 달성", .close = "닫기"}
+    }
+    if code == "zh" {
+        return .{.halo = "光环", .ribbon = "蝴蝶结", .crown = "王冠", .halo_requirement = "初始即可使用", .ribbon_requirement = "在变形虫模式中\n达到体型5", .crown_requirement = "在变形虫模式中\n达到最大体型（9）", .close = "关闭"}
+    }
+    return .{.halo = "Halo", .ribbon = "Ribbon", .crown = "Crown", .halo_requirement = "Available from start", .ribbon_requirement = "Reach size 5\nin Amoeba", .crown_requirement = "Reach full size (9)\nin Amoeba", .close = "Close"}
+}

@@ -37,3 +37,26 @@ Listo
 [choano_settings_save_error]
 No se guardaron los ajustes
 ---
+[choano_shop_halo]
+Halo
+---
+[choano_shop_ribbon]
+Lazo
+---
+[choano_shop_crown]
+Corona
+---
+[choano_shop_halo_requirement]
+Disponible al empezar
+---
+[choano_shop_ribbon_requirement]
+Alcanza el tamaño 5
+en Ameba
+---
+[choano_shop_crown_requirement]
+Alcanza el tamaño máximo (9)
+en Ameba
+---
+[choano_shop_close]
+Cerrar
+---

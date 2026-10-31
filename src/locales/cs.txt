@@ -37,3 +37,26 @@ Hotovo
 [choano_settings_save_error]
 Nastavení nelze uložit
 ---
+[choano_shop_halo]
+Svatozář
+---
+[choano_shop_ribbon]
+Mašle
+---
+[choano_shop_crown]
+Koruna
+---
+[choano_shop_halo_requirement]
+Dostupné od začátku
+---
+[choano_shop_ribbon_requirement]
+Dosáhni velikosti 5
+v Amébě
+---
+[choano_shop_crown_requirement]
+Dosáhni plné velikosti (9)
+v Amébě
+---
+[choano_shop_close]
+Zavřít
+---

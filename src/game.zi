@@ -83,6 +83,8 @@ AMOEBA_ENEMY_SPEED_SCALE :: 150.0;
 COLLISION_INSET :: 6.0;
 AMOEBA_COLLISION_INSET :: 6.0;
 FISH_VISUAL_LENGTH :: 1.3;
+FOOD_VISUAL_SCALE :: .84;
+SIMULATION_STEP :: 0.016666666666666666;
 JELLY_SIZE :: 60.0;
 PEARL_SIZE :: 26.0;
 FISH_HINT_SECONDS :: 6.0;
@@ -161,6 +163,8 @@ Game :: struct {
     growth_progress: s32
     next_growth_threshold: s32
     growth_stages: s32
+    simulation_remainder: float64
+    pending_dash: bool
     score: s32
     lives: s32
     next_spawn_timer: float64
@@ -183,6 +187,9 @@ Game :: struct {
 game: Game = .{.dish_half_height = 208.0};
 
 StageSize :: (index: s32) -> s32 { return index * 8 + 14 }
+FoodVisualScale :: (stage: s32) -> float32 {
+    return ifx stage <= game.player_stage then FOOD_VISUAL_SCALE else 1.0
+}
 FishSize :: (index: s32) -> s32 { return index * 8 + 14 }
 FishVisualSize :: (stage: s32) -> float32 {
     index := stage
@@ -650,8 +657,23 @@ ResolveCollisions :: () {
 }
 
 UpdateGame :: (input: GameInput, delta: float64) {
-    if !game.started || game.over { return }
+    if !game.started || game.over || delta < 0.0 || delta != delta { return }
+    // Keep simulation, steering and random turns independent of rendering speed.
+    // Retain the existing 100 ms stall limit; never catch up a paused game.
     if delta > .1 { delta = .1 }
+    game.pending_dash = game.pending_dash || input.dash
+    game.simulation_remainder += delta
+    step_input := input
+    while game.simulation_remainder + .000000001 >= SIMULATION_STEP && !game.over {
+        game.simulation_remainder -= SIMULATION_STEP
+        if game.simulation_remainder < 0.0 { game.simulation_remainder = 0.0 }
+        step_input.dash = game.pending_dash
+        game.pending_dash = false
+        StepGame(step_input, SIMULATION_STEP)
+    }
+}
+
+StepGame :: (input: GameInput, delta: float64) {
     game.elapsed += delta
     if game.mode == MODE_FISH { UpdateSea(input, delta); return }
     MovePlayer(input, delta)

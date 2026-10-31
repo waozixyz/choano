@@ -37,3 +37,26 @@ Fertig
 [choano_settings_save_error]
 Speichern fehlgeschlagen
 ---
+[choano_shop_halo]
+Heiligenschein
+---
+[choano_shop_ribbon]
+Schleife
+---
+[choano_shop_crown]
+Krone
+---
+[choano_shop_halo_requirement]
+Von Anfang an verfügbar
+---
+[choano_shop_ribbon_requirement]
+Erreiche Größe 5
+als Amöbe
+---
+[choano_shop_crown_requirement]
+Erreiche volle Größe (9)
+als Amöbe
+---
+[choano_shop_close]
+Schließen
+---

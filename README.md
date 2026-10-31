@@ -67,7 +67,9 @@ to its existing build tree (or `ZIRAN_LIB` to its `build/libziran.a`).
 
 Movement reads Kryon’s owned frame snapshot on desktop, Windows, browser and
 compatible portable hosts. Keyboard shortcuts and text keep their existing
-event queues; the floating stick, simulation clock and tick clamp are unchanged.
+event queues. Simulation advances at 60 fixed steps per second, independent of
+rendering speed; a frame can catch up at most 100 ms after a stall. Short
+frames preserve dash presses until the next step.
 The portable source now requires a host with `frame_snapshot.CaptureFrameInputHost`;
 Arcade 0.7.113 does not provide it. A new portable release must wait for a
 compatible host.
@@ -154,3 +156,11 @@ and flush capabilities and bind their authorized node's private `AppFiles`
 through `AppPlatform.documents`. The standalone browser binds its own private
 files directly. Older Arcade hosts need their own adoption; this change does
 not publish a catalog update or claim compatibility with Arcade 0.7.113.
+
+## Shared theme
+
+`src/choano.kss` is the single theme source. The game uses
+`Theme.Use(session, "src/choano.kss")`; embedded Entity Profile uses the same
+scope and inherits its semantic colors. `scripts/theme.py` embeds the sheet
+for native, Android, browser and portable builds; `make test` verifies it stays
+in sync. Edit the KSS file, then run `python3 scripts/theme.py`.

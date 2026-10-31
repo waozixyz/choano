@@ -37,3 +37,26 @@ Pronto
 [choano_settings_save_error]
 Não foi possível salvar
 ---
+[choano_shop_halo]
+Auréola
+---
+[choano_shop_ribbon]
+Laço
+---
+[choano_shop_crown]
+Coroa
+---
+[choano_shop_halo_requirement]
+Disponível desde o início
+---
+[choano_shop_ribbon_requirement]
+Alcance o tamanho 5
+em Ameba
+---
+[choano_shop_crown_requirement]
+Alcance o tamanho máximo (9)
+em Ameba
+---
+[choano_shop_close]
+Fechar
+---

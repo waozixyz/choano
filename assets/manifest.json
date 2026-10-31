@@ -2,7 +2,7 @@
   "files": {
     "assets/choano/accessory-crown.png": "c44aa4d09c205aab03afbdbf8aee04e557d1149e3ee9c03225dcfd92a62ff3c7",
     "assets/choano/accessory-halo.png": "e0079cd8ae60fe90a8a768957636b50ba2f383c3b7291e2d3a24b812376d0405",
-    "assets/choano/accessory-ribbon.png": "63a56b69821b4e04d625bf9390836528c91f9318bf4c917f421741d11aac8ddd",
+    "assets/choano/accessory-ribbon.png": "993791dbded17eab0dcde4911b4f789b55ad3933f1894d53f44dc7ac50c3243a",
     "assets/choano/achievement-locales/cs.json": "0e0d180032fb95268affa9a9e445fd80ef9add25daca69bbbf77b97c333b81ae",
     "assets/choano/achievement-locales/de.json": "1ed818dd2aae93a4788e3786353f7699838dd627e93509297a26732f4b585678",
     "assets/choano/achievement-locales/en.json": "cda74acffbf2914e9de28c722a33ef8122f76fd3eb9bdabd462c3228fa8bb54a",
@@ -221,5 +221,5 @@
     "assets/choano/title-portrait.jpg": "47b07722c474a67ee4a06b7644a3aff211503674391e363c17eb06a34ce60d6c",
     "assets/choano/title-screen.png": "0aaacd2526d9dcbf585309833c276e53ef9641e44bcad7d6555334ac950875b6"
   },
-  "sha256": "2802e7bd764da3fa4793c17917a03dbd59509df28a51050a83acb26e1df2461d"
+  "sha256": "9dda33c427579ae8d84eacf792a23906b4396510bbbc0ae92d96ca3bdbfd6903"
 }
