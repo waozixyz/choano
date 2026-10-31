@@ -17,8 +17,9 @@ spec.loader.exec_module(build)
 
 class RendererTest(unittest.TestCase):
     def setUp(self):
-        scratch = ROOT / 'work/audio-adoption'
+        scratch = ROOT / 'work/build-test'
         subprocess.run(['git', 'check-ignore', str(scratch)], check=True, stdout=subprocess.DEVNULL)
+        scratch.mkdir(parents=True, exist_ok=True)
         self.temp = tempfile.TemporaryDirectory(dir=scratch)
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
