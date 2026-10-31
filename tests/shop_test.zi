@@ -1,0 +1,37 @@
+Rules :: #import "shop_rules";
+Shop :: #import "shop";
+Fixture :: #import "shop_fixture";
+
+Expect :: (value: bool, text: string) -> bool {
+    if !value { print("Choano local shop test failed: %\n", text) }
+    return value
+}
+main :: () -> s32 {
+    account := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    owned := "{\"owner\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"connected\":true,\"decorations\":1024,\"status\":\"done\"}"
+    empty := "{\"owner\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"connected\":true,\"decorations\":0,\"status\":\"done\"}"
+    queued := "{\"owner\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"connected\":true,\"decorations\":0,\"status\":\"pending\"}"
+    if !Expect(Rules.ReadShopSnapshot(owned, account).decorations == 1024 &&
+        !Rules.ReadShopSnapshot(owned, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb").valid,
+        "verified ownership is scoped to the current account") { return 1 }
+    invalid := "{\"owner\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"connected\":true,\"decorations\":1024.5,\"status\":\"done\"}"
+    if !Expect(!Rules.ReadShopSnapshot(invalid, account).valid, "fractional ownership is rejected") { return 1 }
+    Fixture.answer = empty
+    Shop.Pump(0.0)
+    if !Expect(Shop.ready && Shop.signed_in && !Shop.Owned(3), "a signed-in account starts without a purchased item") { return 1 }
+    Fixture.answer = queued
+    if !Expect(Shop.Buy(3) && Shop.pending && !Shop.Owned(3) && Fixture.requests == 1,
+        "enqueueing a purchase does not grant the decoration") { return 1 }
+    if !Expect(!Shop.Buy(3) && Fixture.requests == 1, "repeated clicks do not enqueue another purchase") { return 1 }
+    Fixture.answer = owned
+    Shop.Pump(1.0)
+    if !Expect(Shop.Owned(3) && !Shop.Owned(4) && !Shop.Buy(3), "only confirmed receipts unlock an item") { return 1 }
+    Fixture.owner = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    if !Expect(!Shop.Owned(3) && !Shop.Buy(4) && Fixture.requests == 1,
+        "an account switch clears ownership before rendering or spending") { return 1 }
+    Fixture.owner = ""
+    Shop.Pump(2.0)
+    if !Expect(!Shop.signed_in && !Shop.Buy(3), "guests cannot purchase or inherit a decoration") { return 1 }
+    print("Choano local shop receipt and account-isolation tests passed.\n")
+    return 0
+}

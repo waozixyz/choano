@@ -1,6 +1,10 @@
 Entity :: #import "entity/native_host";
 Records :: #import "entity/entity_records";
+Dew :: #import "entity/entity_dew";
+Shop :: #import "entity/game_shop_native";
 Service :: (name: string, request: string) -> string {
     if name == "entity.records" { return Records.EntityRecordsAnswer(request) }
+    if name == "entity.dew" { return Dew.EntityDewAnswer(request) }
+    if name == "entity.game-shop" { return Shop.EntityGameShopAnswer(request) }
     return ""
 }

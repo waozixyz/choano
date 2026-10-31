@@ -1,0 +1,57 @@
+#import "kryon/session"
+#import "kryon/geometry"
+#import "kryon/box_props"
+#import "kryon/box_widget"
+#import "kryon/button_props"
+#import "kryon/button_widget"
+#import "kryon/drawing_props"
+#import "kryon/image_props"
+#import "kryon/image_widget"
+#import "kryon/text_props"
+#import "kryon/text_widget"
+#import "kryon/text_align"
+#import "kryon/widget_palette"
+Words :: #import "ui_strings";
+Sprites :: #import "sprites";
+Layout :: #import "tutorial_layout";
+
+GUIDE_TOPIC_FOOD :: 0
+GUIDE_TOPIC_DANGER :: 1
+GUIDE_TOPIC_PEARLS :: 2
+
+GuideTopicText :: (topic: s32) -> string {
+    copy := Words.FishHelp(Words.Language())
+    if topic == GUIDE_TOPIC_FOOD { return copy.food }
+    if topic == GUIDE_TOPIC_DANGER { return copy.danger }
+    if topic == GUIDE_TOPIC_PEARLS { return copy.pearls }
+    return ""
+}
+
+DrawGuide :: (session: Session, area: Rectangle, topic: s32) -> bool {
+    text := GuideTopicText(topic)
+    if text.count == 0 || !SessionValid(session) { return false }
+    parts := Layout.GuideLayout(area)
+    if parts.bubble.width <= 0.0 || parts.bubble.height <= 0.0 { return false }
+
+    bubble_fill := Color.{247, 242, 232, 252}
+    bubble_border := Color.{160, 203, 216, 255}
+    unused Box(session, BoxProps.{.key = cast(u64)51000, .bounds = parts.bubble,
+            .fill = bubble_fill, .border = bubble_border, .radius = 20.0})
+    unused Box(session, BoxProps.{.key = cast(u64)51001, .bounds = parts.tail,
+            .fill = bubble_fill, .border = bubble_border, .radius = 4.0})
+
+    unused Image(session, ImageProps.{.key = cast(u64)51002,
+            .asset_path = Sprites.FISH_SHEET, .source = Sprites.FishSource(0),
+            .bounds = parts.avatar, .fit = ImageFit.ImageFitContain, .smooth = true,
+            .alt_text = text})
+
+    unused WidgetPaletteUse(session, WidgetPalette.{.text = 0x10203fff})
+    unused Text(session, TextProps.{.key = cast(u64)51003, .text = text,
+            .bounds = parts.text, .font = 15, .wrap = TextWrap.TextWrapAuto,
+            .align = TextAlign.TextAlignStart, .vertical_align = TextAlign.TextAlignCenter})
+    unused WidgetPaletteRestore(session)
+
+    return Button(session, ButtonProps.{.key = cast(u64)51004,
+            .id = 51004, .bounds = parts.bubble, .label = text,
+            .invisible = true}) != 0
+}

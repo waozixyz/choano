@@ -1,0 +1,37 @@
+#import "kryon/geometry"
+
+SHARK_THICKNESS :: .78;
+SHARK_ASPECT :: .5064102564102564;
+FIN_DORSAL :: 1;
+FIN_PECTORAL :: 2;
+FIN_TAIL :: 4;
+
+FinPolygon :: (part: s32) -> [6]Vector2 {
+    dorsal: [6]Vector2 = .[.{.47, .02}, .{.54, .08}, .{.66, .34}, .{.45, .42}, .{.45, .42}, .{.45, .42}]
+    pectoral: [6]Vector2 = .[.{.43, .97}, .{.48, .73}, .{.64, .65}, .{.60, .79}, .{.60, .79}, .{.60, .79}]
+    tail: [6]Vector2 = .[.{.01, .10}, .{.09, .20}, .{.18, .49}, .{.14, .66}, .{.02, .86}, .{.07, .50}]
+    if part == FIN_DORSAL { return dorsal }
+    if part == FIN_PECTORAL { return pectoral }
+    return tail
+}
+
+FinContact :: (center: Vector2, leftward: bool, length: float32, player: Vector2, reach: float32) -> s32 {
+    result: s32
+    for bit: 0..2 {
+        part := 1 << cast(s32)bit
+        points := FinPolygon(part)
+        left: float32 = 2.0; right: float32 = -2.0
+        top: float32 = 2.0; bottom: float32 = -2.0
+        for point: points {
+            x := ifx leftward then 1.0 - point.x else point.x
+            if x < left { left = x }; if x > right { right = x }
+            if point.y < top { top = point.y }; if point.y > bottom { bottom = point.y }
+        }
+        height := length * SHARK_ASPECT * SHARK_THICKNESS
+        area := Rectangle.{center.x + (left - .5) * length, center.y + (top - .5) * height,
+            (right - left) * length, (bottom - top) * height}
+        if player.x + reach >= area.x && player.x - reach <= area.x + area.width &&
+            player.y + reach >= area.y && player.y - reach <= area.y + area.height { result |= part }
+    }
+    return result
+}

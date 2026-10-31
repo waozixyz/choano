@@ -1,0 +1,15 @@
+owner: string = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+answer: string;
+requests: s32;
+Service :: (name: string, request: string) -> string {
+    if name == "entity.records" {
+        if owner == "" { return "{\"account\":\"local\"}" }
+        if owner[0] == #char "b" { return "{\"account\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"}" }
+        return "{\"account\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+    }
+    if name == "entity.game-shop" {
+        if request != "status" { requests += 1 }
+        return answer
+    }
+    return ""
+}

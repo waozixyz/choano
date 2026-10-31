@@ -1,0 +1,49 @@
+#import "kryon/geometry"
+
+GuideLayoutParts :: struct {
+    bubble: Rectangle
+    text: Rectangle
+    avatar: Rectangle
+    tail: Rectangle
+}
+
+GuideLayout :: (area: Rectangle) -> GuideLayoutParts {
+    parts: GuideLayoutParts
+    if area.width < 176.0 || area.height < 88.0 { return parts }
+
+    avatar_width: float32 = 56.0
+    if area.width < 340.0 { avatar_width = 48.0 }
+    avatar_height := avatar_width * 98.0 / 129.0
+    tail_width: float32 = 10.0
+    tail_height: float32 = 14.0
+    bubble_width := area.width - avatar_width - 44.0
+    if bubble_width > 480.0 { bubble_width = 480.0 }
+    bubble_height: float32 = 108.0
+    if area.height - 16.0 < bubble_height { bubble_height = area.height - 16.0 }
+
+    used := avatar_width + 8.0 + tail_width + 8.0 + bubble_width
+    left := area.x + (area.width - used) * .5
+    if left < area.x + 8.0 { left = area.x + 8.0 }
+    bottom := area.y + area.height - 8.0
+
+    parts.bubble.width = bubble_width
+    parts.bubble.height = bubble_height
+    parts.bubble.x = left + avatar_width + 8.0 + tail_width + 8.0
+    parts.bubble.y = bottom - bubble_height
+
+    parts.avatar.width = avatar_width
+    parts.avatar.height = avatar_height
+    parts.avatar.x = left
+    parts.avatar.y = parts.bubble.y + (bubble_height - avatar_height) * .5
+
+    parts.tail.width = tail_width
+    parts.tail.height = tail_height
+    parts.tail.x = parts.avatar.x + avatar_width + 8.0
+    parts.tail.y = parts.bubble.y + bubble_height * .5 - tail_height * .5
+
+    parts.text.x = parts.bubble.x + 14.0
+    parts.text.y = parts.bubble.y + 12.0
+    parts.text.width = bubble_width - 28.0
+    parts.text.height = bubble_height - 24.0
+    return parts
+}

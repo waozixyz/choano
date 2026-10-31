@@ -35,6 +35,13 @@ Trig :: #import "std/math";
 #import "entity/achievement_toast"
 Trophy :: #import "mingcute/mingcute_regular_trophy";
 Words :: #import "ui_strings";
+Tutorial :: #import "tutorial";
+Headwear :: #import "headwear";
+Shop :: #import "shop";
+Account :: #import "account";
+SharkShape :: #import "shark_geometry";
+#import "kryon/shape_props"
+#import "kryon/shape_widget"
 
 #import "game"
 #import "playfield"
@@ -157,13 +164,10 @@ DrawPlayer :: (session: Session, side: string, stage: s32, animation: float64,
     pose := Presentation.FloatingPose(width, animation, velocity_y / speed, .04, x, y, side)
     FloatLayer(session, ifx fish then FISH_SHEET else "assets/choano/organisms-hd.png",
         source, width, pose, key, 0)
-    accessory_pose := pose
-    if accessory == Accessories.ACCESSORY_HALO {
-        accessory_pose = Presentation.HaloPose(pose, width, width * source.height / source.width)
-    }
+    accessory_pose := Headwear.HeadwearPose(pose, width, width * source.height / source.width, accessory, fish)
     FloatLayer(session, Accessories.PreviewAssetPath(accessory),
         Rectangle.{0.0, 0.0, cast(float32)Accessories.SOURCE_SIZE, cast(float32)Accessories.SOURCE_SIZE},
-        size, accessory_pose, key + 1, 0)
+        Headwear.HeadwearSize(width, accessory), accessory_pose, key + 1, 0)
 }
 
 // Bounds enclose the rotated mesh so the image widget cannot clip its corners.
@@ -200,8 +204,11 @@ DrawSea :: (session: Session) {
         } else if enemy.kind == KIND_SHARK {
             side := ifx enemy.velocity_x < 0.0 then "left" else "right"
             source := HunterSource(HUNTER_SHARK)
-            Float(session, HUNTER_SHEET, source, side, cast(float32)SHARK_LENGTH,
-                enemy.animation, enemy.velocity_y / 60.0, .02, enemy.x, enemy.y, key)
+            pose := Presentation.FloatingPose(cast(float32)SHARK_LENGTH, enemy.animation,
+                enemy.velocity_y / 60.0, .02, enemy.x, enemy.y, side)
+            pose.scale_y *= SharkShape.SHARK_THICKNESS
+            FloatLayer(session, HUNTER_SHEET, source, cast(float32)SHARK_LENGTH, pose, key, 0)
+            if enemy.fin_flash > 0.0 { DrawSharkFins(session, enemy.fin_parts, pose, key + 10000) }
         } else if enemy.kind == KIND_SARDINE {
             side := ifx enemy.velocity_x < 0.0 then "left" else "right"
             source := HunterSource(HUNTER_SARDINE)
@@ -284,23 +291,39 @@ DrawGame :: (session: Session, bounds: Rectangle) {
     side := ifx game.player_facing == 0 then "left" else "right"
     DrawPlayer(session, side, game.player_stage, game.player_animation, game.player_velocity_y,
         game.player_x, game.player_y, cast(u64)1000)
-    if game.hint_timer > 0.0 { DrawFishHint(session, bounds) }
 }
 
 DrawFishHint :: (session: Session, bounds: Rectangle) {
-    width := bounds.width - 24.0
-    if width > 560.0 { width = 560.0 }
-    hint := Rectangle.{bounds.x + (bounds.width - width) * .5, bounds.y + bounds.height - 138.0, width, 126.0}
-    unused Box(session, BoxProps.{.key = cast(u64)49020, .bounds = hint,
-        .fill = ColorFromPacked(0x061c29ed), .border = ColorFromPacked(0x80cbd8cc), .radius = 18.0})
-    unused WidgetPaletteUse(session, WidgetPalette.{.text = 0xffffffff})
-    defer { unused WidgetPaletteRestore(session) }
-    words := Words.FishHelp(Words.Language())
-    lines: [3]string = .[words.food, words.danger, words.pearls]
+    topic := cast(s32)((FISH_HINT_SECONDS - game.hint_timer) / 4.0)
+    if topic > 2 { topic = 2 }
+    if Tutorial.DrawGuide(session, bounds, topic) {
+        game.hint_timer = FISH_HINT_SECONDS - cast(float64)(topic + 1) * 4.0
+    }
+}
+
+DrawSharkFins :: (session: Session, parts: s32, pose: Presentation.FloatPose, key: u64) {
     for index: 0..2 {
-        unused Text(session, TextProps.{.key = cast(u64)(49022 + index), .text = lines[index],
-            .bounds = Rectangle.{hint.x + 14.0, hint.y + 8.0 + cast(float32)index * 38.0, width - 28.0, 36.0},
-            .font = 13, .vertical_align = TextAlign.TextAlignCenter})
+        part := 1 << cast(s32)index
+        if (parts & part) == 0 { continue }
+        vertices := SharkShape.FinPolygon(part)
+        points: [6]Vector2
+        for at: 0..5 {
+            world := Presentation.PosePoint(pose, .{(vertices[at].x - .5) * cast(float32)SHARK_LENGTH,
+                (vertices[at].y - .5) * cast(float32)SHARK_LENGTH * SharkShape.SHARK_ASPECT})
+            points[at] = .{view.x + world.x * view_scale, view.y + world.y * view_scale}
+        }
+        color := ColorFromPacked(0xff3b51c8)
+        if part == SharkShape.FIN_TAIL {
+            for triangle: 0..3 {
+                unused Triangle(session, TriangleProps.{.key = key + cast(u64)index * 8 + cast(u64)triangle,
+                    .first = points[triangle], .second = points[triangle + 1], .third = points[5], .color = color})
+            }
+        } else {
+            unused Triangle(session, TriangleProps.{.key = key + cast(u64)index * 8,
+                .first = points[0], .second = points[1], .third = points[2], .color = color})
+            unused Triangle(session, TriangleProps.{.key = key + cast(u64)index * 8 + 1,
+                .first = points[0], .second = points[2], .third = points[3], .color = color})
+        }
     }
 }
 
@@ -339,6 +362,10 @@ DrawHud :: (session: Session, bar: Rectangle) {
     layout := Presentation.FitHud(bar)
     middle := bar.y + 25.0
     fish := game.mode == MODE_FISH
+    if fish {
+        layout.score_label.width = bar.width - 136.0
+        layout.score_value.width = bar.width - 136.0
+    }
     life := Rectangle.{bar.x + 12.0, bar.y + 51.0, 22.0, 22.0}
     if fish { PaintCell(session, FISH_SHEET, FishSource(0), "right", life, cast(u64)3020) }
     else { PaintOrganism(session, "player", "right", STAGE_FIRST, 0, life, cast(u64)3020) }
@@ -378,6 +405,7 @@ DrawHud :: (session: Session, bar: Rectangle) {
     HudText(session, TextUntilNul(score_text[:]), layout.score_value,
         cast(u64)3011, Presentation.ScoreFont(layout.score_value.width, cast(s32)TextUntilNul(score_text[:]).count), TextAlign.TextAlignCenter)
 
+    if fish { return }
     avoid_stage := game.player_stage + 1
     if avoid_stage > STAGE_LAST { avoid_stage = STAGE_LAST }
     right := bar.x + bar.width
@@ -463,7 +491,14 @@ AwardFullSize :: (now: float64) {
     }
     AchievementToastShow(*toast, "Achievement unlocked", "Full size! Fish mode unlocked", Trophy.Shape, now)
 }
-NavigateBack :: () -> bool { PauseClock(); return Shell.Back() }
+NavigateBack :: () -> bool {
+    PauseClock()
+    #if #defined(CHOANO_ACCOUNTS) && !#defined(PLATFORM_WEB) && !#defined(CHOANO_PORTABLE) {
+        if Account.ProfileVisible() { Account.Back(); return true }
+    }
+    return Shell.Back()
+}
+CloseAccount :: () { Account.Close() }
 ProfileHeader :: (session: Session, viewport: Rectangle) -> bool {
     UsePalette(session)
     defer { unused WidgetPaletteRestore(session) }
@@ -472,6 +507,7 @@ ProfileHeader :: (session: Session, viewport: Rectangle) -> bool {
 
 #program_export
 Frame :: (session: Session, viewport: Rectangle) -> s32 {
+    Account.Pump()
     #if !#defined(CHOANO_PORTABLE) && !#defined(PLATFORM_WEB) {
         progress_now := cast(float64)Clock.Milliseconds() / 1000.0
         unused Progress.ProgressPump(progress_now, AmoebaStage(), cast(s64)progress_now, !ProgressPlaying())
@@ -493,6 +529,15 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     } else {
         key := KeyboardTake(session)
     }
+    #if !#defined(CHOANO_PORTABLE) && !#defined(PLATFORM_WEB) {
+        Shell.profile_available = Account.Available()
+        if Account.ProfileVisible() {
+            PauseClock()
+            unused Account.DrawProfile(session, viewport, key)
+            return 0
+        }
+    }
+    Shop.Pump(now)
     controls := viewport
     #if #defined(ANDROID_BUILD) || #defined(PLATFORM_ANDROID) || #defined(__ANDROID__) {
         insets: AndroidWindowInsets
@@ -510,6 +555,10 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     if Shell.WantsBoard() { DrawGame(session, area) }
     if Shell.HudVisible() { DrawHud(session, Shell.bar) }
     Shell.End(session, now, game.over)
+    #if !#defined(CHOANO_PORTABLE) && !#defined(PLATFORM_WEB) {
+        if Shell.TakeProfile() { Progress.Reset(); Account.OpenProfile(); PauseClock() }
+    }
+    if Shell.HudVisible() && game.hint_timer > 0.0 { DrawFishHint(session, area) }
     unused AchievementToastDraw(session, *toast, AchievementToastProps.{.key = cast(u64)47000, .viewport = viewport,
         .top = 52.0, .now = now, .fill = ColorFromPacked(0x0a2438f2), .border = ColorFromPacked(0x80cbd8ff),
         .accent = ColorFromPacked(0xe0609aff)})

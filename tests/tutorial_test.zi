@@ -1,0 +1,42 @@
+Layout :: #import "tutorial_layout";
+#import "kryon/geometry"
+
+Expect :: (value: bool, name: string) -> bool {
+    if !value { print("Choano tutorial local test failed: %\n", name) }
+    return value
+}
+
+Contains :: (outer: Rectangle, inner: Rectangle) -> bool {
+    return inner.x >= outer.x && inner.y >= outer.y &&
+        inner.x + inner.width <= outer.x + outer.width &&
+        inner.y + inner.height <= outer.y + outer.height
+}
+
+CheckLayout :: (area: Rectangle, name: string) -> bool {
+    parts := Layout.GuideLayout(area)
+    if !Expect(parts.bubble.width > 0.0 && parts.bubble.height > 0.0,
+            "% has a guide") { return false }
+    if !Expect(Contains(area, parts.bubble) && Contains(area, parts.avatar) &&
+            Contains(area, parts.tail), "% stays in bounds") { return false }
+    if !Expect(Contains(parts.bubble, parts.text), "% keeps text in the bubble") { return false }
+    if !Expect(RectangleIntersection(parts.avatar, parts.bubble).width <= 0.0,
+            "% keeps the avatar and bubble apart") { return false }
+    if !Expect(parts.tail.x > parts.avatar.x + parts.avatar.width &&
+            parts.tail.x + parts.tail.width < parts.bubble.x,
+            "% places the tail between them") { return false }
+    if !Expect(area.height - 8.0 - parts.bubble.height - parts.bubble.y + area.y <= .01,
+            "% sits at the bottom edge") { return false }
+    if !Expect(parts.text.width >= 160.0, "% leaves readable text width") { return false }
+    print("% guide layout: %x% bubble, %x% avatar\n", name,
+        parts.bubble.width, parts.bubble.height, parts.avatar.width, parts.avatar.height)
+    return true
+}
+
+main :: () -> s32 {
+    if !CheckLayout(Rectangle.{0.0, 0.0, 320.0, 568.0}, "phone 320") { return 1 }
+    if !CheckLayout(Rectangle.{0.0, 0.0, 390.0, 844.0}, "phone 390") { return 2 }
+    if !CheckLayout(Rectangle.{0.0, 0.0, 900.0, 500.0}, "desktop 900") { return 3 }
+    if !CheckLayout(Rectangle.{0.0, 0.0, 640.0, 300.0}, "short landscape") { return 4 }
+    print("Choano tutorial layout local tests passed.\n")
+    return 0
+}

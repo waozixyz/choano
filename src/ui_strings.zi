@@ -238,6 +238,101 @@ ShopLabels :: (language: string) -> ShopCopy {
     return .{.halo = "Halo", .ribbon = "Ribbon", .crown = "Crown", .halo_requirement = "Available from start", .ribbon_requirement = "Reach size 5\nin Amoeba", .crown_requirement = "Reach full size (9)\nin Amoeba", .close = "Close"}
 }
 
+ShopItems :: struct {
+    halo: string
+    ribbon: string
+    crown: string
+    pearl: string
+    flower: string
+    wizard: string
+    buy: string
+    cancel: string
+    sign_in: string
+    purchase_title: string
+    purchase_pending: string
+    purchase_failed: string
+    insufficient_dew: string
+    locked: string
+    price_10: string
+    price_20: string
+    price_30: string
+}
+
+ShopItemLabels :: (language: string) -> ShopItems {
+    code := language
+    if code.count > 2 { code = code[0:2] }
+    if code == "es" {
+        return .{.halo = "Halo", .ribbon = "Lazo", .crown = "Corona", .pearl = "Perla", .flower = "Flor", .wizard = "Mago",
+            .buy = "Comprar", .cancel = "Cancelar", .sign_in = "Iniciar sesión", .purchase_title = "Comprar decoración",
+            .purchase_pending = "Compra en curso…", .purchase_failed = "No se pudo completar la compra.",
+            .insufficient_dew = "Dew insuficiente", .locked = "Bloqueado", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+    }
+    if code == "pt" {
+        return .{.halo = "Auréola", .ribbon = "Laço", .crown = "Coroa", .pearl = "Pérola", .flower = "Flor", .wizard = "Mago",
+            .buy = "Comprar", .cancel = "Cancelar", .sign_in = "Entrar", .purchase_title = "Comprar decoração",
+            .purchase_pending = "Compra em andamento…", .purchase_failed = "Não foi possível concluir a compra.",
+            .insufficient_dew = "Dew insuficiente", .locked = "Bloqueado", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+    }
+    if code == "fr" {
+        return .{.halo = "Auréole", .ribbon = "Ruban", .crown = "Couronne", .pearl = "Perle", .flower = "Fleur", .wizard = "Magicien",
+            .buy = "Acheter", .cancel = "Annuler", .sign_in = "Se connecter", .purchase_title = "Acheter une décoration",
+            .purchase_pending = "Achat en cours…", .purchase_failed = "Impossible de finaliser l’achat.",
+            .insufficient_dew = "Dew insuffisant", .locked = "Verrouillé", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+    }
+    if code == "de" {
+        return .{.halo = "Heiligenschein", .ribbon = "Schleife", .crown = "Krone", .pearl = "Perle", .flower = "Blume", .wizard = "Magier",
+            .buy = "Kaufen", .cancel = "Abbrechen", .sign_in = "Anmelden", .purchase_title = "Deko kaufen",
+            .purchase_pending = "Kauf läuft…", .purchase_failed = "Kauf konnte nicht abgeschlossen werden.",
+            .insufficient_dew = "Nicht genug Dew", .locked = "Gesperrt", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+    }
+    if code == "it" {
+        return .{.halo = "Aureola", .ribbon = "Fiocco", .crown = "Corona", .pearl = "Perla", .flower = "Fiore", .wizard = "Mago",
+            .buy = "Acquista", .cancel = "Annulla", .sign_in = "Accedi", .purchase_title = "Acquista una decorazione",
+            .purchase_pending = "Acquisto in corso…", .purchase_failed = "Acquisto non completato.",
+            .insufficient_dew = "Dew insufficiente", .locked = "Bloccato", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+    }
+    if code == "cs" {
+        return .{.halo = "Svatozář", .ribbon = "Mašle", .crown = "Koruna", .pearl = "Perla", .flower = "Květina", .wizard = "Kouzelník",
+            .buy = "Koupit", .cancel = "Zrušit", .sign_in = "Přihlásit se", .purchase_title = "Koupit dekoraci",
+            .purchase_pending = "Nákup probíhá…", .purchase_failed = "Nákup se nepovedlo dokončit.",
+            .insufficient_dew = "Nedostatek Dew", .locked = "Zamčeno", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+    }
+    if code == "id" {
+        return .{.halo = "Halo", .ribbon = "Pita", .crown = "Mahkota", .pearl = "Mutiara", .flower = "Bunga", .wizard = "Penyihir",
+            .buy = "Beli", .cancel = "Batal", .sign_in = "Masuk", .purchase_title = "Beli dekorasi",
+            .purchase_pending = "Pembelian sedang diproses…", .purchase_failed = "Pembelian gagal.",
+            .insufficient_dew = "Dew tidak cukup", .locked = "Terkunci", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+    }
+    if code == "ru" {
+        return .{.halo = "Нимб", .ribbon = "Бант", .crown = "Корона", .pearl = "Жемчужина", .flower = "Цветок", .wizard = "Волшебник",
+            .buy = "Купить", .cancel = "Отмена", .sign_in = "Войти", .purchase_title = "Купить украшение",
+            .purchase_pending = "Покупка выполняется…", .purchase_failed = "Не удалось завершить покупку.",
+            .insufficient_dew = "Недостаточно Dew", .locked = "Заблокировано", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+    }
+    if code == "ja" {
+        return .{.halo = "光の輪", .ribbon = "リボン", .crown = "王冠", .pearl = "真珠", .flower = "花", .wizard = "魔法使い",
+            .buy = "購入", .cancel = "キャンセル", .sign_in = "サインイン", .purchase_title = "デコを購入",
+            .purchase_pending = "購入処理中…", .purchase_failed = "購入を完了できませんでした。",
+            .insufficient_dew = "Dewが足りません", .locked = "ロック", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+    }
+    if code == "ko" {
+        return .{.halo = "후광", .ribbon = "리본", .crown = "왕관", .pearl = "진주", .flower = "꽃", .wizard = "마법사",
+            .buy = "구매", .cancel = "취소", .sign_in = "로그인", .purchase_title = "장식 구매",
+            .purchase_pending = "구매 진행 중…", .purchase_failed = "구매를 완료할 수 없어요.",
+            .insufficient_dew = "Dew가 부족해요", .locked = "잠김", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+    }
+    if code == "zh" {
+        return .{.halo = "光环", .ribbon = "蝴蝶结", .crown = "王冠", .pearl = "珍珠", .flower = "花朵", .wizard = "魔法师",
+            .buy = "购买", .cancel = "取消", .sign_in = "登录", .purchase_title = "购买装饰",
+            .purchase_pending = "购买进行中…", .purchase_failed = "无法完成购买。",
+            .insufficient_dew = "Dew不足", .locked = "已锁定", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+    }
+    return .{.halo = "Halo", .ribbon = "Ribbon", .crown = "Crown", .pearl = "Pearl", .flower = "Flower", .wizard = "Wizard",
+        .buy = "Buy", .cancel = "Cancel", .sign_in = "Sign in", .purchase_title = "Buy decoration",
+        .purchase_pending = "Purchase in progress…", .purchase_failed = "Could not complete the purchase.",
+        .insufficient_dew = "Not enough Dew", .locked = "Locked", .price_10 = "10 Dew", .price_20 = "20 Dew", .price_30 = "30 Dew"}
+}
+
 FishHelpCopy :: struct { food: string; danger: string; pearls: string; }
 
 Pause :: (language: string) -> string {

@@ -1,0 +1,38 @@
+Shape :: #import "shark_geometry";
+Game :: #import "game";
+#import "kryon/geometry"
+
+Expect :: (value: bool, text: string) -> bool {
+    if !value { print("Choano shark local test failed: %\n", text) }
+    return value
+}
+main :: () -> s32 {
+    center := Vector2.{250.0, 209.0}
+    height := cast(float32)Game.SHARK_LENGTH * Shape.SHARK_ASPECT * Shape.SHARK_THICKNESS
+    for facing: 0..1 {
+        direction: float32 = ifx facing == 0 then 1.0 else -1.0
+        fin := Vector2.{center.x + direction * 9.0, center.y + height * .30}
+        mask := Shape.FinContact(center, facing == 1, cast(float32)Game.SHARK_LENGTH, fin, 2.0)
+        if !Expect((mask & Shape.FIN_PECTORAL) != 0, "fin contact mirrors with the shark") { return 1 }
+        nose := Vector2.{center.x + direction * 140.0, center.y}
+        if !Expect(Shape.FinContact(center, facing == 1, cast(float32)Game.SHARK_LENGTH, nose, 2.0) == 0,
+            "the shark's head is not reported as a fin") { return 1 }
+    }
+    Game.StartGame(400, Game.MODE_FISH)
+    Game.game.enemy_count = 1
+    Game.game.enemies[0] = .{.kind = Game.KIND_SHARK, .active = true, .x = center.x, .y = center.y}
+    Game.game.player_x = center.x + 9.0
+    Game.game.player_y = center.y + height * .30
+    Game.game.safe_timer = 1.0
+    Game.UpdateGame(.{}, Game.SIMULATION_STEP)
+    if !Expect(Game.game.enemies[0].fin_flash > 0.0 &&
+        (Game.game.enemies[0].fin_parts & Shape.FIN_PECTORAL) != 0,
+        "contact starts red feedback on the touched fins") { return 1 }
+    Game.game.player_x = 10.0; Game.game.player_y = 30.0
+    for frame: 0..5 { Game.UpdateGame(.{}, .1) }
+    if !Expect(Game.game.enemies[0].fin_flash <= 0.0 && Game.game.enemies[0].fin_parts == 0,
+        "fin feedback clears after leaving the shark") { return 1 }
+    if !Expect(Shape.SHARK_THICKNESS < 1.0, "the shark silhouette is slimmer") { return 1 }
+    print("Choano local shark fin feedback and geometry tests passed.\n")
+    return 0
+}

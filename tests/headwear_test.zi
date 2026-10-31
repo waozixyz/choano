@@ -1,0 +1,28 @@
+Headwear :: #import "headwear";
+Presentation :: #import "presentation";
+#import "kryon/geometry"
+
+Near :: (a: float32, b: float32) -> bool { difference := a - b; return difference < .002 && difference > -.002 }
+main :: () -> s32 {
+    for facing: 0..1 {
+        for fish: 0..1 {
+            for phase: 0..20 {
+                body := Presentation.FloatingPose(100.0, cast(float64)phase * .2, .8, .04, 200.0, 200.0,
+                    ifx facing == 0 then "right" else "left")
+                for id: cast(s32)1..5 {
+                    size := Headwear.HeadwearSize(100.0, id)
+                    item := Headwear.HeadwearPose(body, 100.0, 76.0, id, fish == 1)
+                    base := Presentation.PosePoint(item, .{0.0, -size * .03125})
+                    head := Presentation.PosePoint(body, .{ifx fish == 1 then 18.0 else 8.0,
+                        -76.0 * (ifx fish == 1 then .30 else .44)})
+                    if !Near(base.x, head.x) || !Near(base.y, head.y) {
+                        print("Choano local headwear test failed: ornament base detached from forehead.\n")
+                        return 1
+                    }
+                }
+            }
+        }
+    }
+    print("Choano local headwear forehead anchoring tests passed in both modes and facings.\n")
+    return 0
+}

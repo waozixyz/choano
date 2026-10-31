@@ -16,7 +16,7 @@
     } else #if #defined(PLATFORM_WEB) {
         Account :: #import "web_account";
     } else {
-        Account :: #import "progress_guest";
+        Account :: #import "account";
     }
 }
 client: GameProgressClient;

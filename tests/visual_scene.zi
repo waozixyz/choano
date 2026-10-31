@@ -1,0 +1,67 @@
+using Desktop :: #import "kryon/Desktop";
+#import "kryon/session"
+#import "kryon/tree"
+#import "kryon/tree_input"
+#import "kryon/Frame"
+#import "kryon/frame_snapshot"
+#import "std/environment_linux"
+App :: #import "app";
+Game :: #import "game";
+Shell :: #import "shell";
+Fixture :: #import "shop_fixture";
+Accessories :: #import "accessories";
+Nav :: #import "game2d/navigation";
+
+#program_export
+ClockMillisecondsHost :: () -> s64 { return 1000 }
+
+#program_export
+main :: () -> s32 {
+    scene := EnvironmentText("CHOANO_TEST_SCENE")
+    Shell.loaded = true; Shell.muted = true
+    Shell.fish_unlocked = true; Shell.fish = true; Shell.run_fish = true
+    Shell.accessories_stage = 9; Shell.accessories_owned = 7
+    Shell.accessory = Accessories.ACCESSORY_CROWN
+    if scene == "ribbon" { Shell.accessory = Accessories.ACCESSORY_RIBBON }
+    if scene == "pearl" { Shell.accessory = Accessories.ACCESSORY_PEARL }
+    if scene == "flower" { Shell.accessory = Accessories.ACCESSORY_FLOWER }
+    if scene == "wizard" { Shell.accessory = Accessories.ACCESSORY_WIZARD }
+    Fixture.answer = "{\"owner\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"connected\":true,\"decorations\":7168,\"status\":\"done\"}"
+    navigation := Nav.GameNavigation.{.page = 1, .running = true, .controls_selected = true}
+    Game.StartGame(42, Game.MODE_FISH)
+    Game.game.player_stage = 6; Game.game.player_x = 160.0; Game.game.player_y = 209.0
+    Game.game.enemy_count = 0
+    if scene == "shark-hit" {
+        Game.game.enemy_count = 1
+        Game.game.enemies[0] = .{.kind = Game.KIND_SHARK, .x = 400.0, .y = 209.0,
+            .active = true, .velocity_x = 200.0, .fin_flash = 1.0, .fin_parts = 7}
+    }
+    if scene == "guide" { Game.game.hint_timer = 12.0 }
+    if scene == "shop" || scene == "shop-locked" || scene == "purchase" { navigation.page = 0; Shell.wardrobe_open = true }
+    if scene == "shop-locked" || scene == "purchase" {
+        Shell.accessories_stage = 1; Shell.accessory = 0
+        Fixture.answer = "{\"owner\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"connected\":true,\"decorations\":0,\"status\":\"done\"}"
+    }
+    if scene == "purchase" { Shell.purchase_id = 3 }
+    if scene == "settings" { navigation.page = 3; Shell.wardrobe_open = true }
+    Shell.state = navigation
+    if !OpenDesktopSized(900, 680) { return 1 }
+    unused DesktopSetTitle("Choano visual local test")
+    defer { CloseDesktop() }
+    session := SessionOpen()
+    defer { unused SessionClose(session) }
+    while PollDesktop() {
+        if !DesktopFrameInputBegin(session) { return 1 }
+        BeginDesktopFrame()
+        viewport := DesktopViewport()
+        TreePointerUpdate(session, CaptureFrameInput(session).pointer)
+        if BeginFrame(session, cast(u64)1, viewport) != FrameStatus.FrameOk { return 1 }
+        if App.Frame(session, viewport) != 0 { return 1 }
+        if scene == "shop" && Shell.Page() == 3 && Shell.wardrobe_open { return 2 }
+        if EndFrame(session) != FrameStatus.FrameOk { return 1 }
+        if !EndDesktopFrame() { return 1 }
+        FrameInputEnd(session)
+        PauseDesktop()
+    }
+    return 0
+}

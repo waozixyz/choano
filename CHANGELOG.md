@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.8] - 2026-10-31
+
+- Keep the Fish HUD clear of the misleading Avoid indicator and introduce the sea with a little fish guide and speech bubbles.
+- Wear a better-fitted ribbon or crown, with three optional Dew decorations: a pearl, a flower, and a wizard hat.
+- Choose decorations by tapping their Shop cards, with clear locks and Dew purchase confirmation.
+- Sign in through the shared Profile in native editions and restore Dew decorations with the same account.
+- Meet a slimmer shark whose fins flash red on contact.
+- Keep Shop and Settings navigation separate and preserve each icon’s original colors.
+- Fit Profile and Downloads beside the title icons on narrow screens.
+
 ## [0.1.7] - 2026-10-31
 
 - Show the total lives remaining, including the current life, and prevent a single Amoeba overlap from consuming every life at once.

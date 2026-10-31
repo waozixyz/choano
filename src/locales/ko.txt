@@ -58,6 +58,48 @@ Choano
 최대 크기(9) 달성
 ---
 [choano_shop_close]
+[choano_shop_pearl]
+진주
+---
+[choano_shop_flower]
+꽃
+---
+[choano_shop_wizard]
+마법사
+---
+[choano_shop_buy]
+구매
+---
+[choano_shop_cancel]
+취소
+---
+[choano_shop_sign_in]
+로그인
+---
+[choano_shop_purchase_title]
+장식 구매
+---
+[choano_shop_purchase_pending]
+구매 진행 중…
+---
+[choano_shop_purchase_failed]
+구매를 완료할 수 없어요.
+---
+[choano_shop_insufficient_dew]
+Dew가 부족해요
+---
+[choano_shop_locked]
+잠김
+---
+[choano_shop_price_10]
+10 Dew
+---
+[choano_shop_price_20]
+20 Dew
+---
+[choano_shop_price_30]
+30 Dew
+---
 닫기
 ---
 [choano_pause]

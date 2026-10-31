@@ -1,0 +1,212 @@
+// Choano's account adapter: one API for the growth sync and the Dew shop on
+// every edition. Portable guests receive only bounded host services. The web
+// page reuses the Entity host its runtime already opened. Native editions
+// built with CHOANO_ACCOUNTS open Entity's own provider, whose keys never leave
+// it, in this game's private folder: Prefs.Root()/profile. Other native builds
+// (tests, guest-only builds) keep the device-only guest answers.
+#import "kryon/session"
+#import "kryon/geometry"
+#if #defined(CHOANO_PORTABLE) {
+    Runtime :: #import "portable_runtime";
+    #import "std/text_buffer"
+    shop_request: [128]u8;
+    shop_checked: bool;
+    shop_available: bool;
+    // The game asks entity.game-shop; portable hosts answer it as the
+    // bounded entity.dew "shop:REQUEST" service.
+    Service :: (name: string, request: string) -> string {
+        if name == "entity.game-shop" {
+            if request.count >= 120 { return "" }
+            prefix := "shop:"
+            for byte, index: prefix { shop_request[index] = byte }
+            for byte, index: request { shop_request[index + 5] = byte }
+            shop_request[request.count + 5] = 0
+            return Runtime.Service("entity.dew", TextUntilNul(shop_request[:]))
+        }
+        return Runtime.Service(name, request)
+    }
+    // Asked once: a host without the shop service answers nothing.
+    Available :: () -> bool {
+        if !shop_checked {
+            shop_checked = true
+            shop_available = Service("entity.game-shop", "status") != ""
+        }
+        return shop_available
+    }
+    Pump :: () {}
+    OpenProfile :: () { unused Service("entity.profile", "open") }
+    ProfileVisible :: () -> bool { return false }
+    DrawProfile :: (session: Session, viewport: Rectangle, key: s32) -> bool { unused session; unused viewport; unused key; return false }
+    Back :: () {}
+    Close :: () {}
+} else #if #defined(PLATFORM_WEB) {
+    // src/web/runtime.zi opens, pumps, draws and closes the page's one host.
+    Records :: #import "entity/entity_records";
+    Dew :: #import "entity/entity_dew";
+    Shop :: #import "entity/game_shop_native";
+    Service :: (name: string, request: string) -> string {
+        if name == "entity.records" { return Records.EntityRecordsAnswer(request) }
+        if name == "entity.dew" { return Dew.EntityDewAnswer(request) }
+        if name == "entity.game-shop" { return Shop.EntityGameShopAnswer(request) }
+        return ""
+    }
+    Available :: () -> bool { return true }
+    Pump :: () {}
+    OpenProfile :: () {}
+    ProfileVisible :: () -> bool { return false }
+    DrawProfile :: (session: Session, viewport: Rectangle, key: s32) -> bool { unused session; unused viewport; unused key; return false }
+    Back :: () {}
+    Close :: () {}
+} else #if #defined(CHOANO_ACCOUNTS) {
+    Entity :: #import "entity/native_host";
+    Records :: #import "entity/entity_records";
+    Dew :: #import "entity/entity_dew";
+    Shop :: #import "entity/game_shop_native";
+    Files :: #import "entity/native_files";
+    Guest :: #import "progress_guest";
+    Prefs :: #import "preferences";
+    Copy :: #import "account_copy";
+    #import "kryon/tree_input"
+    #import "kryon/key_input"
+    #import "kryon/text_input_props"
+    #import "kryon/text_props"
+    #import "kryon/text_align"
+    #import "kryon/text_widget"
+    #import "kryon/box_props"
+    #import "kryon/box_widget"
+    #import "kryon/button_props"
+    #import "kryon/button_widget"
+    #import "kryon/drawing_props"
+    #if #defined(ANDROID_BUILD) {
+        Assets :: #import "kryon/app_asset";
+    } else {
+        File :: #import "std/file";
+    }
+    // The generated Profile bundle, beside the game's art in assets/.
+    PROFILE_ASSET :: "assets/entity.zx";
+    HEADER :: 52.0;
+    started: bool;
+    ready: bool;
+    visible: bool;
+    profile_bytes: string;
+    root_path: [4096]u8;
+    // Prefs.Root()/profile, so CHOANO_DATA test profiles keep their own account.
+    Root :: () -> string {
+        base: string
+        #if #defined(ANDROID_BUILD) {
+            // The private files folder holding preferences.v1.
+            path := Prefs.Path()
+            base = path[:path.count - 15]
+        } else {
+            base = Prefs.Root()
+        }
+        return Files.NativeJoin(root_path[:], base, "profile")
+    }
+    Start :: () -> bool {
+        if profile_bytes == "" { return false }
+        root := Root()
+        // The same client the web runtime opens.
+        return root != "" && Entity.EntityHostOpen(profile_bytes, root, "choano", true)
+    }
+    Pump :: () {
+        if !started {
+            started = true
+            // Read once; a build without the bundle offers no Profile.
+            #if #defined(ANDROID_BUILD) {
+                profile_bytes = Assets.ReadAppAsset(PROFILE_ASSET)
+            } else {
+                bytes, found := File.ReadEntireFile(PROFILE_ASSET)
+                if found { profile_bytes = bytes }
+            }
+            Entity.EntityHostProfileSections(10)
+            Entity.EntityHostGameContext("choano")
+            ready = Start()
+        }
+        if ready { Entity.EntityHostPump() }
+    }
+    // Without a running provider the shop and Dew answer nothing, so nothing is
+    // owned; growth stays device-only as in guest builds.
+    Service :: (name: string, request: string) -> string {
+        if !ready {
+            if name == "entity.records" { return Guest.Service(name, request) }
+            return ""
+        }
+        if name == "entity.records" { return Records.EntityRecordsAnswer(request) }
+        if name == "entity.dew" { return Dew.EntityDewAnswer(request) }
+        if name == "entity.game-shop" { return Shop.EntityGameShopAnswer(request) }
+        return ""
+    }
+    Available :: () -> bool { return profile_bytes != "" }
+    // Opens the Profile page; one that could not start tries once more and
+    // otherwise says why.
+    OpenProfile :: () {
+        if !started { Pump() }
+        if !ready && profile_bytes != "" { ready = Start() }
+        if ready {
+            Entity.EntityHostReload()
+            unused Entity.EntityHostPage("profile")
+        }
+        visible = true
+    }
+    ProfileVisible :: () -> bool { return visible }
+    Back :: () {
+        if !ready { visible = false; return }
+        if !Entity.EntityHostBack() && Entity.EntityHostSave() { visible = false }
+    }
+    // The Profile header's Back, styled as the game's bars.
+    Header :: (session: Session, viewport: Rectangle) -> bool {
+        bar := Rectangle.{viewport.x, viewport.y, viewport.width, HEADER}
+        unused Box(session, BoxProps.{.key = cast(u64)61000, .bounds = bar, .fill = ColorFromPacked(0x0a2438ff)})
+        unused Box(session, BoxProps.{.key = cast(u64)61001,
+            .bounds = Rectangle.{bar.x, bar.y + HEADER - 3.0, bar.width, 3.0}, .fill = ColorFromPacked(0x80cbd8ff)})
+        title := Copy.Title()
+        strong: [1]TextRange = .[.{0, cast(s32)title.count}]
+        unused Text(session, TextProps.{.key = cast(u64)61002, .text = title, .font = 24, .strong = strong[:],
+            .bounds = Rectangle.{bar.x + 88.0, bar.y, bar.width - 176.0, HEADER - 3.0},
+            .align = TextAlign.TextAlignCenter, .vertical_align = TextAlign.TextAlignCenter})
+        return Button(session, ButtonProps.{.key = cast(u64)61003, .id = 61003, .label = Copy.Back(),
+            .bounds = Rectangle.{bar.x + 8.0, bar.y + 4.0, 96.0, HEADER - 11.0}}) != 0
+    }
+    // Draws the open Profile below its own header. True when the provider drew
+    // this frame; false when it could not, after showing why. Back or Escape
+    // leaves it once the provider has nothing to step back from and saved.
+    DrawProfile :: (session: Session, viewport: Rectangle, key: s32) -> bool {
+        back := Header(session, viewport)
+        bounds := Rectangle.{viewport.x, viewport.y + HEADER, viewport.width, viewport.height - HEADER}
+        drew := false
+        if ready {
+            typed: [1024]u8
+            modifiers := KeyboardModifiers(session)
+            input := TextFieldInputFor(key, modifiers, TypedTextTake(session, typed[:]))
+            drew = Entity.EntityHostFrame(session, bounds, key, modifiers, input, true)
+        }
+        if !drew {
+            problem := ifx ready then Copy.Problem(Entity.EntityHostProblem()) else ""
+            if problem == "" { problem = ifx profile_bytes == "" then Copy.Missing() else Copy.Stopped() }
+            unused Text(session, TextProps.{.key = cast(u64)61004, .text = problem, .font = 18,
+                .wrap = TextWrap.TextWrapAuto, .align = TextAlign.TextAlignCenter,
+                .bounds = Rectangle.{bounds.x + 24.0, bounds.y + 48.0, bounds.width - 48.0, 120.0}})
+        }
+        if back || key == 256 { Back() }
+        return drew
+    }
+    // Saves and stops the provider; hosts call it once before exiting.
+    Close :: () {
+        if ready { unused Entity.EntityHostClose(); ready = false }
+        visible = false
+    }
+} else {
+    // Guest-only native builds: device-only growth, no shop or Profile.
+    Guest :: #import "progress_guest";
+    Service :: (name: string, request: string) -> string {
+        if name == "entity.records" { return Guest.Service(name, request) }
+        return ""
+    }
+    Available :: () -> bool { return false }
+    Pump :: () {}
+    OpenProfile :: () {}
+    ProfileVisible :: () -> bool { return false }
+    DrawProfile :: (session: Session, viewport: Rectangle, key: s32) -> bool { unused session; unused viewport; unused key; return false }
+    Back :: () {}
+    Close :: () {}
+}

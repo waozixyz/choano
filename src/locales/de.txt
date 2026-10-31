@@ -58,6 +58,48 @@ Erreiche volle Größe (9)
 als Amöbe
 ---
 [choano_shop_close]
+[choano_shop_pearl]
+Perle
+---
+[choano_shop_flower]
+Blume
+---
+[choano_shop_wizard]
+Magier
+---
+[choano_shop_buy]
+Kaufen
+---
+[choano_shop_cancel]
+Abbrechen
+---
+[choano_shop_sign_in]
+Anmelden
+---
+[choano_shop_purchase_title]
+Deko kaufen
+---
+[choano_shop_purchase_pending]
+Kauf läuft…
+---
+[choano_shop_purchase_failed]
+Kauf konnte nicht abgeschlossen werden.
+---
+[choano_shop_insufficient_dew]
+Nicht genug Dew
+---
+[choano_shop_locked]
+Gesperrt
+---
+[choano_shop_price_10]
+10 Dew
+---
+[choano_shop_price_20]
+20 Dew
+---
+[choano_shop_price_30]
+30 Dew
+---
 Schließen
 ---
 [choano_pause]

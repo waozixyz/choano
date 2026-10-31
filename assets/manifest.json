@@ -1,8 +1,11 @@
 {
   "files": {
-    "assets/choano/accessory-crown.png": "c44aa4d09c205aab03afbdbf8aee04e557d1149e3ee9c03225dcfd92a62ff3c7",
+    "assets/choano/accessory-crown.png": "345cabfa0c822ec665e87765cfb4a1f58a260097a66153b63b98c4d75e98eca6",
+    "assets/choano/accessory-flower.png": "55c2a653ece5a812af0f76f64fd673e9fa55d772ef39d1f3df9b3d0082e5cfdc",
     "assets/choano/accessory-halo.png": "def40f97de2f0d9930af4de16d4cb58f84382c6b0333a5d5ed10a8783174895e",
-    "assets/choano/accessory-ribbon.png": "993791dbded17eab0dcde4911b4f789b55ad3933f1894d53f44dc7ac50c3243a",
+    "assets/choano/accessory-pearl.png": "108f2344c1cc646f2b5e231df8c2fcbd9162d79ed8be8c6fdf608d46478a430e",
+    "assets/choano/accessory-ribbon.png": "e75f685597ad9db9643d57abdf860f523eae234142623e4814d62124b6434a27",
+    "assets/choano/accessory-wizard.png": "0706b295ece71e716008679a05c32bae30e46e4e7218f3c5135341cc557a5ae2",
     "assets/choano/achievement-locales/cs.json": "0e0d180032fb95268affa9a9e445fd80ef9add25daca69bbbf77b97c333b81ae",
     "assets/choano/achievement-locales/de.json": "1ed818dd2aae93a4788e3786353f7699838dd627e93509297a26732f4b585678",
     "assets/choano/achievement-locales/en.json": "cda74acffbf2914e9de28c722a33ef8122f76fd3eb9bdabd462c3228fa8bb54a",
@@ -221,5 +224,5 @@
     "assets/choano/title-portrait.jpg": "47b07722c474a67ee4a06b7644a3aff211503674391e363c17eb06a34ce60d6c",
     "assets/choano/title-screen.png": "0aaacd2526d9dcbf585309833c276e53ef9641e44bcad7d6555334ac950875b6"
   },
-  "sha256": "59bb894c319a6b70b899ef1e4a45b552da97b74aaecb48bdb12a4abe957b7d68"
+  "sha256": "a24d4c4f3aaa85ee34da07ad1f3ce95ca71c4805752a061dfc1d8e865db48825"
 }

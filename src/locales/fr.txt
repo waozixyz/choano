@@ -58,6 +58,48 @@ Atteignez la taille maximale (9)
 en Amibe
 ---
 [choano_shop_close]
+[choano_shop_pearl]
+Perle
+---
+[choano_shop_flower]
+Fleur
+---
+[choano_shop_wizard]
+Magicien
+---
+[choano_shop_buy]
+Acheter
+---
+[choano_shop_cancel]
+Annuler
+---
+[choano_shop_sign_in]
+Se connecter
+---
+[choano_shop_purchase_title]
+Acheter une décoration
+---
+[choano_shop_purchase_pending]
+Achat en cours…
+---
+[choano_shop_purchase_failed]
+Impossible de finaliser l’achat.
+---
+[choano_shop_insufficient_dew]
+Dew insuffisant
+---
+[choano_shop_locked]
+Verrouillé
+---
+[choano_shop_price_10]
+10 Dew
+---
+[choano_shop_price_20]
+20 Dew
+---
+[choano_shop_price_30]
+30 Dew
+---
 Fermer
 ---
 [choano_pause]

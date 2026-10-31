@@ -80,9 +80,9 @@ for name, digest in files.items():
             if path.name == 'accessory-ribbon.png':
                 with Image.open(path) as ribbon:
                     opaque = [pixel for pixel in ribbon.convert('RGBA').getdata() if pixel[3] >= 240]
-                assert opaque and sum(r > 150 and r > g * 1.5 and b > g
+                assert opaque and sum(r > 150 and g < 175 and r > g * 1.2 and r > b * 1.1
                                       for r, g, b, a in opaque) > len(opaque) * .6, \
-                    'The ribbon must be the red-pink satin bow, not a second golden halo'
+                    'The ribbon must be a coral satin bow, not a second golden halo'
         if path.name == 'turtle-hd.png':
             assert (width, height) == (640, 427) and header[25] == 6, name
         if path.name == 'title-logo.png':
@@ -131,7 +131,7 @@ for name, digest in files.items():
             assert len(set(raw)) > 1, name
             samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
             assert max(map(abs, samples)) <= .12 * 32767, 'Effect too loud: ' + name
-assert len([p for p in actual if p.endswith('.png')]) == 195
+assert len([p for p in actual if p.endswith('.png')]) == 198
 assert len([p for p in actual if p.endswith('.jpg')]) == 4
 assert len([p for p in actual if p.endswith('.wav')]) == 7
 assert not (ROOT / 'assets/original').exists()
@@ -166,7 +166,7 @@ for name, minimum in [('organisms-hd.png',1254)]:
         header=handle.read(33)
     assert min(struct.unpack('>II',header[16:24])) >= minimum, name
 
-print('Choano local asset and package tests passed: 195 PNGs, 4 JPEG titles, 6 quiet chimes and the shark loop.')
+print('Choano local asset and package tests passed: 198 PNGs, 4 JPEG titles, 6 quiet chimes and the shark loop.')
 
 # UI labels must stay within the bundled Latin font's coverage. In particular,
 # a check or padlock must be geometry/an image, never a missing text glyph.

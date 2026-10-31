@@ -1,0 +1,19 @@
+Presentation :: #import "presentation";
+Accessories :: #import "accessories";
+
+HeadwearSize :: (width: float32, id: s32) -> float32 {
+    if id == Accessories.ACCESSORY_HALO { return width }
+    if id == Accessories.ACCESSORY_WIZARD { return width * .95 }
+    return width * .8
+}
+
+HeadwearPose :: (body: Presentation.FloatPose, width: float32, height: float32, id: s32, fish: bool = false) -> Presentation.FloatPose {
+    if id == Accessories.ACCESSORY_HALO { return Presentation.HaloPose(body, width, height) }
+    pose := body
+    // Every ornament's base is at row 240 of its transparent 512px canvas.
+    // Anchor that base to the head, carrying the same breath, bob and lean.
+    head_x := width * (ifx fish then .18 else .08)
+    head_y := -height * (ifx fish then .30 else .44)
+    pose.center = Presentation.PosePoint(body, .{head_x, head_y + HeadwearSize(width, id) * .03125})
+    return pose
+}

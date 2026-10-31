@@ -1,0 +1,65 @@
+#import "std/json_scan"
+#import "std/c_string"
+#import "std/text_buffer"
+
+SHOP_IDLE :: 0;
+SHOP_PENDING :: 1;
+SHOP_DONE :: 2;
+SHOP_FAILED :: 3;
+SHOP_INSUFFICIENT :: 4;
+SHOP_SIGNIN :: 5;
+DECORATIONS_MASK :: 7168;
+
+ShopSnapshot :: struct {
+    valid: bool
+    connected: bool
+    decorations: s32
+    state: s32
+}
+
+PublicOwner :: (owner: string) -> bool {
+    if owner.count != 64 { return false }
+    for byte: owner {
+        if !((byte >= #char "0" && byte <= #char "9") || (byte >= #char "a" && byte <= #char "f")) { return false }
+    }
+    return true
+}
+
+ReadShopSnapshot :: (text: string, expected_owner: string) -> ShopSnapshot {
+    result: ShopSnapshot
+    owner: [65]u8
+    if !PublicOwner(expected_owner) || ReadStringText(text, FieldAt(text, 0, "owner"), owner[:]) != 64 ||
+        TextUntilNul(owner[:]) != expected_owner { return result }
+    connected := FieldAt(text, 0, "connected")
+    if !MatchLiteral(text, connected, "true") { return result }
+    amount := ReadNumber(text, FieldAt(text, 0, "decorations"))
+    if !amount.valid || amount.value < 0.0 || amount.value > cast(float64)DECORATIONS_MASK { return result }
+    bits := cast(s32)amount.value
+    if cast(float64)bits != amount.value || (bits & ~DECORATIONS_MASK) != 0 { return result }
+    state: [32]u8
+    if ReadStringText(text, FieldAt(text, 0, "status"), state[:]) < 0 { return result }
+    value := TextUntilNul(state[:])
+    result.state = SHOP_FAILED
+    if value == "idle" { result.state = SHOP_IDLE }
+    else if value == "pending" { result.state = SHOP_PENDING }
+    else if value == "done" { result.state = SHOP_DONE }
+    else if value == "insufficient" { result.state = SHOP_INSUFFICIENT }
+    else if value == "signin" { return .{} }
+    else if value != "failed" { return .{} }
+    result.valid = true
+    result.connected = true
+    result.decorations = bits
+    return result
+}
+
+DecorationProduct :: (accessory: s32) -> s32 {
+    if accessory >= 3 && accessory <= 5 { return accessory + 7 }
+    return 0
+}
+
+DecorationRequest :: (accessory: s32) -> string {
+    if accessory == 3 { return "choano.pearl" }
+    if accessory == 4 { return "choano.flower" }
+    if accessory == 5 { return "choano.wizard" }
+    return ""
+}

@@ -96,6 +96,52 @@ def scaffold(kryon):
         'org.gradle.jvmargs=-Xmx1536m -Dfile.encoding=UTF-8\n')
 
 
+ARTIFACT_PLATFORMS = {'arm64-v8a': ('android-aarch64-bionic', 'aarch64-linux-android'),
+                      'armeabi-v7a': ('android-armv7-bionic', 'armv7a-linux-androideabi')}
+ACCOUNT_MARKER = '\n# Choano account provider (scripts/android.py)\n'
+
+
+def ndk_folder(android):
+    found = re.search(r"ndkVersion '([^']+)'", (ROOT / 'packaging/android/build.gradle').read_text())
+    folder = android / 'ndk' / found[1]
+    if not folder.is_dir():
+        raise SystemExit(f'Install NDK {found[1]} in {android}')
+    return folder
+
+
+def account_provider(android, edition, abis):
+    """Entity's account cryptography for each ABI, built by its own recipe with
+    the NDK compiler the APK uses; the CMake build links it into libmain."""
+    sys.path.insert(0, str(ROOT / 'scripts'))
+    import build as choano_build
+    ndk = ndk_folder(android)
+    tools = ndk / 'toolchains/llvm/prebuilt/linux-x86_64/bin'
+    # The minSdk build.gradle compiles for: Google Play needs Android 6.
+    api = '23' if edition == 'gplay' else '21'
+    rows = []
+    for abi in abis.split(','):
+        if abi not in ARTIFACT_PLATFORMS:
+            raise SystemExit(f'The account provider has no {abi} build; use ' + ', '.join(ARTIFACT_PLATFORMS))
+        platform, prefix = ARTIFACT_PLATFORMS[abi]
+        env = {k: v for k, v in os.environ.items() if k not in
+               ('DISPLAY', 'WAYLAND_DISPLAY', 'XAUTHORITY', 'MAKEFLAGS', 'MFLAGS', 'MAKEOVERRIDES')}
+        env.update(CC=str(tools / f'{prefix}{api}-clang'), AR=str(tools / 'llvm-ar'), CMAKE_BUILD_PARALLEL_LEVEL='1')
+        crypto = choano_build.shared_script('ziran', 'ziran_artifacts').request(
+            'entity:native-crypto', platform, project=ROOT, ziran=ZIRAN, env=env,
+            options=[f'entity:edition={"play" if edition == "gplay" else "direct"}', f'entity:ndk={ndk}',
+                     f'entity:android_api={api}'])
+        flags = ' '.join('"' + flag.replace('\\', '/').replace('"', '') + '"' for flag in crypto.link_flags(env=env))
+        rows.append(f'if(ANDROID_ABI STREQUAL "{abi}")\n    target_link_libraries(main {flags})\nendif()\n')
+    cmake = ROOT / 'droid/app/src/main/cpp/CMakeLists.txt'
+    text = cmake.read_text().split(ACCOUNT_MARKER)[0]
+    defines = 'set(APP_ZIRAN_DEFINES --define ANDROID_BUILD'
+    if defines not in text:
+        raise SystemExit("Kryon's Android CMakeLists.txt no longer sets APP_ZIRAN_DEFINES")
+    if 'CHOANO_ACCOUNTS' not in text:
+        text = text.replace(defines, defines + ' --define CHOANO_ACCOUNTS', 1)
+    cmake.write_text(text + ACCOUNT_MARKER + ''.join(rows))
+
+
 def build(edition, abis=ABIS):
     run(ZIRAN, 'fetch', *LOCKED, cwd=ROOT)
     kryon, compiler, raylib = package('kryon'), package('ziran'), package('raylib')
@@ -106,6 +152,9 @@ def build(edition, abis=ABIS):
     if not aapt2.is_file() or not (android / 'platforms/android-36').is_dir():
         raise SystemExit(f'Install build-tools 36.0.0, platforms;android-36, cmake 3.22.1 and the NDK in {android}')
     scaffold(kryon)
+    # The Profile bundle the account provider opens, as assets/entity.zx.
+    run(sys.executable, ROOT / 'scripts/build.py', 'profile-asset', cwd=ROOT)
+    account_provider(android, edition, abis)
     # The game reads its art and chimes as assets/choano/... from the APK.
     staged = OUT / 'assets'
     if staged.exists():
@@ -160,6 +209,7 @@ def verify(apk, edition, tools):
         assert abis == sorted(ABIS.split(',')), 'Both supported ARM architectures must be present'
         assert 'assets/assets/choano/organisms-hd.png' in names, "The game's artwork is missing"
         assert 'assets/assets/choano/audio/eat.wav' in names, "The game's chimes are missing"
+        assert 'assets/assets/entity.zx' in names, 'The account Profile bundle is missing'
         dex = b''.join(archive.read(n) for n in names if re.fullmatch(r'classes\d*\.dex', n))
         for marker in (b'Lorg/kryonlabs/play/PlayBilling;', b'Lcom/android/billingclient/'):
             assert (marker in dex) == google_play, 'Only the Google Play edition may include Play Billing'

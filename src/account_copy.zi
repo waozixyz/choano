@@ -1,0 +1,99 @@
+// The native Profile's own words in Choano's twelve languages, English
+// otherwise. The language follows the game's (ui_strings.Language).
+Words :: #import "ui_strings";
+
+Code :: () -> string {
+    code := Words.Language()
+    return ifx code.count > 2 then code[0:2] else code
+}
+
+Title :: () -> string {
+    code := Code()
+    if code == "es" { return "PERFIL" }
+    if code == "pt" { return "PERFIL" }
+    if code == "fr" { return "PROFIL" }
+    if code == "de" { return "PROFIL" }
+    if code == "it" { return "PROFILO" }
+    if code == "cs" { return "PROFIL" }
+    if code == "id" { return "PROFIL" }
+    if code == "ru" { return "ПРОФИЛЬ" }
+    if code == "ja" { return "プロフィール" }
+    if code == "ko" { return "프로필" }
+    if code == "zh" { return "个人资料" }
+    return "PROFILE"
+}
+
+Back :: () -> string {
+    code := Code()
+    if code == "es" { return "Atrás" }
+    if code == "pt" { return "Voltar" }
+    if code == "fr" { return "Retour" }
+    if code == "de" { return "Zurück" }
+    if code == "it" { return "Indietro" }
+    if code == "cs" { return "Zpět" }
+    if code == "id" { return "Kembali" }
+    if code == "ru" { return "Назад" }
+    if code == "ja" { return "戻る" }
+    if code == "ko" { return "뒤로" }
+    if code == "zh" { return "返回" }
+    return "Back"
+}
+
+// This build carries no Profile bundle.
+Missing :: () -> string {
+    code := Code()
+    if code == "es" { return "Esta copia de Choano no incluye un perfil." }
+    if code == "pt" { return "Esta cópia do Choano não inclui um perfil." }
+    if code == "fr" { return "Cette copie de Choano n'inclut pas de profil." }
+    if code == "de" { return "Diese Choano-Kopie enthält kein Profil." }
+    if code == "it" { return "Questa copia di Choano non include un profilo." }
+    if code == "cs" { return "Tato kopie Choano neobsahuje profil." }
+    if code == "id" { return "Salinan Choano ini tidak menyertakan profil." }
+    if code == "ru" { return "В этой копии Choano нет профиля." }
+    if code == "ja" { return "このChoanoにはプロフィールが含まれていません。" }
+    if code == "ko" { return "이 Choano에는 프로필이 포함되어 있지 않습니다." }
+    if code == "zh" { return "此 Choano 副本不包含个人资料。" }
+    return "This copy of Choano has no profile."
+}
+
+// The profile could not start or stopped; reopening it tries again.
+Stopped :: () -> string {
+    code := Code()
+    if code == "es" { return "El perfil no pudo iniciarse. Ciérralo y vuelve a abrirlo." }
+    if code == "pt" { return "Não foi possível iniciar o perfil. Feche-o e abra-o de novo." }
+    if code == "fr" { return "Le profil n'a pas pu démarrer. Fermez-le puis rouvrez-le." }
+    if code == "de" { return "Das Profil konnte nicht starten. Schließe es und öffne es erneut." }
+    if code == "it" { return "Impossibile avviare il profilo. Chiudilo e riaprilo." }
+    if code == "cs" { return "Profil se nepodařilo spustit. Zavři ho a otevři znovu." }
+    if code == "id" { return "Profil tidak dapat dimulai. Tutup lalu buka lagi." }
+    if code == "ru" { return "Не удалось запустить профиль. Закройте его и откройте снова." }
+    if code == "ja" { return "プロフィールを開始できませんでした。閉じてからもう一度開いてください。" }
+    if code == "ko" { return "프로필을 시작할 수 없습니다. 닫았다가 다시 여세요." }
+    if code == "zh" { return "无法启动个人资料。请关闭后重新打开。" }
+    return "The profile could not start. Close it and open it again."
+}
+
+// This device would not let the profile save its data.
+Storage :: () -> string {
+    code := Code()
+    if code == "es" { return "Este dispositivo no permite que el perfil guarde sus datos aquí." }
+    if code == "pt" { return "Este dispositivo não permite que o perfil salve seus dados aqui." }
+    if code == "fr" { return "Cet appareil ne permet pas au profil d'enregistrer ses données ici." }
+    if code == "de" { return "Dieses Gerät lässt das Profil hier keine Daten speichern." }
+    if code == "it" { return "Questo dispositivo non consente al profilo di salvare qui i suoi dati." }
+    if code == "cs" { return "Toto zařízení profilu nedovolí uložit zde data." }
+    if code == "id" { return "Perangkat ini tidak mengizinkan profil menyimpan datanya di sini." }
+    if code == "ru" { return "Это устройство не позволяет профилю сохранять здесь данные." }
+    if code == "ja" { return "このデバイスではプロフィールのデータをここに保存できません。" }
+    if code == "ko" { return "이 기기에서는 프로필 데이터를 여기에 저장할 수 없습니다." }
+    if code == "zh" { return "此设备不允许个人资料在此保存数据。" }
+    return "This device does not let the profile save its data here."
+}
+
+// Entity's English problem text, in the game's language where it is known.
+Problem :: (text: string) -> string {
+    if text == "This browser or device does not let the profile save its data here." { return Storage() }
+    if text == "The profile could not start. Reload to try again." { return Stopped() }
+    if text == "The profile stopped working. Close it and open it again." { return Stopped() }
+    return text
+}

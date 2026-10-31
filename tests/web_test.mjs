@@ -80,9 +80,13 @@ try{
   let right=width-8;
   if(label==='Settings')return width-34;
   right-=60;
-  for(const text of [...(title?['Downloads']:[]),'Profile']){
-   if(text===label)return right-actionWidth(text)/2;
-   right-=actionWidth(text)+8;
+  const labels=[...(title?['Downloads']:[]),'PROFILE'];
+  const total=labels.reduce((sum,text)=>sum+actionWidth(text),0);
+  const scale=Math.min(1,(width-136-(title?8:0))/total);
+  for(const text of labels){
+   const size=actionWidth(text)*scale;
+   if(text===(label==='Profile'?'PROFILE':label))return right-size/2;
+   right-=size+8;
   }
   throw Error('Unknown action '+label);
  };

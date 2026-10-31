@@ -90,6 +90,7 @@ main :: () -> s32 {
     while ok && PollRaylib() {
         ok = DrawGameFrame(session)
     }
+    CloseAccount()
     unused CloseSession(session)
     CloseRaylib()
     return ifx ok then 0 else 1

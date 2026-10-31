@@ -12,6 +12,8 @@ PLAYER_STAGE_LAST :: 9;
 ENEMY_LIMIT :: 64;
 INITIAL_ENEMIES :: 4;
 // The amoeba dish and, once a player reaches full size there, the open sea.
+SharkShape :: #import "shark_geometry";
+
 MODE_AMOEBA :: 0;
 MODE_FISH :: 1;
 // Fish mode: open water above the sand, swifter and floatier fish,
@@ -109,6 +111,8 @@ Enemy :: struct {
     kind: s32
     phase: float32
     species: s32
+    fin_flash: float64
+    fin_parts: s32
 }
 
 GameInput :: struct {
@@ -871,8 +875,8 @@ SharkAlert :: () -> bool { return game.mode == MODE_FISH && !game.over && (game.
 SharkReach :: (shark: Enemy, left: *float32, right: *float32, top: *float32, bottom: *float32) {
     <<left = shark.x - cast(float32)SHARK_LENGTH * .4
     <<right = shark.x + cast(float32)SHARK_LENGTH * .4
-    <<top = shark.y - cast(float32)SHARK_LENGTH * .12
-    <<bottom = shark.y + cast(float32)SHARK_LENGTH * .12
+    <<top = shark.y - cast(float32)SHARK_LENGTH * .12 * SharkShape.SHARK_THICKNESS
+    <<bottom = shark.y + cast(float32)SHARK_LENGTH * .12 * SharkShape.SHARK_THICKNESS
 }
 
 FishCount :: () -> s32 {
@@ -1048,7 +1052,15 @@ SeaCollisions :: () {
         right := enemy.x + inset
         top := enemy.y - inset_y
         bottom := enemy.y + inset_y
-        if enemy.kind == KIND_SHARK { SharkReach(enemy, *left, *right, *top, *bottom) }
+        if enemy.kind == KIND_SHARK {
+            parts := SharkShape.FinContact(.{enemy.x, enemy.y}, enemy.velocity_x < 0.0,
+                cast(float32)SHARK_LENGTH, .{game.player_x, game.player_y}, reach)
+            if parts != 0 {
+                game.enemies[index].fin_flash = .4
+                game.enemies[index].fin_parts |= parts
+            }
+            SharkReach(enemy, *left, *right, *top, *bottom)
+        }
         if !RectanglesOverlap(game.player_x - reach, game.player_x + reach, game.player_y - reach, game.player_y + reach,
             left, right, top, bottom) { index += 1; continue }
         if enemy.kind == KIND_SARDINE {
@@ -1090,6 +1102,10 @@ UpdateSea :: (input: GameInput, delta: float64) {
     MovePlayer(input, delta)
     index: s32 = 0
     while index < game.enemy_count {
+        if game.enemies[index].fin_flash > 0.0 {
+            game.enemies[index].fin_flash -= delta
+            if game.enemies[index].fin_flash <= 0.0 { game.enemies[index].fin_parts = 0 }
+        }
         if MoveSeaCreature(index, delta) { index += 1; continue }
         // Outlasting a shark's pass without a bite earns a bonus.
         if game.enemies[index].kind == KIND_SHARK && !game.shark_bit {

@@ -22,6 +22,7 @@ test:
 	python3 scripts/theme.py --check
 	python3 tests/release_test.py
 	python3 tests/build_test.py
+	python3 tests/account_build_test.py
 	python3 tests/desktop_release_test.py
 	python3 tests/assets_test.py
 	ziran check --project $(LOCKED)
@@ -31,6 +32,14 @@ test:
 	./build/playfield-test/playfield_test
 	ziran build --project $(LOCKED) --target=c --exe --entry presentation_test:main -o build/presentation-test tests/presentation_test.zi
 	./build/presentation-test/presentation_test
+	ziran build --project $(LOCKED) --target=c --exe --entry tutorial_test:main -o build/tutorial-test tests/tutorial_test.zi
+	./build/tutorial-test/tutorial_test
+	ziran build --project $(LOCKED) --target=c --define CHOANO_SHOP_TEST --exe --entry shop_test:main -o build/shop-test tests/shop_test.zi
+	./build/shop-test/shop_test
+	ziran build --project $(LOCKED) --target=c --exe --entry shark_test:main -o build/shark-test tests/shark_test.zi
+	./build/shark-test/shark_test
+	ziran build --project $(LOCKED) --target=c --exe --entry headwear_test:main -o build/headwear-test tests/headwear_test.zi
+	./build/headwear-test/headwear_test
 	python3 tests/theme_test.py
 	ziran build --project $(LOCKED) --target=c --exe --entry timing_test:main -o build/timing-test tests/timing_test.zi
 	./build/timing-test/timing_test

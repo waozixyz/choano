@@ -65,7 +65,7 @@ WINDOWS_PACKAGING = ROOT / 'packaging/windows'
 # The Linux toolchain's MinGW-w64 cross compiler, and NSIS.
 MINGW = os.environ.get('MINGW_PREFIX', 'x86_64-w64-mingw32-')
 WINDOWS_DEFINES = ['--define', '_WIN32', '--define', 'PLATFORM_DESKTOP', '--define', '__x86_64__',
-                   '--define', 'CHOANO_RAYLIB']
+                   '--define', 'CHOANO_RAYLIB', '--define', 'CHOANO_ACCOUNTS']
 WINDOWS_LIBRARIES = ['-lopengl32', '-lgdi32', '-lwinmm', '-luser32', '-lshell32', '-lole32', '-luuid', '-lm']
 # raylib as Shovey and Breeze ship it on Windows: RGFW and OpenGL 1.1, with
 # JPEG decoding for the title art.
@@ -320,8 +320,26 @@ def check_windows_program(path):
                          f'subsystem {subsystem}; expected an x86-64 PE32+ GUI program')
 
 
+def windows_account_links():
+    """Entity's account provider support for Windows, from its own recipe with
+    this MinGW toolchain; its Ziran modules compile with the game."""
+    sys.path.insert(0, str(ROOT / 'scripts'))
+    import build as choano_build
+    env = {k: v for k, v in os.environ.items() if k not in
+           ('DISPLAY', 'WAYLAND_DISPLAY', 'XAUTHORITY', 'MAKEFLAGS', 'MFLAGS', 'MAKEOVERRIDES')}
+    env.update(CC=windows_tool(MINGW + 'gcc'), AR=windows_tool(MINGW + 'ar'), CMAKE_BUILD_PARALLEL_LEVEL='1')
+    # A Nix MinGW links its thread library only from these folders, also in
+    # the provider's CMake compiler checks; CMake starts from LDFLAGS.
+    linking = mingw_library_flags()
+    if linking:
+        env['LDFLAGS'] = ' '.join([*filter(None, [env.get('LDFLAGS')]), *linking])
+    return choano_build.account_links('windows-x86_64-mingw', env)
+
+
 def build_windows_program():
     """build/windows/Choano.exe: src/windows.zi on raylib, linked statically."""
+    # Resolve the provider before replacing any existing Windows build output.
+    accounts = windows_account_links()
     for folder in (WINDOWS / 'ir', WINDOWS / 'c'):
         if folder.exists():
             shutil.rmtree(folder)
@@ -346,7 +364,8 @@ def build_windows_program():
     partial = WINDOWS / 'Choano.new.exe'
     run(windows_tool(MINGW + 'gcc'), '-std=c11', '-O2', '-ffunction-sections', '-fdata-sections', *includes,
         *sorted(generated.rglob('*.c')), runtime, raylib, WINDOWS / 'choano-resource.o', '-Wl,--gc-sections',
-        *mingw_library_flags(), '-static', '-static-libgcc', '-mwindows', *WINDOWS_LIBRARIES, '-o', partial)
+        *mingw_library_flags(), '-static', '-static-libgcc', '-mwindows', *accounts, *WINDOWS_LIBRARIES,
+        '-o', partial)
     run(windows_tool(MINGW + 'strip'), partial)
     check_windows_program(partial)
     partial.replace(program)
@@ -368,6 +387,8 @@ def build_windows():
     """build/Choano-setup.exe from the current game, art and audio."""
     version = current_version()
     WINDOWS.mkdir(parents=True, exist_ok=True)
+    # The Profile bundle the account provider reads from assets/entity.zx.
+    run(sys.executable, ROOT / 'scripts/build.py', 'profile-asset', cwd=ROOT)
     program = build_windows_program()
     stage = stage_windows(WINDOWS / 'Choano', program)
     partial = WINDOWS / 'Choano-setup.new.exe'

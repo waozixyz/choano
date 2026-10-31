@@ -22,6 +22,11 @@ Near :: (first: float32, second: float32, tolerance: float32 = 1.0) -> bool {
 }
 
 main :: () -> s32 {
+    for width: cast(s32)320..440 {
+        actions := Shell.TitleActionWidths(cast(float32)width, true, true)
+        if !Expect(actions.x >= 44.0 && actions.y >= 44.0 && actions.x + actions.y + 144.0 <= cast(float32)width + .01,
+            "Profile and Downloads leave room for both corner icons on narrow titles") { return 1 }
+    }
     layouts: [4]Rectangle = .[.{0.0, 0.0, 720.0, 1560.0}, .{0.0, 0.0, 1560.0, 720.0},
         .{0.0, 0.0, 900.0, 628.0}, .{18.0, 28.0, 376.0, 800.0}]
     for bounds: layouts {

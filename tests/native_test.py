@@ -34,6 +34,16 @@ def play(env, fish):
         assert window, 'Native Choano window missing'
         geometry = subprocess.check_output(['xdotool', 'getwindowgeometry', '--shell', window], env=env, text=True)
         assert 'WIDTH=900' in geometry and 'HEIGHT=680' in geometry, geometry
+        if not fish:
+            # Open the actual packaged Profile without signing in or spending.
+            time.sleep(.3)
+            subprocess.run(['xdotool', 'mousemove', '--window', window, '780', '26', 'click', '1'], check=True, env=env)
+            time.sleep(.6)
+            subprocess.run(['import', '-window', window, str(SHOTS / 'native-profile.png')], check=True, env=env)
+            assert (profile / 'profile/client.id').read_text().strip(), 'The isolated account provider did not start'
+            assert app.poll() is None, 'Native Profile failed to draw'
+            subprocess.run(['xdotool', 'mousemove', '--window', window, '50', '24', 'click', '1'], check=True, env=env)
+            time.sleep(.2)
         subprocess.run(['xdotool', 'windowfocus', window, 'key', 'Return'], check=True, env=env)
         time.sleep(.2)
         for width, height in ((320, 640), (390, 844), (900, 680)):

@@ -6,6 +6,8 @@ Sprites :: #import "sprites";
 Presentation :: #import "presentation";
 Math :: #import "std/math";
 Words :: #import "ui_strings";
+ProfileCopy :: #import "account_copy";
+Shop :: #import "shop";
 #import "kryon/session"
 #import "kryon/geometry"
 #import "kryon/button_props"
@@ -87,6 +89,8 @@ accessories_owned: s32;
 accessories_stage: s32;
 wardrobe_unseen: bool;
 wardrobe_open: bool;
+purchase_id: s32 = -1;
+purchase_requested: bool;
 fish_lock_message: bool;
 area: Rectangle;
 full_area: Rectangle;
@@ -108,7 +112,10 @@ Pick :: (value: bool) {
     fish = value
     Save()
 }
-AccessoryAvailable :: (id: s32) -> bool { return Accessories.Available(accessories_stage, id) }
+AccessoryAvailable :: (id: s32) -> bool {
+    if Accessories.PriceDew(id) > 0 { return Shop.Owned(id) }
+    return Accessories.Available(accessories_stage, id)
+}
 WearingAccessory :: () -> s32 {
     if AccessoryAvailable(accessory) { return accessory }
     return Accessories.ACCESSORY_HALO
@@ -121,7 +128,10 @@ SelectAccessory :: (id: s32) {
 SetAccessoryProgress :: (stage: s32) {
     previous_owned := accessories_owned
     record := Accessories.RecordForStage(stage)
-    record.selected = ifx Accessories.Available(record.highest_stage, accessory) then accessory else Accessories.ACCESSORY_HALO
+    record.selected = Accessories.ACCESSORY_HALO
+    if Accessories.PriceDew(accessory) > 0 || Accessories.Available(record.highest_stage, accessory) {
+        record.selected = accessory
+    }
     accessory = record.selected
     accessories_owned = record.owned
     accessories_stage = record.highest_stage
@@ -204,6 +214,18 @@ ActionButtonWidth :: (text: string) -> float32 {
     for text { width += ButtonGlyphWidth(it) }
     if width < 72.0 { width = 72.0 }
     return width
+}
+
+TitleActionWidths :: (width: float32, downloads: bool, profile: bool) -> Vector2 {
+    result := Vector2.{ifx downloads then ActionButtonWidth("Downloads") else 0.0,
+        ifx profile then ActionButtonWidth(ProfileCopy.Title()) else 0.0}
+    available := width - 136.0 - (ifx downloads && profile then 8.0 else 0.0)
+    total := result.x + result.y
+    if total > available && total > 0.0 {
+        result.x *= available / total
+        result.y *= available / total
+    }
+    return result
 }
 
 ButtonRadius :: (height: float32) -> float32 { return height * .5 }
@@ -368,7 +390,7 @@ IconButton :: (session: Session, key: u64, bounds: Rectangle, path: string, labe
     }
     unused Image(session, ImageProps.{.key = key + 40000, .asset_path = path,
         .bounds = icon, .smooth = true, .alt_text = label,
-        .tint = ifx pressed then cast(u32)0xd8d8d8ff else ifx hovered then cast(u32)0xffffffff else cast(u32)0xf0f0f0ff,
+        .tint = 0,
         .fit = ImageFit.ImageFitContain})
     return Button(session, ButtonProps.{.key = key, .id = cast(s32)key, .bounds = bounds,
         .label = label, .invisible = true}) != 0
@@ -474,8 +496,9 @@ LoadPreferences :: () {
 
 Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64, full_viewport: Rectangle = .{}) -> Rectangle {
     LoadPreferences()
+    if state.page != Nav.GAME_TITLE { wardrobe_open = false; purchase_id = -1; purchase_requested = false }
     full_area = ifx full_viewport.width > 0.0 then full_viewport else viewport
-    if key == 256 && wardrobe_open { wardrobe_open = false }
+    if key == 256 && wardrobe_open { wardrobe_open = false; purchase_id = -1; purchase_requested = false }
     else if key == 256 { unused Back() }
     else if key == 32 && state.page == Nav.GAME_PLAYING { Nav.GameNavigationPause(*state) }
     else if key == 257 && state.page == Nav.GAME_TITLE { Start() }
@@ -505,11 +528,16 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64, full_vi
     if settings_available {
         settings_width: float32 = 52.0
         if IconButton(session, cast(u64)50011, SettingsIconBounds(viewport), "assets/choano/gear.png", Words.Settings(Words.Language())) {
+            wardrobe_open = false
+            purchase_id = -1
+            purchase_requested = false
             Nav.GameNavigationSettings(*state)
         }
         right -= settings_width + 8.0
     }
-    downloads_width := ActionButtonWidth("Downloads")
+    action_widths := TitleActionWidths(viewport.width, downloads_available && state.page == Nav.GAME_TITLE,
+        profile_available && !playing)
+    downloads_width := action_widths.x
     download_clicked := false
     if downloads_available && state.page == Nav.GAME_TITLE {
         download_clicked = Action(session, cast(u64)50012, "Downloads",
@@ -518,8 +546,8 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64, full_vi
     }
     if downloads_available && state.page == Nav.GAME_TITLE { right -= downloads_width + cast(float32)8.0 }
     if profile_available && !playing {
-        profile_width := ActionButtonWidth("Profile")
-        if Action(session, cast(u64)50010, "Profile", Rectangle.{right - profile_width, action_y, profile_width, 52.0}) {
+        profile_width := action_widths.y
+        if Action(session, cast(u64)50010, ProfileCopy.Title(), Rectangle.{right - profile_width, action_y, profile_width, 52.0}) {
             profile_requested = true
             Nav.GameNavigationPause(*state)
         }
@@ -646,7 +674,7 @@ Row :: (session: Session, bounds: Rectangle, row: s32, text: string, primary: bo
 
 End :: (session: Session, now: float64, over: bool) {
     if wardrobe_open {
-        Wardrobe(session)
+        Wardrobe(session, now)
     } else if state.page == Nav.GAME_TITLE {
         resumable := state.running && !over && run_fish == fish
         layout := TitleLayoutFor(area, resumable)
@@ -711,10 +739,17 @@ End :: (session: Session, now: float64, over: bool) {
     Touch(false, 0.0, 0.0)
 }
 
-Wardrobe :: (session: Session) {
+Wardrobe :: (session: Session, now: float64) {
+    Shop.Pump(now)
+    if purchase_id >= 0 && Shop.Owned(purchase_id) {
+        SelectAccessory(purchase_id)
+        purchase_id = -1
+        purchase_requested = false
+    }
     bounds := Presentation.ShopBounds(area)
     width := bounds.width
     words := Words.ShopLabels(Words.Language())
+    items := Words.ShopItemLabels(Words.Language())
     unused Box(session, BoxProps.{.key = cast(u64)50300, .bounds = bounds,
         .fill = ColorFromPacked(0x051922fa), .border = ColorFromPacked(0x80cbd8ff), .radius = 26.0})
     unused WidgetPaletteUse(session, WidgetPalette.{.text = 0xe6f3ffff})
@@ -724,55 +759,153 @@ Wardrobe :: (session: Session) {
     if RoundAction(session, cast(u64)50302, words.close, Rectangle.{bounds.x + width - close_width - 16.0,
         bounds.y + 8.0, close_width, 52.0}) {
         wardrobe_open = false
+        purchase_id = -1
+        purchase_requested = false
     }
     for id: cast(s32)0..Accessories.ACCESSORY_COUNT - 1 {
         card := Presentation.ShopCard(bounds, id)
-        if AccessoryCard(session, id, card, bounds.width < 420.0) { SelectAccessory(id) }
+        if AccessoryCard(session, id, card, bounds.width < 420.0) {
+            if AccessoryAvailable(id) {
+                SelectAccessory(id)
+            } else if Accessories.PriceDew(id) > 0 {
+                purchase_id = id
+                purchase_requested = false
+            }
+        }
+    }
+    if purchase_id >= 0 {
+        confirm_width: float32 = 320.0
+        if confirm_width > width - 24.0 { confirm_width = width - 24.0 }
+        confirm_height: float32 = 178.0
+        if confirm_height > bounds.height - 48.0 { confirm_height = bounds.height - 48.0 }
+        confirm := Rectangle.{bounds.x + (width - confirm_width) * .5,
+            bounds.y + (bounds.height - confirm_height) * .5, confirm_width, confirm_height}
+        unused Box(session, BoxProps.{.key = cast(u64)50390, .bounds = confirm,
+            .fill = ColorFromPacked(0x071b29ff), .border = ColorFromPacked(0xff8bc3dd), .radius = 20.0})
+        unused Button(session, ButtonProps.{.key = cast(u64)50389, .id = 50389,
+            .bounds = bounds, .label = items.purchase_title, .invisible = true})
+        unused Text(session, TextProps.{.key = cast(u64)50391, .text = items.purchase_title, .font = 20,
+            .bounds = Rectangle.{confirm.x + 12.0, confirm.y + 12.0, confirm.width - 24.0, 26.0},
+            .align = TextAlign.TextAlignCenter})
+        unused Text(session, TextProps.{.key = cast(u64)50392, .text = AccessoryName(purchase_id, items), .font = 18,
+            .bounds = Rectangle.{confirm.x + 12.0, confirm.y + 42.0, confirm.width - 24.0, 24.0},
+            .align = TextAlign.TextAlignCenter})
+        price := AccessoryPrice(purchase_id, items)
+        unused Text(session, TextProps.{.key = cast(u64)50393, .text = price, .font = 18,
+            .bounds = Rectangle.{confirm.x + 12.0, confirm.y + 68.0, confirm.width - 24.0, 22.0},
+            .align = TextAlign.TextAlignCenter})
+        status := ""
+        if Shop.pending { status = items.purchase_pending }
+        else if purchase_requested && Shop.insufficient { status = items.insufficient_dew }
+        else if purchase_requested && Shop.failed { status = items.purchase_failed }
+        if status.count > 0 {
+            unused Text(session, TextProps.{.key = cast(u64)50394, .text = status, .font = 12,
+                .bounds = Rectangle.{confirm.x + 12.0, confirm.y + 92.0, confirm.width - 24.0, 20.0},
+                .align = TextAlign.TextAlignCenter})
+        }
+        button_width := (confirm.width - 48.0) / 2.0
+        button_bounds := Rectangle.{confirm.x + 16.0, confirm.y + 120.0, button_width, 44.0}
+        if PlainButton(session, cast(u64)50395, items.cancel, button_bounds, BUTTON_NORMAL, false, false) {
+            purchase_id = -1
+            purchase_requested = false
+        }
+        button_bounds.x = confirm.x + confirm.width - button_width - 16.0
+        if !Shop.signed_in {
+            if PlainButton(session, cast(u64)50396, items.sign_in, button_bounds, BUTTON_PRIMARY, false, false) {
+                purchase_id = -1
+                purchase_requested = false
+                wardrobe_open = false
+                profile_requested = true
+            }
+        } else {
+            if PlainButton(session, cast(u64)50397, items.buy, button_bounds, BUTTON_PRIMARY,
+                Shop.pending || (purchase_requested && Shop.insufficient), false) {
+                purchase_requested = true
+                unused Shop.Buy(purchase_id)
+            }
+        }
     }
     unused WidgetPaletteRestore(session)
 }
 
 AccessoryCard :: (session: Session, id: s32, bounds: Rectangle, stacked: bool) -> bool {
     selected := accessory == id
-    words := Words.ShopLabels(Words.Language())
+    words := Words.ShopItemLabels(Words.Language())
     layout := Presentation.FitAccessory(bounds, stacked)
+    is_locked := locked(id)
     unused Box(session, BoxProps.{.key = cast(u64)(50320 + id), .bounds = bounds,
         .fill = ifx selected then ColorFromPacked(0x123b52fa) else ColorFromPacked(0x0a2838fa),
         .border = ifx selected then ColorFromPacked(0xff8bc3ff) else ColorFromPacked(0x80cbd8cc), .radius = 20.0})
     preview := layout.preview
     size := preview.width
-    unused Box(session, BoxProps.{.key = cast(u64)(50330 + id), .bounds = preview,
-        .fill = ColorFromPacked(0x0d3f57e8), .border = ColorFromPacked(0x54d2ec66), .radius = size * .5})
-    tint := ifx locked(id) then cast(u32)0x8ea3adb0 else 0
     player_source := Sprites.OrganismSource("player", 1, 0)
     player_preview := preview
     accessory_preview := preview
     if id == Accessories.ACCESSORY_HALO {
-        player_preview = Rectangle.{preview.x + size * .12, preview.y + size * .30, size * .76, size * .76}
-        accessory_preview = Rectangle.{preview.x + size * .12, preview.y - size * .24, size * .76, size * .76}
+        player_preview = Rectangle.{preview.x + size * .12, preview.y + size * .34, size * .76, size * .60}
+        accessory_preview = Rectangle.{preview.x + size * .12, preview.y + size * .04, size * .76, size * .60}
+    } else {
+        player_size := size * .68
+        player_preview = Rectangle.{preview.x + (size - player_size) * .5,
+            preview.y + size * .32, player_size, player_size}
+        accessory_size := player_size * (ifx id == Accessories.ACCESSORY_WIZARD then .95 else .80)
+        body_height := player_size * .896
+        accessory_center_y := player_preview.y + (player_size - body_height) * .5 + body_height * .06 + accessory_size * .03125
+        accessory_preview = Rectangle.{preview.x + (size - accessory_size) * .5 + player_size * .08,
+            accessory_center_y - accessory_size * .5, accessory_size, accessory_size}
     }
     unused Image(session, ImageProps.{.key = cast(u64)(50340 + id), .asset_path = "assets/choano/organisms-hd.png",
-        .bounds = player_preview, .source = player_source, .smooth = true, .tint = tint,
+        .bounds = player_preview, .source = player_source, .smooth = true, .tint = 0,
         .fit = ImageFit.ImageFitContain})
+    accessory_source := Accessories.SourceContentBounds(id)
+    if id != Accessories.ACCESSORY_HALO {
+        accessory_source = Rectangle.{0.0, 0.0, cast(float32)Accessories.SOURCE_SIZE,
+            cast(float32)Accessories.SOURCE_SIZE}
+    }
     unused Image(session, ImageProps.{.key = cast(u64)(50350 + id), .asset_path = Accessories.PreviewAssetPath(id),
-        .bounds = accessory_preview, .source = Rectangle.{0.0, 0.0, cast(float32)Accessories.SOURCE_SIZE,
-            cast(float32)Accessories.SOURCE_SIZE}, .smooth = true, .tint = tint,
-        .fit = ImageFit.ImageFitStretch})
-    locked := !AccessoryAvailable(id)
-    name := words.halo
-    requirement := words.halo_requirement
-    if id == Accessories.ACCESSORY_RIBBON { name = words.ribbon; requirement = words.ribbon_requirement }
-    if id == Accessories.ACCESSORY_CROWN { name = words.crown; requirement = words.crown_requirement }
-    clicked := PlainButton(session, cast(u64)(50360 + id), name, layout.button,
-        ifx selected then BUTTON_SELECTED else BUTTON_NORMAL, locked, false, selected)
-    unused Text(session, TextProps.{.key = cast(u64)(50370 + id), .text = requirement,
-        .bounds = layout.requirement, .font = 12, .align = TextAlign.TextAlignCenter,
-        .vertical_align = TextAlign.TextAlignCenter})
-    if clicked { return true }
-    return false
+        .bounds = accessory_preview, .source = accessory_source, .smooth = true, .tint = 0,
+        .fit = ImageFit.ImageFitContain})
+    name := AccessoryName(id, words)
+    name_font: s32 = ifx stacked then 14 else 12
+    measured := cast(float32)TextWidth(session, TextProps.{.text = name, .font = name_font})
+    if measured > layout.name.width && measured > 0.0 {
+        name_font = cast(s32)(cast(float32)name_font * layout.name.width / measured)
+        if name_font < 9 { name_font = 9 }
+    }
+    unused Text(session, TextProps.{.key = cast(u64)(50370 + id), .text = name, .font = name_font,
+        .bounds = layout.name, .vertical_align = TextAlign.TextAlignCenter})
+    if is_locked {
+        price := AccessoryPrice(id, words)
+        if price.count > 0 {
+            unused Text(session, TextProps.{.key = cast(u64)(50430 + id), .text = price, .font = 13,
+                .bounds = layout.price, .vertical_align = TextAlign.TextAlignCenter})
+        }
+        unused Image(session, ImageProps.{.key = cast(u64)(50360 + id), .asset_path = "assets/choano/lock.png",
+            .bounds = layout.lock, .alt_text = words.locked, .smooth = true, .tint = 0,
+            .fit = ImageFit.ImageFitContain})
+    }
+    return Button(session, ButtonProps.{.key = cast(u64)(50380 + id), .id = cast(s32)(50380 + id),
+        .bounds = bounds, .label = name, .invisible = true}) != 0
 }
 
 locked :: (id: s32) -> bool { return !AccessoryAvailable(id) }
+
+AccessoryName :: (id: s32, words: Words.ShopItems) -> string {
+    if id == Accessories.ACCESSORY_RIBBON { return words.ribbon }
+    if id == Accessories.ACCESSORY_CROWN { return words.crown }
+    if id == Accessories.ACCESSORY_PEARL { return words.pearl }
+    if id == Accessories.ACCESSORY_FLOWER { return words.flower }
+    if id == Accessories.ACCESSORY_WIZARD { return words.wizard }
+    return words.halo
+}
+
+AccessoryPrice :: (id: s32, words: Words.ShopItems) -> string {
+    price := Accessories.PriceDew(id)
+    if price == 10 { return words.price_10 }
+    if price == 20 { return words.price_20 }
+    if price == 30 { return words.price_30 }
+    return ""
+}
 
 ProfileBar :: (session: Session, viewport: Rectangle) -> bool {
     return GameBar(session, viewport, cast(u64)53000, "PROFILE", true, false)

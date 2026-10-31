@@ -58,6 +58,48 @@ Raggiungi la dimensione massima (9)
 in Ameba
 ---
 [choano_shop_close]
+[choano_shop_pearl]
+Perla
+---
+[choano_shop_flower]
+Fiore
+---
+[choano_shop_wizard]
+Mago
+---
+[choano_shop_buy]
+Acquista
+---
+[choano_shop_cancel]
+Annulla
+---
+[choano_shop_sign_in]
+Accedi
+---
+[choano_shop_purchase_title]
+Acquista una decorazione
+---
+[choano_shop_purchase_pending]
+Acquisto in corso…
+---
+[choano_shop_purchase_failed]
+Acquisto non completato.
+---
+[choano_shop_insufficient_dew]
+Dew insufficiente
+---
+[choano_shop_locked]
+Bloccato
+---
+[choano_shop_price_10]
+10 Dew
+---
+[choano_shop_price_20]
+20 Dew
+---
+[choano_shop_price_30]
+30 Dew
+---
 Chiudi
 ---
 [choano_pause]

@@ -1,7 +1,10 @@
 ACCESSORY_HALO :: 0;
 ACCESSORY_RIBBON :: 1;
 ACCESSORY_CROWN :: 2;
-ACCESSORY_COUNT :: 3;
+ACCESSORY_PEARL :: 3;
+ACCESSORY_FLOWER :: 4;
+ACCESSORY_WIZARD :: 5;
+ACCESSORY_COUNT :: 6;
 ACCESSORY_RIBBON_STAGE :: 5;
 ACCESSORY_CROWN_STAGE :: 9;
 SOURCE_SIZE :: 512;
@@ -23,7 +26,7 @@ NormalizeRecord :: (record: AccessoryRecord) -> AccessoryRecord {
     if result.highest_stage < 1 { result.highest_stage = 1 }
     result.owned &= (1 << ACCESSORY_COUNT) - 1
     result.owned |= 1
-    if !Available(result.highest_stage, result.selected) { result.selected = ACCESSORY_HALO }
+    if result.selected < ACCESSORY_PEARL && !Available(result.highest_stage, result.selected) { result.selected = ACCESSORY_HALO }
     return result
 }
 
@@ -41,22 +44,32 @@ Available :: (highest_stage: s32, id: s32) -> bool {
     return false
 }
 
+PriceDew :: (id: s32) -> s32 {
+    if id >= ACCESSORY_PEARL && id <= ACCESSORY_WIZARD { return (id - ACCESSORY_PEARL + 1) * 10 }
+    return 0
+}
+
 AssetToken :: (id: s32) -> string {
+    if id == ACCESSORY_PEARL { return "pearl" }
+    if id == ACCESSORY_FLOWER { return "flower" }
+    if id == ACCESSORY_WIZARD { return "wizard" }
     if id == ACCESSORY_RIBBON { return "ribbon" }
     if id == ACCESSORY_CROWN { return "crown" }
     return "halo"
 }
 
 PreviewAssetPath :: (id: s32) -> string {
+    if id == ACCESSORY_PEARL { return "assets/choano/accessory-pearl.png" }
+    if id == ACCESSORY_FLOWER { return "assets/choano/accessory-flower.png" }
+    if id == ACCESSORY_WIZARD { return "assets/choano/accessory-wizard.png" }
     if id == ACCESSORY_RIBBON { return "assets/choano/accessory-ribbon.png" }
     if id == ACCESSORY_CROWN { return "assets/choano/accessory-crown.png" }
     return "assets/choano/accessory-halo.png"
 }
 
 SourceContentBounds :: (id: s32) -> Rectangle {
-    if id == ACCESSORY_HALO { return Rectangle.{56.0, 48.0, 400.0, 250.0} }
-    if id == ACCESSORY_RIBBON { return Rectangle.{96.0, 48.0, 320.0, 183.0} }
-    return Rectangle.{96.0, 32.0, 320.0, 261.0}
+    if id == ACCESSORY_HALO { return Rectangle.{56.0, 190.0, 400.0, 132.0} }
+    return Rectangle.{76.0, 32.0, 360.0, 212.0}
 }
 
 OverlayBounds :: (player: Rectangle, id: s32, side: string) -> Rectangle {

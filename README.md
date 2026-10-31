@@ -39,6 +39,22 @@ after closing the game.
 The same title, pause, settings and movement-control flow runs in compatible
 game libraries. Back returns through the current screen before leaving the game.
 
+## Shop and guides
+
+The title-screen Shop has three earned decorations and three optional Dew purchases:
+a pearl ornament (10 Dew), a flower (20 Dew), and a wizard hat (30 Dew).
+Tap an owned card to wear it. A locked Dew item opens its price confirmation;
+only a confirmed account receipt unlocks it, and the same account restores it
+on another device. Profile provides sign-in in the native and browser editions;
+compatible portable hosts supply the same account services. Local swimming and
+the earned decorations do not require a purchase.
+
+A small fish guide introduces food, hazards, and golden pearls one speech bubble
+at a time. Tap the bubble to advance. Fish keep their original colors; creatures
+your size or smaller are food, while jellyfish and shark bodies are dangerous.
+Shark fins flash red on contact. The lives counter includes the current life,
+and a short recovery period prevents one overlap from consuming every life.
+
 ## Build and local tests
 
 Install Python 3.11 or newer with Pillow, Ziran, and the SDL2, Cairo, FreeType, Fontconfig, Pango, GTK and X11

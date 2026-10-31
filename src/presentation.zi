@@ -91,7 +91,7 @@ ScoreFont :: (width: float32, digits: s32) -> s32 {
 ShopBounds :: (area: Rectangle) -> Rectangle {
     width := area.width - 24.0
     if width > 560.0 { width = 560.0 }
-    height: float32 = ifx width < 420.0 then 420.0 else 340.0
+    height: float32 = ifx width < 420.0 then 438.0 else 262.0
     if height > area.height - 24.0 { height = area.height - 24.0 }
     return .{area.x + (area.width - width) * .5, area.y + (area.height - height) * .5, width, height}
 }
@@ -99,33 +99,50 @@ ShopBounds :: (area: Rectangle) -> Rectangle {
 ShopCard :: (shop: Rectangle, id: s32) -> Rectangle {
     stacked := shop.width < 420.0
     if stacked {
-        height := (shop.height - 80.0) / 3.0
-        return .{shop.x + 12.0, shop.y + 68.0 + cast(float32)id * (height + 4.0), shop.width - 24.0, height}
+        card_width := (shop.width - 32.0) / 2.0
+        card_height := (shop.height - 82.0) / 3.0
+        column := id % 2
+        row := id / 2
+        return .{shop.x + 12.0 + cast(float32)column * (card_width + 8.0),
+            shop.y + 62.0 + cast(float32)row * (card_height + 4.0), card_width, card_height}
     }
-    width := (shop.width - 40.0) / 3.0
-    return .{shop.x + 12.0 + cast(float32)id * (width + 8.0), shop.y + 68.0, width, shop.height - 80.0}
+    card_width := (shop.width - 40.0) / 3.0
+    card_height := (shop.height - 78.0) / 2.0
+    return .{shop.x + 12.0 + cast(float32)(id % 3) * (card_width + 8.0),
+        shop.y + 62.0 + cast(float32)(id / 3) * (card_height + 4.0), card_width, card_height}
 }
 
 AccessoryLayout :: struct {
     preview: Rectangle
-    button: Rectangle
-    requirement: Rectangle
+    name: Rectangle
+    price: Rectangle
+    lock: Rectangle
 }
 
 FitAccessory :: (card: Rectangle, stacked: bool) -> AccessoryLayout {
     if stacked {
-        size: float32 = 64.0
-        if size > card.height - 16.0 { size = card.height - 16.0 }
-        left := card.x + size + 20.0
-        width := card.width - size - 30.0
-        return .{.preview = .{card.x + 10.0, card.y + (card.height - size) * .5, size, size},
-            .button = .{left, card.y + 6.0, width, 36.0},
-            .requirement = .{left, card.y + 46.0, width, card.height - 50.0}}
+        size: float32 = 58.0
+        if size > card.height - 60.0 { size = card.height - 60.0 }
+        if size < 12.0 { size = 12.0 }
+        return .{
+            .preview = .{card.x + (card.width - size) * .5, card.y + 30.0, size, size},
+            .name = .{card.x + 10.0, card.y + 5.0, card.width - 40.0, 24.0},
+            .price = .{card.x + 10.0, card.y + card.height - 26.0, card.width - 20.0, 22.0},
+            .lock = .{card.x + card.width - 26.0, card.y + 6.0, 20.0, 20.0}
+        }
     }
-    size: float32 = 104.0
-    if size > card.width - 20.0 { size = card.width - 20.0 }
-    if size > card.height - 112.0 { size = card.height - 112.0 }
-    return .{.preview = .{card.x + (card.width - size) * .5, card.y + 8.0, size, size},
-        .button = .{card.x + 8.0, card.y + size + 16.0, card.width - 16.0, 32.0},
-        .requirement = .{card.x + 8.0, card.y + size + 54.0, card.width - 16.0, 48.0}}
+    preview_size: float32 = ifx stacked then 64.0 else 60.0
+    if preview_size > card.height - 14.0 { preview_size = card.height - 14.0 }
+    if preview_size > card.width * .45 { preview_size = card.width * .45 }
+    text_x := card.x + preview_size + 14.0
+    text_width := card.x + card.width - 8.0 - text_x
+    lock_size: float32 = ifx stacked then 20.0 else 18.0
+    if lock_size > card.height * .32 { lock_size = card.height * .32 }
+    return .{
+        .preview = .{card.x + 8.0, card.y + (card.height - preview_size) * .5, preview_size, preview_size},
+        .name = .{text_x, card.y + 24.0, text_width, 24.0},
+        .price = .{text_x, card.y + card.height - (ifx stacked then 30.0 else 25.0),
+            text_width, ifx stacked then 22.0 else 19.0},
+        .lock = .{card.x + card.width - lock_size - 6.0, card.y + 6.0, lock_size, lock_size}
+    }
 }

@@ -11,6 +11,11 @@ Near :: (a: float32, b: float32) -> bool {
     d := a - b
     return d < .001 && d > -.001
 }
+Inside :: (inner: Rectangle, outer: Rectangle) -> bool {
+    return inner.x >= outer.x && inner.y >= outer.y &&
+        inner.x + inner.width <= outer.x + outer.width &&
+        inner.y + inner.height <= outer.y + outer.height
+}
 
 main :: () -> s32 {
     for side_index: 0..1 {
@@ -59,16 +64,28 @@ main :: () -> s32 {
         .{0.0, 52.0, 900.0, 628.0}, .{0.0, 52.0, 760.0, 240.0}]
     for area: areas {
         shop := ShopBounds(area)
-        for id: cast(s32)0..2 {
+        if !Expect(Inside(shop, area), "the shop modal fits every viewport") { return 1 }
+        for id: cast(s32)0..5 {
             card := ShopCard(shop, id)
             layout := FitAccessory(card, shop.width < 420.0)
-            if !Expect(card.y + card.height <= shop.y + shop.height &&
-                layout.preview.width > 0.0 && layout.requirement.height >= 36.0 &&
-                layout.requirement.y >= layout.button.y + layout.button.height &&
-                layout.requirement.y + layout.requirement.height <= card.y + card.height &&
-                layout.requirement.x >= card.x &&
-                layout.requirement.x + layout.requirement.width <= card.x + card.width,
-                "headwear requirements remain visible inside every card on phones and short landscape screens") { return 1 }
+            if !Expect(card.width > 0.0 && card.height > 0.0 && Inside(card, shop) &&
+                layout.preview.width > 0.0 && Inside(layout.preview, card) &&
+                layout.name.width > 0.0 && Inside(layout.name, card) &&
+                layout.price.width > 0.0 && Inside(layout.price, card) &&
+                layout.lock.width > 0.0 && Inside(layout.lock, card),
+                "all six decoration cards keep positive contained preview, name, price and lock areas") { return 1 }
+        }
+        first := ShopCard(shop, 0)
+        second := ShopCard(shop, 1)
+        third := ShopCard(shop, 2)
+        fourth := ShopCard(shop, 3)
+        if shop.width < 420.0 {
+            if !Expect(Near(first.y, second.y) && first.x < second.x && third.y > first.y,
+                "phones use a two-column, three-row shop grid") { return 1 }
+        } else {
+            if !Expect(Near(first.y, second.y) && Near(first.y, third.y) &&
+                first.x < second.x && second.x < third.x && fourth.y > first.y,
+                "landscape and desktop use a three-column, two-row shop grid") { return 1 }
         }
     }
     languages: [12]string = .["en", "es", "pt", "fr", "de", "it", "cs", "id", "ru", "ja", "ko", "zh"]
@@ -80,6 +97,15 @@ main :: () -> s32 {
         if !Expect(labels.ribbon != labels.halo && labels.ribbon_requirement.count > 0 &&
             labels.crown_requirement.count > 0 && labels.halo_requirement.count > 0 && labels.close.count > 0,
             "every supported language names the bow and explains each unlock") { return 1 }
+        items := Words.ShopItemLabels(language)
+        if !Expect(items.halo != items.ribbon && items.ribbon != items.crown &&
+            items.crown != items.pearl && items.pearl != items.flower && items.flower != items.wizard &&
+            items.buy.count > 0 && items.cancel.count > 0 && items.sign_in.count > 0 &&
+            items.purchase_title.count > 0 && items.purchase_pending.count > 0 &&
+            items.purchase_failed.count > 0 && items.insufficient_dew.count > 0 &&
+            items.locked.count > 0 && items.price_10 != items.price_20 &&
+            items.price_20 != items.price_30,
+            "every supported language names all six decorations and covers purchase states and prices") { return 1 }
     }
     Game.StartGame(1234)
     Game.game.player_stage = 4

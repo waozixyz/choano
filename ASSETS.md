@@ -1,6 +1,6 @@
 # Choano assets
 
-Choano ships 184 replacement PNG images, 4 compressed JPEG title images, and
+Choano ships 198 replacement PNG images, 4 compressed JPEG title images, and
 7 replacement PCM WAV sounds.
 The artwork was generated and assembled for Choano; the sound effects were
 synthesized for Choano. No original Moeboid artwork, audio, executable, DLL,

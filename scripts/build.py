@@ -42,18 +42,92 @@ def renderer_links():
     return renderers.renderer_link(renderers.renderer_metadata(artifact), preloads=False)
 
 
+def artifact(selection, platform, env=None):
+    return shared_script('ziran', 'ziran_artifacts').request(selection, platform, project=ROOT, ziran=ZIRAN, env=env)
+
+
+# The system libraries Entity's native-profile recipe adds for its Profile UI
+# (tools/artifacts.zi SystemLinkText). That recipe lists 65 inputs, past the
+# 64 the locked Ziran (before 3e69203b) accepts, so only its native-crypto
+# prerequisite is requested; switch to native-profile with a newer toolchain.
+PROFILE_SYSTEM = {
+    'linux-x86_64-gnu': (['sdl2', 'cairo', 'freetype2', 'fontconfig', 'pangocairo', 'gtk+-3.0'], ['-lX11']),
+    'windows-x86_64-mingw': ([], ['-flto=1', '-luser32', '-lshell32', '-lole32', '-lcomdlg32']),
+}
+
+
+def account_links(platform, env=None):
+    """The Entity account provider's foreign libraries for PLATFORM, in its own
+    order: its Ziran modules are ordinary imports, so no Entity archive."""
+    flags = artifact('entity:native-crypto', platform, env).link_flags(env=env)
+    packages, libraries = PROFILE_SYSTEM[platform]
+    if packages:
+        flags.extend(shlex.split(subprocess.check_output(['pkg-config', '--libs', *packages], text=True, env=env)))
+    return [*flags, *libraries]
+
+
+# The Profile bundle native editions read from assets/; never tracked, and
+# kept out of the portable bundle and the web site, which do not open it.
+PROFILE_ASSET = ROOT / 'assets/entity.zx'
+
+
+def profile_asset():
+    profile()
+    partial = PROFILE_ASSET.with_name('entity.zx.new')
+    shutil.copyfile(ROOT / 'build/entity.zx', partial)
+    partial.replace(PROFILE_ASSET)
+    return PROFILE_ASSET
+
+
+def without_profile(folder, names):
+    return ['entity.zx', 'entity.zx.new'] if Path(folder).resolve() == PROFILE_ASSET.parent else []
+
+
+def link_or_copy(source, target):
+    try:
+        os.link(source, target)
+    except OSError:
+        shutil.copy2(source, target)
+
+
+NATIVE = ROOT / 'build/Choano-native'
+NATIVE_WORK = ROOT / 'build/native-accounts'
+
+
 def native():
+    """build/Choano-native: src/desktop.zi with the Entity account provider.
+    Kryon's native profile takes no defines, so this is its desktop route
+    (POSIX threads, the desktop backend's libraries) with CHOANO_ACCOUNTS."""
+    profile_asset()
     # Preserve dependency-owned archive order before its platform libraries.
     links = renderer_links()
-    links.extend(shlex.split(os.environ.get('LDLIBS', '')))
-    run(ZIRAN, 'build', '--project', *LOCKED, 'native',
-        env={**os.environ, 'LDLIBS': shlex.join(links)})
+    links.extend(account_links('linux-x86_64-gnu'))
+    for query in (['sdl2', 'cairo', 'freetype2', 'pangocairo', 'fontconfig', 'gio-2.0'], ['libcurl']):
+        found = subprocess.run(['pkg-config', '--libs', *query], text=True, capture_output=True)
+        links.extend(shlex.split(found.stdout) if found.returncode == 0 else ['-l:libcurl.so.4'])
+    links.extend(['-pthread', *shlex.split(os.environ.get('LDLIBS', ''))])
+    env = {**os.environ, 'LDLIBS': shlex.join(links),
+           'CFLAGS': os.environ.get('CFLAGS', '-O2') + ' -ffunction-sections -fdata-sections -Wno-main -pthread',
+           'LDFLAGS': (os.environ.get('LDFLAGS', '') + ' -Wl,--gc-sections').strip()}
+    run(ZIRAN, 'build', '--project', *LOCKED, '--target=c', '--exe', '--define', 'POSIX_THREADS',
+        '--define', 'CHOANO_ACCOUNTS', '--entry', 'desktop:main', '-o', NATIVE_WORK, 'src/desktop.zi', env=env)
+    partial = NATIVE.with_name(NATIVE.name + '.new')
+    shutil.copyfile(NATIVE_WORK / 'desktop', partial)
+    partial.chmod(0o755)
+    partial.replace(NATIVE)
+    # The window and menu name Kryon's desktop host reads beside the program.
+    NATIVE.with_name(NATIVE.name + '.title').write_text('Choano\n')
 
 
 def bundle():
+    # The art without the native Profile bundle: hosts own the portable Profile.
+    staged = ROOT / 'build/portable-assets'
+    if staged.exists():
+        shutil.rmtree(staged)
+    shutil.copytree(ROOT / 'assets', staged, ignore=without_profile, copy_function=link_or_copy)
     run(ZIRAN, 'bundle', '--project', *LOCKED, '--define', 'CHOANO_PORTABLE',
         '--define', 'KRYON_HOSTED_UI', '--entry', 'portable:Main',
-        '--asset-dir', 'assets=assets', '-o', 'build/choano.zx', 'src/portable.zi')
+        '--asset-dir', 'assets=' + str(staged), '-o', 'build/choano.zx', 'src/portable.zi')
 
 
 def profile():
@@ -79,7 +153,7 @@ def web():
     # The browser renderer and Web Audio load the same replacement PNG/WAV files.
     if (output / 'assets').exists():
         shutil.rmtree(output / 'assets')
-    shutil.copytree(ROOT / 'assets', output / 'assets')
+    shutil.copytree(ROOT / 'assets', output / 'assets', ignore=without_profile)
     for item in (ROOT / 'src/web').iterdir():
         if item.suffix in {'.html', '.js', '.css'}:
             shutil.copyfile(item, output / item.name)
@@ -98,8 +172,9 @@ def web():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('target', choices=['native', 'bundle', 'profile', 'web'])
+    parser.add_argument('target', choices=['native', 'bundle', 'profile', 'profile-asset', 'web'])
     args = parser.parse_args()
     prepare_theme()
     (ROOT / 'build').mkdir(exist_ok=True)
-    {'native': native, 'bundle': bundle, 'profile': profile, 'web': web}[args.target]()
+    {'native': native, 'bundle': bundle, 'profile': profile, 'profile-asset': profile_asset,
+     'web': web}[args.target]()

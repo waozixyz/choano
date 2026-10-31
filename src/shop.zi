@@ -1,0 +1,72 @@
+Rules :: #import "shop_rules";
+#import "std/json_scan"
+#import "std/c_string"
+#import "std/text_buffer"
+#if #defined(CHOANO_SHOP_TEST) {
+    Account :: #import "shop_fixture";
+} else {
+    Account :: #import "account";
+}
+
+ready: bool;
+signed_in: bool;
+pending: bool;
+failed: bool;
+insufficient: bool;
+owner: [65]u8;
+decorations: s32;
+next_poll: float64;
+
+Clear :: () {
+    ready = false; signed_in = false; pending = false
+    failed = false; insufficient = false; decorations = 0
+    owner = .{}
+}
+
+CurrentOwner :: (output: []u8) -> string {
+    status := Account.Service("entity.records", "{\"operation\":\"status\"}")
+    if ReadStringText(status, FieldAt(status, 0, "account"), output) != 64 { return "" }
+    value := TextUntilNul(output)
+    return ifx Rules.PublicOwner(value) then value else ""
+}
+
+Adopt :: (text: string, expected: string) {
+    value := Rules.ReadShopSnapshot(text, expected)
+    if !value.valid { Clear(); return }
+    unused CopyCString(expected, owner[:])
+    signed_in = true
+    decorations = value.decorations
+    pending = value.state == Rules.SHOP_PENDING
+    failed = value.state == Rules.SHOP_FAILED
+    insufficient = value.state == Rules.SHOP_INSUFFICIENT
+    ready = value.state == Rules.SHOP_DONE || failed || insufficient
+}
+
+Pump :: (now: float64) {
+    current: [65]u8
+    expected := CurrentOwner(current[:])
+    if expected != TextUntilNul(owner[:]) { Clear(); next_poll = 0.0 }
+    if expected == "" { return }
+    if now < next_poll { return }
+    next_poll = now + .4
+    Adopt(Account.Service("entity.game-shop", "status"), expected)
+}
+
+Owned :: (id: s32) -> bool {
+    current: [65]u8
+    expected := CurrentOwner(current[:])
+    if expected == "" || expected != TextUntilNul(owner[:]) { Clear(); return false }
+    product := Rules.DecorationProduct(id)
+    return signed_in && product > 0 && (decorations & (1 << product)) != 0
+}
+
+Buy :: (id: s32) -> bool {
+    request := Rules.DecorationRequest(id)
+    if request == "" || pending || !ready || !signed_in || Owned(id) { return false }
+    current: [65]u8
+    expected := CurrentOwner(current[:])
+    if expected == "" || expected != TextUntilNul(owner[:]) { Clear(); return false }
+    Adopt(Account.Service("entity.game-shop", request), expected)
+    next_poll = 0.0
+    return pending || Owned(id)
+}
