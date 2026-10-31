@@ -178,7 +178,7 @@ main :: () -> s32 {
     if Expect(game.started, "game starts immediately") != 0 { return 1 }
     if Expect(!SharkAlert(), "Amoeba mode has no shark music cue") != 0 { return 1 }
     if Expect(game.enemy_count == INITIAL_ENEMIES, "retuned initial enemy count") != 0 { return 1 }
-    if Expect(game.lives == 2 && game.player_stage == 1 && game.score == 0 &&
+    if Expect(game.lives == 2 && LivesRemaining() == 3 && game.player_stage == 1 && game.score == 0 &&
         game.next_growth_threshold == 14, "original initial state") != 0 { return 1 }
     game.growth_progress = 7
     if Expect(GrowthMeter() > .499 && GrowthMeter() < .501,
@@ -235,11 +235,20 @@ main :: () -> s32 {
     game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 2,
         .velocity_x = 1.0, .velocity_y = 0.0, .active = true, .warning_timer = 0.0}
     UpdateGame(.{}, 1.0 / 60.0)
-    if Expect(!game.over && game.lives == 1, "larger enemy costs a life without invented immunity") != 0 { return 1 }
+    if Expect(!game.over && game.lives == 1 && LivesRemaining() == 2 && game.safe_timer > 0.0,
+        "one Amoeba hit costs one life and starts a recovery period") != 0 { return 1 }
+    for frame: 0..29 { UpdateGame(.{}, 1.0 / 60.0) }
+    if Expect(!game.over && game.lives == 1 && game.safe_timer < SAFE_SECONDS,
+        "continued overlap cannot consume spare lives on consecutive frames") != 0 { return 1 }
+    game.safe_timer = 0.0
+    game.enemies[0].x = game.player_x; game.enemies[0].y = game.player_y
     UpdateGame(.{}, 1.0 / 60.0)
-    if Expect(!game.over && game.lives == 0, "second dangerous contact reaches the final life state") != 0 { return 1 }
+    if Expect(!game.over && game.lives == 0 && LivesRemaining() == 1,
+        "a later hit leaves one current life") != 0 { return 1 }
+    game.safe_timer = 0.0
+    game.enemies[0].x = game.player_x; game.enemies[0].y = game.player_y
     UpdateGame(.{}, 1.0 / 60.0)
-    if Expect(game.over, "third dangerous contact ends the game") != 0 { return 1 }
+    if Expect(game.over && LivesRemaining() == 0, "losing the final life ends the game") != 0 { return 1 }
 
     StartGame(1357)
     game.enemy_count = 0

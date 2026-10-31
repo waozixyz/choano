@@ -466,6 +466,12 @@ StartGame :: (seed: u32, mode: s32 = MODE_AMOEBA) {
     QueueSound(SOUND_START)
 }
 
+// The stored count is spare lives; the HUD includes the current life.
+LivesRemaining :: () -> s32 {
+    if game.over || game.lives < 0 { return 0 }
+    return game.lives + 1
+}
+
 RemoveEnemy :: (index: s32) {
     if index < 0 || index >= game.enemy_count { return }
     for move: index..game.enemy_count - 2 {
@@ -618,12 +624,7 @@ ResolveCollisions :: () {
             player_bottom = game.player_y + player_size * .5
             continue
         }
-        game.lives -= 1
-        QueueSound(SOUND_LOSE_LIFE)
-        if game.lives < 0 {
-            game.over = true
-            QueueSound(SOUND_GAME_OVER)
-        }
+        if game.safe_timer <= 0.0 { LoseLife() }
         return
     }
 }
@@ -643,6 +644,7 @@ UpdateGame :: (input: GameInput, delta: float64) {
 
 StepGame :: (input: GameInput, delta: float64) {
     game.elapsed += delta
+    if game.safe_timer > 0.0 { game.safe_timer -= delta }
     if game.mode == MODE_FISH { UpdateSea(input, delta); return }
     MovePlayer(input, delta)
     for index: cast(s32)0..game.enemy_count - 1 { MoveEnemy(index, delta) }
@@ -1083,7 +1085,6 @@ SeaCollisions :: () {
 
 UpdateSea :: (input: GameInput, delta: float64) {
     if game.hint_timer > 0.0 { game.hint_timer -= delta }
-    if game.safe_timer > 0.0 { game.safe_timer -= delta }
     if game.frenzy_timer > 0.0 { game.frenzy_timer -= delta }
     if game.frenzy_timer <= 0.0 { game.frenzy = 0 }
     MovePlayer(input, delta)

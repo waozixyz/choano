@@ -342,8 +342,7 @@ DrawHud :: (session: Session, bar: Rectangle) {
     life := Rectangle.{bar.x + 12.0, bar.y + 51.0, 22.0, 22.0}
     if fish { PaintCell(session, FISH_SHEET, FishSource(0), "right", life, cast(u64)3020) }
     else { PaintOrganism(session, "player", "right", STAGE_FIRST, 0, life, cast(u64)3020) }
-    lives := game.lives
-    if lives < 0 { lives = 0 }
+    lives := LivesRemaining()
     lives_digits: [12]u8
     at := CopyText("x", lives_text[:], 0)
     at = CopyText(FormatInteger(cast(s64)lives, lives_digits[:]), lives_text[:], at)
@@ -394,9 +393,6 @@ DrawHud :: (session: Session, bar: Rectangle) {
 
 DrawGrowthMeter :: (session: Session, bar: Rectangle) {
     layout := Presentation.FitHud(bar)
-    label := ifx layout.growth_label.width >= 68.0 then "NEXT SIZE" else "NEXT"
-    unused Text(session, TextProps.{.key = cast(u64)3032, .text = label,
-        .bounds = layout.growth_label, .font = 9, .align = TextAlign.TextAlignCenter})
     bounds := layout.growth_meter
     unused Box(session, BoxProps.{.key = cast(u64)3030, .bounds = bounds,
         .fill = ColorFromPacked(0x081d29f2), .border = ColorFromPacked(0x50758aff), .radius = 4.0})

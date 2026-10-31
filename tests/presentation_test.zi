@@ -46,10 +46,9 @@ main :: () -> s32 {
         pause := PauseBounds(bar)
         if !Expect(pause.width >= 48.0 && pause.x + pause.width < layout.score_value.x,
             "pause has a full touch target clear of the score") { return 1 }
-        if !Expect(layout.score_value.y + layout.score_value.height < layout.growth_label.y &&
-            layout.growth_label.y + layout.growth_label.height < layout.growth_meter.y &&
+        if !Expect(layout.score_value.y + layout.score_value.height < layout.growth_meter.y &&
             layout.growth_meter.y + layout.growth_meter.height <= bar.y + bar.height,
-            "score, growth label and meter occupy separate rows at phone and desktop widths") { return 1 }
+            "score and the unlabeled growth meter occupy separate rows at phone and desktop widths") { return 1 }
         if !Expect(layout.score_value.x >= bar.x + 68.0 &&
             layout.score_value.x + layout.score_value.width < bar.x + width - 104.0,
             "score clears the navigation and danger controls") { return 1 }

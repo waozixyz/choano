@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.7] - 2026-10-31
+
+- Show the total lives remaining, including the current life, and prevent a single Amoeba overlap from consuming every life at once.
+- Show only the progress bar for the next Amoeba size, without an extra text label.
+- Keep the Fish help panel clear of the starting player and halo on small screens.
+
 ## [0.1.6] - 2026-10-31
 
 - Keep the score readable with an icon-only Pause button and the Shop on the title screen only.

@@ -54,7 +54,6 @@ QuadBounds :: (points: [4]Vector2) -> Rectangle {
 HudLayout :: struct {
     score_label: Rectangle
     score_value: Rectangle
-    growth_label: Rectangle
     growth_meter: Rectangle
 }
 
@@ -64,8 +63,7 @@ FitHud :: (bar: Rectangle) -> HudLayout {
     if score_width < 1.0 { score_width = 1.0 }
     return .{.score_label = .{bar.x + 68.0, bar.y + 3.0, score_width, 14.0},
         .score_value = .{bar.x + 68.0, bar.y + 19.0, score_width, 28.0},
-        .growth_label = .{bar.x + 94.0, bar.y + 50.0, bar.width - 106.0, 11.0},
-        .growth_meter = .{bar.x + 94.0, bar.y + 64.0, bar.width - 106.0, 7.0}}
+        .growth_meter = .{bar.x + 94.0, bar.y + 58.0, bar.width - 106.0, 8.0}}
 }
 
 PauseBounds :: (bar: Rectangle) -> Rectangle {
