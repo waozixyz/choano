@@ -42,7 +42,7 @@ game libraries. Back returns through the current screen before leaving the game.
 
 ## Build and local tests
 
-Install Ziran and the SDL2, Cairo, FreeType, Fontconfig, Pango, GTK and X11
+Install Python 3.11 or newer with Pillow, Ziran, and the SDL2, Cairo, FreeType, Fontconfig, Pango, GTK and X11
 development libraries. Emscripten is needed for the browser edition. Package
 sources and the compiler are pinned in `ziran.lock`; local overrides belong
 in ignored `ziran.local.toml`.

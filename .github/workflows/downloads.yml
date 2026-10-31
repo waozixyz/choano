@@ -85,6 +85,13 @@ jobs:
             build-essential cmake pkg-config zlib1g-dev libssl-dev libsdl2-dev libcairo2-dev libfreetype-dev
             libfontconfig-dev libpango1.0-dev libgtk-3-dev libx11-dev libxcursor-dev libxinerama-dev libxrandr-dev
             libxi-dev libgl1-mesa-dev python3-pil xvfb xdotool imagemagick
+      # Ubuntu 22.04's default Python lacks hashlib.file_digest, used by
+      # the locked artifact verifier. Keep the older libc baseline.
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11'
+      - name: Install AppImage image tooling
+        run: python3 -m pip install Pillow
       - name: Build the AppImage
         run: python3 scripts/desktop_release.py appimage
       # Its titles must match the native build's and both modes must play.
