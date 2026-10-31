@@ -59,13 +59,26 @@ HudLayout :: struct {
 }
 
 FitHud :: (bar: Rectangle) -> HudLayout {
-    // First row: Pause, wardrobe, score, danger. Second row: lives, growth.
-    score_width := bar.width - 270.0
+    // A 48-unit pause target, a wide score column and a separate danger column.
+    score_width := bar.width - 184.0
     if score_width < 1.0 { score_width = 1.0 }
-    return .{.score_label = .{bar.x + 156.0, bar.y + 2.0, score_width, 14.0},
-        .score_value = .{bar.x + 156.0, bar.y + 17.0, score_width, 28.0},
+    return .{.score_label = .{bar.x + 68.0, bar.y + 3.0, score_width, 14.0},
+        .score_value = .{bar.x + 68.0, bar.y + 19.0, score_width, 28.0},
         .growth_label = .{bar.x + 94.0, bar.y + 50.0, bar.width - 106.0, 11.0},
         .growth_meter = .{bar.x + 94.0, bar.y + 64.0, bar.width - 106.0, 7.0}}
+}
+
+PauseBounds :: (bar: Rectangle) -> Rectangle {
+    return .{bar.x + 8.0, bar.y + 1.0, 48.0, 48.0}
+}
+
+HaloPose :: (body: FloatPose, width: float32, height: float32) -> FloatPose {
+    pose := body
+    top := QuadBounds(LayerPoints(body, width, height)).y
+    pose.center.y = top - width * .18
+    // Light floats level above the head, rather than wrapping around the body.
+    pose.cosine = 1.0; pose.sine = 0.0; pose.flip = 1.0
+    return pose
 }
 
 ScoreFont :: (width: float32, digits: s32) -> s32 {

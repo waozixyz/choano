@@ -88,8 +88,6 @@ accessories_stage: s32;
 wardrobe_unseen: bool;
 wardrobe_open: bool;
 fish_lock_message: bool;
-// The Fish Dash button, beside the play area's touch controls.
-dash_requested: bool;
 area: Rectangle;
 full_area: Rectangle;
 
@@ -141,7 +139,6 @@ TakeFishHint :: () -> bool {
     fish_hint_pending = false
     return true
 }
-TakeDash :: () -> bool { result := dash_requested; dash_requested = false; return result }
 // This frame's touch heading. A release leaves it zero, letting the game coast.
 Touch :: (held: bool, x: float32, y: float32) {
     heading_x = x; heading_y = y
@@ -229,11 +226,6 @@ WardrobeIconBounds :: (viewport: Rectangle) -> Rectangle {
 
 SettingsIconBounds :: (viewport: Rectangle) -> Rectangle {
     return Rectangle.{viewport.x + viewport.width - 60.0, viewport.y, 52.0, 52.0}
-}
-
-GameWardrobeIconBounds :: (viewport: Rectangle) -> Rectangle {
-    return Rectangle.{viewport.x + 16.0 + ActionButtonWidth("Pause"),
-        viewport.y, 52.0, 52.0}
 }
 
 PlainButton :: (session: Session, key: u64, text: string, bounds: Rectangle,
@@ -428,8 +420,7 @@ TitleArtwork :: (session: Session, viewport: Rectangle, path: string, portrait: 
         .fit = ImageFit.ImageFitContain, .smooth = true})
 }
 
-// A game's top bar: deep water with a glowing edge, a rounded Back or Pause
-// button and a bold centred title.
+// A game's top bar with a compact pause icon during play.
 GameBar :: (session: Session, viewport: Rectangle, key: u64, title: string, leading: bool, playing: bool) -> bool {
     height: float32 = ifx playing then 78.0 else BAR_HEIGHT
     bounds := Rectangle.{viewport.x, viewport.y, viewport.width, height}
@@ -447,10 +438,20 @@ GameBar :: (session: Session, viewport: Rectangle, key: u64, title: string, lead
             .align = TextAlign.TextAlignCenter, .vertical_align = TextAlign.TextAlignCenter})
     }
     if !leading { return false }
-    label := ifx playing then "Pause" else "Back"
-    width := ActionButtonWidth(label)
-    return RoundAction(session, key + 3, ifx playing then "Pause" else "Back",
-        Rectangle.{bounds.x + 8.0, bounds.y, width, 52.0})
+    if playing {
+        pause := Presentation.PauseBounds(bounds)
+        unused Box(session, BoxProps.{.key = key + 4, .bounds = pause,
+            .fill = ColorFromPacked(0x173e55ff), .border = ColorFromPacked(0x80cbd888), .radius = 24.0})
+        for index: 0..1 {
+            unused Box(session, BoxProps.{.key = key + 5 + cast(u64)index,
+                .bounds = Rectangle.{pause.x + 16.0 + cast(float32)index * 11.0, pause.y + 14.0, 5.0, 20.0},
+                .fill = ColorFromPacked(0xffffffff), .radius = 1.5})
+        }
+        return Button(session, ButtonProps.{.key = key + 3, .id = cast(s32)(key + 3), .bounds = pause,
+            .label = Words.Pause(Words.Language()), .invisible = true}) != 0
+    }
+    return RoundAction(session, key + 3, "Back",
+        Rectangle.{bounds.x + 8.0, bounds.y, ActionButtonWidth("Back"), 52.0})
 }
 HudVisible :: () -> bool { return state.running && state.page == Nav.GAME_PLAYING }
 
@@ -493,13 +494,6 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64, full_vi
     bar = Rectangle.{viewport.x, viewport.y, viewport.width, bar_height - 3.0}
     if state.page == Nav.GAME_TITLE { TitleBackdrop(session, ifx full_viewport.width > 0.0 then full_viewport else viewport) }
     if GameBar(session, viewport, cast(u64)50000, title, state.page != Nav.GAME_TITLE, playing) { unused Back() }
-    if playing {
-        if WardrobeIconButton(session, cast(u64)50014, GameWardrobeIconBounds(viewport)) {
-            wardrobe_open = true
-            wardrobe_unseen = false
-            Nav.GameNavigationPause(*state)
-        }
-    }
     right := viewport.x + viewport.width - 8.0
     action_y := viewport.y
     if state.page == Nav.GAME_TITLE {
@@ -691,7 +685,6 @@ End :: (session: Session, now: float64, over: bool) {
             .bounds = DirectionPadBounds(area), .label = "Move", .now = now, .floating = true})
         Touch(pad.direction >= 0, ifx pad.direction == 0 then -1.0 else ifx pad.direction == 2 then 1.0 else 0.0,
             ifx pad.direction == 1 then -1.0 else ifx pad.direction == 3 then 1.0 else 0.0)
-        DashButton(session)
         return
     } else {
         // Captured contact only, as Shovey and Wurm read it; the release-only
@@ -712,7 +705,6 @@ End :: (session: Session, now: float64, over: bool) {
                 .border = ColorFromPacked(0x0a243899), .radius = ring * .5})
         }
         SwipeFeedback(session, SwipeFeedbackProps.{.key = cast(u64)52020, .gesture = gesture})
-        DashButton(session)
         return
     }
     stick.active = false
@@ -753,11 +745,17 @@ AccessoryCard :: (session: Session, id: s32, bounds: Rectangle, stacked: bool) -
         .fill = ColorFromPacked(0x0d3f57e8), .border = ColorFromPacked(0x54d2ec66), .radius = size * .5})
     tint := ifx locked(id) then cast(u32)0x8ea3adb0 else 0
     player_source := Sprites.OrganismSource("player", 1, 0)
+    player_preview := preview
+    accessory_preview := preview
+    if id == Accessories.ACCESSORY_HALO {
+        player_preview = Rectangle.{preview.x + size * .12, preview.y + size * .30, size * .76, size * .76}
+        accessory_preview = Rectangle.{preview.x + size * .12, preview.y - size * .24, size * .76, size * .76}
+    }
     unused Image(session, ImageProps.{.key = cast(u64)(50340 + id), .asset_path = "assets/choano/organisms-hd.png",
-        .bounds = preview, .source = player_source, .smooth = true, .tint = tint,
+        .bounds = player_preview, .source = player_source, .smooth = true, .tint = tint,
         .fit = ImageFit.ImageFitContain})
     unused Image(session, ImageProps.{.key = cast(u64)(50350 + id), .asset_path = Accessories.PreviewAssetPath(id),
-        .bounds = preview, .source = Rectangle.{0.0, 0.0, cast(float32)Accessories.SOURCE_SIZE,
+        .bounds = accessory_preview, .source = Rectangle.{0.0, 0.0, cast(float32)Accessories.SOURCE_SIZE,
             cast(float32)Accessories.SOURCE_SIZE}, .smooth = true, .tint = tint,
         .fit = ImageFit.ImageFitStretch})
     locked := !AccessoryAvailable(id)
@@ -775,14 +773,6 @@ AccessoryCard :: (session: Session, id: s32, bounds: Rectangle, stacked: bool) -
 }
 
 locked :: (id: s32) -> bool { return !AccessoryAvailable(id) }
-
-// Fish mode's touch dash, at the bottom right, clear of the pad. Drawn after
-// the touch area, it takes the presses there.
-DashButton :: (session: Session) {
-    if !run_fish { return }
-    if RoundAction(session, cast(u64)52030, "Dash",
-        Rectangle.{area.x + area.width - 104.0, area.y + area.height - 72.0, 88.0, 52.0}) { dash_requested = true }
-}
 
 ProfileBar :: (session: Session, viewport: Rectangle) -> bool {
     return GameBar(session, viewport, cast(u64)53000, "PROFILE", true, false)

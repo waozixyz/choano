@@ -60,3 +60,15 @@ Choano
 [choano_shop_close]
 閉じる
 ---
+[choano_pause]
+一時停止
+---
+[choano_fish_food]
+自分と同じ大きさ以下の魚や海の生き物を食べよう。
+---
+[choano_fish_danger]
+クラゲとサメは常に危険。ウミガメはそっとしておこう。
+---
+[choano_fish_pearls]
+金の真珠は25点。ウミガメも落としてくれる。
+---

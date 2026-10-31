@@ -5,12 +5,17 @@ from pathlib import Path
 import subprocess
 import time
 
+from PIL import Image
+
 ROOT = Path(__file__).resolve().parents[1]
 env = {k: v for k, v in os.environ.items() if k not in
        ('DISPLAY', 'WAYLAND_DISPLAY', 'XAUTHORITY', 'DBUS_SESSION_BUS_ADDRESS', 'SESSION_MANAGER')}
 env.update(YUE_DESKTOP_RECOVERY='0', SDL_AUDIODRIVER='dummy', CHOANO_DATA=str(ROOT / 'work/native-profile'))
+SHOTS = ROOT / 'work/visual-review'
+subprocess.run(['git', 'check-ignore', str(SHOTS)], cwd=ROOT, check=True, capture_output=True)
+SHOTS.mkdir(parents=True, exist_ok=True)
 def play(env, fish):
-    """Opens Choano, starts a run in the saved mode and swims; Fish mode also dashes."""
+    """Opens Choano, starts a run in the saved mode and swims."""
     profile = ROOT / 'work/native-profile'
     profile.mkdir(parents=True, exist_ok=True)
     # Controls, sound, then Fish mode unlocked and picked.
@@ -31,11 +36,20 @@ def play(env, fish):
         assert 'WIDTH=900' in geometry and 'HEIGHT=680' in geometry, geometry
         subprocess.run(['xdotool', 'windowfocus', window, 'key', 'Return'], check=True, env=env)
         time.sleep(.2)
+        for width, height in ((320, 640), (390, 844), (900, 680)):
+            subprocess.run(['xdotool', 'windowsize', window, str(width), str(height)], check=True, env=env)
+            time.sleep(.5)
+            path = SHOTS / (('fish' if fish else 'amoeba') + f'-{width}.png')
+            subprocess.run(['import', '-window', window, str(path)], check=True, env=env)
+            with Image.open(path) as screenshot:
+                score = screenshot.convert('RGB').crop((68, 19, width - 116, 47))
+                assert sum(min(pixel) >= 210 for pixel in score.getdata()) > 8, 'Score must render bright text on the dark HUD'
+            # Exercise the actual icon hit target, then resume the same run.
+            subprocess.run(['xdotool', 'mousemove', '--window', window, '32', '25', 'click', '1'], check=True, env=env)
+            time.sleep(.1)
+            subprocess.run(['xdotool', 'key', 'Escape'], check=True, env=env)
         subprocess.run(['xdotool', 'keydown', 'Right'], check=True, env=env)
         time.sleep(.4)
-        if fish:
-            subprocess.run(['xdotool', 'key', 'x'], check=True, env=env)
-            time.sleep(.3)
         subprocess.run(['xdotool', 'keyup', 'Right', 'key', 'r'], check=True, env=env)
         time.sleep(.3)
         assert app.poll() is None, 'Native game failed during %s swimming/restart' % ('Fish' if fish else 'amoeba')

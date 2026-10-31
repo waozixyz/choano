@@ -39,7 +39,6 @@ main :: () -> s32 {
             settings := Shell.SettingsIconBounds(bounds)
             if !Expect(Inside(settings, bounds) && settings.width >= 48.0 &&
                 Clear(icon, settings) && icon.x < settings.x, "corner icons stay inside safe insets") { return 1 }
-            game_icon := Shell.GameWardrobeIconBounds(bounds)
             if !Expect(backdrop.x == bounds.x && backdrop.y == bounds.y &&
                 backdrop.width == bounds.width && backdrop.height == bounds.height,
                 "title art covers the whole window") { return 1 }
@@ -48,9 +47,6 @@ main :: () -> s32 {
                 "the separate title logo scales without cropping") { return 1 }
             if !Expect(icon.width >= 48.0 && icon.height >= 48.0 && Inside(icon, bounds),
                 "the wardrobe icon is a safe tappable target") { return 1 }
-            if !Expect(game_icon.width == 52.0 && game_icon.height == 52.0 &&
-                game_icon.x > 8.0 && Inside(game_icon, bounds),
-                "the in-game wardrobe icon sits beside Pause") { return 1 }
             if !Expect(layout.mode.y >= layout.character_safe.y + layout.character_safe.height,
                 "title buttons do not cover the character safe zone") { return 1 }
             if !Expect(Inside(layout.mode, bounds) &&

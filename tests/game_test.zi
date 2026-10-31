@@ -312,12 +312,9 @@ main :: () -> s32 {
 
     StartGame(4243, MODE_FISH)
     game.enemy_count = 0
-    UpdateGame(.{.right = true, .dash = true}, 1.0 / 60.0)
-    if Expect(game.player_velocity_x > cast(float32)FISH_SPEED * 1.5, "a dash darts ahead") != 0 { return 1 }
-    for step: 0..29 { UpdateGame(.{.right = true}, 1.0 / 60.0) }
-    cruising := game.player_velocity_x
-    UpdateGame(.{.right = true, .dash = true}, 1.0 / 60.0)
-    if Expect(game.player_velocity_x < cruising * 1.2, "a dash needs its cooldown") != 0 { return 1 }
+    for step: 0..59 { UpdateGame(.{.right = true}, 1.0 / 60.0) }
+    if Expect(game.player_velocity_x > cast(float32)FISH_SPEED * .9 &&
+        game.player_velocity_x <= cast(float32)FISH_SPEED, "fish cruise at the normal swim speed") != 0 { return 1 }
     game.player_y = 500.0
     unused SeaClamp(*game.player_x, *game.player_y, cast(float32)FishSize(game.player_stage))
     if Expect(game.player_y <= SeaBottom(), "the fish stays above the sand") != 0 { return 1 }

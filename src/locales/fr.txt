@@ -60,3 +60,15 @@ en Amibe
 [choano_shop_close]
 Fermer
 ---
+[choano_pause]
+Pause
+---
+[choano_fish_food]
+Mangez les poissons et animaux marins de votre taille ou plus petits.
+---
+[choano_fish_danger]
+Méduses et requins blessent toujours. Épargnez les tortues.
+---
+[choano_fish_pearls]
+Les perles dorées valent 25 points. Les tortues en laissent aussi.
+---

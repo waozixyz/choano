@@ -66,9 +66,10 @@ main :: () -> s32 {
     if !Step(session, frame) || !Expect(App.held_input.left && App.held_input.up, "regain accepts held without shortcut") { return 1 }
     frame.keys = .{}
     frame.keys[88] = cast(u8)FrameKeyHeld
-    Game.game.dash_cooldown = 0.0; Game.game.dash_timer = 0.0
-    if !Step(session, frame) || !Expect(Game.game.dash_timer == 0.0, "held X alone does not invent dash events") { return 1 }
-    if !Step(session, frame, 88, true) || !Expect(Game.game.dash_timer > 0.0, "legacy X event still dashes") { return 1 }
+    if !Step(session, frame) || !Expect(!App.held_input.right && !App.held_input.left,
+        "held X has no movement action") { return 1 }
+    if !Step(session, frame, 88, true) || !Expect(Game.game.player_velocity_x <= Game.FISH_SPEED,
+        "X cannot boost the fish speed") { return 1 }
     before := Game.game.player_x
     if !Step(session, frame, 32) || !Expect(!Shell.Playing() && Game.game.player_x == before, "Pause freezes run") { return 1 }
     if !Expect(App.NavigateBack(), "Back resumes") || !Step(session, frame) || !Expect(Shell.Playing(), "same run resumes") { return 1 }

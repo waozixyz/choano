@@ -60,3 +60,15 @@ als Amöbe
 [choano_shop_close]
 Schließen
 ---
+[choano_pause]
+Pause
+---
+[choano_fish_food]
+Friss Fische und Meerestiere deiner Größe oder kleiner.
+---
+[choano_fish_danger]
+Quallen und Haie verletzen immer. Lass Schildkröten in Ruhe.
+---
+[choano_fish_pearls]
+Goldene Perlen geben 25 Punkte. Auch Schildkröten lassen sie fallen.
+---

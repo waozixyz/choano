@@ -8,11 +8,10 @@ Expect :: (condition: bool, message: string) -> bool {
 RunAt :: (fps: s32, mode: s32, touch: bool) -> Game {
     StartGame(13579, mode)
     game.lives = 10000
-    input := GameInput.{.right = true, .down = true, .dash = true}
-    if touch { input = .{.steer_x = .6, .steer_y = -.8, .dash = true} }
+    input := GameInput.{.right = true, .down = true}
+    if touch { input = .{.steer_x = .6, .steer_y = -.8} }
     for frame: 0..fps * 3 - 1 {
         UpdateGame(input, 1.0 / cast(float64)fps)
-        input.dash = false
     }
     return game
 }
@@ -22,7 +21,7 @@ SameRun :: (a: Game, b: Game) -> bool {
         a.player_velocity_x != b.player_velocity_x || a.player_velocity_y != b.player_velocity_y ||
         a.elapsed != b.elapsed || a.random != b.random || a.score != b.score ||
         a.lives != b.lives || a.enemy_count != b.enemy_count ||
-        a.dash_timer != b.dash_timer || a.next_spawn_timer != b.next_spawn_timer { return false }
+        a.next_spawn_timer != b.next_spawn_timer { return false }
     for index: cast(s32)0..a.enemy_count - 1 {
         if a.enemies[index].x != b.enemies[index].x || a.enemies[index].y != b.enemies[index].y ||
             a.enemies[index].velocity_x != b.enemies[index].velocity_x ||
@@ -48,18 +47,17 @@ main :: () -> s32 {
     baseline := RunAt(60, MODE_AMOEBA, false)
     StartGame(13579)
     game.lives = 10000
-    input := GameInput.{.right = true, .down = true, .dash = true}
+    input := GameInput.{.right = true, .down = true}
     for frame: 0..59 {
         UpdateGame(input, .005)
-        input.dash = false
         UpdateGame(input, .045)
     }
     if !Expect(SameRun(baseline, game), "uneven rendering intervals keep the same simulation") { return 1 }
     StartGame(2468, MODE_FISH)
-    UpdateGame(.{.right = true, .dash = true}, SIMULATION_STEP * .5)
-    if !Expect(game.pending_dash && game.elapsed == 0.0, "a short frame retains its dash edge") { return 1 }
     UpdateGame(.{.right = true}, SIMULATION_STEP * .5)
-    if !Expect(!game.pending_dash && game.dash_timer > 0.0, "the next simulation step consumes the dash once") { return 1 }
+    if !Expect(game.simulation_remainder > 0.0 && game.elapsed == 0.0, "a short frame retains partial simulation time") { return 1 }
+    UpdateGame(.{.right = true}, SIMULATION_STEP * .5)
+    if !Expect(game.simulation_remainder == 0.0 && game.elapsed > 0.0, "the next frame completes one simulation step") { return 1 }
     StartGame(2468)
     UpdateGame(.{.right = true}, 5.0)
     if !Expect(game.elapsed > .099 && game.elapsed < .101, "long stalls retain the bounded catch-up limit") { return 1 }
@@ -67,7 +65,7 @@ main :: () -> s32 {
     UpdateGame(.{.right = true}, -1.0)
     if !Expect(game.player_x == before, "a reversed clock never moves the game backwards") { return 1 }
     StartGame(2468)
-    if !Expect(game.simulation_remainder == 0.0 && !game.pending_dash, "restart clears partial time and input") { return 1 }
+    if !Expect(game.simulation_remainder == 0.0, "restart clears partial time and input") { return 1 }
     print("Choano local timing tests passed at 10, 20, 30, 60, 120 and 144 FPS.\n")
     return 0
 }

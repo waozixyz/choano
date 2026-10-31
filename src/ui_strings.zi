@@ -237,3 +237,39 @@ ShopLabels :: (language: string) -> ShopCopy {
     }
     return .{.halo = "Halo", .ribbon = "Ribbon", .crown = "Crown", .halo_requirement = "Available from start", .ribbon_requirement = "Reach size 5\nin Amoeba", .crown_requirement = "Reach full size (9)\nin Amoeba", .close = "Close"}
 }
+
+FishHelpCopy :: struct { food: string; danger: string; pearls: string; }
+
+Pause :: (language: string) -> string {
+    code := language
+    if code.count > 2 { code = code[0:2] }
+    if code == "es" { return "Pausa" }
+    if code == "pt" { return "Pausar" }
+    if code == "fr" { return "Pause" }
+    if code == "de" { return "Pause" }
+    if code == "it" { return "Pausa" }
+    if code == "cs" { return "Pauza" }
+    if code == "id" { return "Jeda" }
+    if code == "ru" { return "Пауза" }
+    if code == "ja" { return "一時停止" }
+    if code == "ko" { return "일시 정지" }
+    if code == "zh" { return "暂停" }
+    return "Pause"
+}
+
+FishHelp :: (language: string) -> FishHelpCopy {
+    code := language
+    if code.count > 2 { code = code[0:2] }
+    if code == "es" { return .{.food = "Come peces y animales marinos de tu tamaño o menores.", .danger = "Medusas y tiburones siempre dañan. No ataques tortugas.", .pearls = "Las perlas doradas dan 25 puntos; las tortugas también las dejan."} }
+    if code == "pt" { return .{.food = "Coma peixes e animais marinhos do seu tamanho ou menores.", .danger = "Águas-vivas e tubarões sempre ferem. Deixe as tartarugas.", .pearls = "Pérolas douradas valem 25 pontos; tartarugas também as soltam."} }
+    if code == "fr" { return .{.food = "Mangez les poissons et animaux marins de votre taille ou plus petits.", .danger = "Méduses et requins blessent toujours. Épargnez les tortues.", .pearls = "Les perles dorées valent 25 points. Les tortues en laissent aussi."} }
+    if code == "de" { return .{.food = "Friss Fische und Meerestiere deiner Größe oder kleiner.", .danger = "Quallen und Haie verletzen immer. Lass Schildkröten in Ruhe.", .pearls = "Goldene Perlen geben 25 Punkte. Auch Schildkröten lassen sie fallen."} }
+    if code == "it" { return .{.food = "Mangia pesci e animali marini della tua taglia o più piccoli.", .danger = "Meduse e squali fanno sempre male. Lascia stare le tartarughe.", .pearls = "Le perle dorate valgono 25 punti. Anche le tartarughe le rilasciano."} }
+    if code == "cs" { return .{.food = "Jez ryby a mořské živočichy své velikosti nebo menší.", .danger = "Medúzy a žraloci vždy zraňují. Želvy nech na pokoji.", .pearls = "Zlaté perly dávají 25 bodů. Zanechávají je i želvy."} }
+    if code == "id" { return .{.food = "Makan ikan dan hewan laut seukuranmu atau lebih kecil.", .danger = "Ubur-ubur dan hiu selalu melukai. Biarkan penyu.", .pearls = "Mutiara emas memberi 25 poin. Penyu juga menjatuhkannya."} }
+    if code == "ru" { return .{.food = "Ешьте рыб и морских животных своего размера или меньше.", .danger = "Медузы и акулы всегда ранят. Черепах не трогайте.", .pearls = "Золотые жемчужины дают 25 очков. Черепахи тоже их оставляют."} }
+    if code == "ja" { return .{.food = "自分と同じ大きさ以下の魚や海の生き物を食べよう。", .danger = "クラゲとサメは常に危険。ウミガメはそっとしておこう。", .pearls = "金の真珠は25点。ウミガメも落としてくれる。"} }
+    if code == "ko" { return .{.food = "자신과 크기가 같거나 작은 물고기와 바다 동물을 먹으세요.", .danger = "해파리와 상어는 항상 위험해요. 바다거북은 건드리지 마세요.", .pearls = "황금 진주는 25점이에요. 바다거북도 떨어뜨려요."} }
+    if code == "zh" { return .{.food = "吃掉与自己一样大或更小的鱼和海洋动物。", .danger = "水母和鲨鱼始终危险。不要打扰海龟。", .pearls = "金色珍珠可得25分，海龟也会留下珍珠。"} }
+    return .{.food = "Eat fish and sea animals your size or smaller.", .danger = "Jellyfish and sharks always hurt. Leave turtles alone.", .pearls = "Golden pearls give 25 points. Turtles drop them too."}
+}

@@ -60,3 +60,15 @@ em Ameba
 [choano_shop_close]
 Fechar
 ---
+[choano_pause]
+Pausar
+---
+[choano_fish_food]
+Coma peixes e animais marinhos do seu tamanho ou menores.
+---
+[choano_fish_danger]
+Águas-vivas e tubarões sempre ferem. Deixe as tartarugas.
+---
+[choano_fish_pearls]
+Pérolas douradas valem 25 pontos; tartarugas também as soltam.
+---

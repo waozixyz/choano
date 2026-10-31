@@ -60,3 +60,15 @@ in Amoeba
 [choano_shop_close]
 Close
 ---
+[choano_pause]
+Pause
+---
+[choano_fish_food]
+Eat fish and sea animals your size or smaller.
+---
+[choano_fish_danger]
+Jellyfish and sharks always hurt. Leave turtles alone.
+---
+[choano_fish_pearls]
+Golden pearls give 25 points. Turtles drop them too.
+---

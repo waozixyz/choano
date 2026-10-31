@@ -6,7 +6,7 @@ The installer must place the program, font and every asset, its shortcuts and
 its uninstall entry for this user only. Started from another folder, the
 installed game opens its 900x680 window, draws the JPEG title art close to
 the native build's (and Fish mode's art differently), opens raylib's audio
-device for its chimes, swims, dashes and restarts, and saves its settings in
+device for its chimes, swims and restarts, and saves its settings in
 Local AppData. The silent uninstaller then removes it all but the settings.
 Wine gets a private HOME and a silent ALSA device, so nothing reaches the
 owner's desktop folder or speakers; only this test's prefix, display and
@@ -228,7 +228,7 @@ try:
     print(f'Choano Windows installer local test passed in a private Wine prefix on private Xvfb: {assets} assets, '
           'font, shortcuts and per-user uninstall entry installed; titles close to the native build (RMSE dish '
           f'{shots["dish"]:.4f}, fish {shots["fish"]:.4f}; modes differ by {modes:.4f}); audio device and chime '
-          'loaded; swims, dashes, restarts and saves muted settings to Local AppData; silent uninstall removes '
+          'loaded; swims, restarts and saves muted settings to Local AppData; silent uninstall removes '
           'the game and keeps the settings.')
 finally:
     subprocess.run(['wineserver', '-k'], env=env, timeout=60)

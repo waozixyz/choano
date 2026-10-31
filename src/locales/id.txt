@@ -60,3 +60,15 @@ di Amoeba
 [choano_shop_close]
 Tutup
 ---
+[choano_pause]
+Jeda
+---
+[choano_fish_food]
+Makan ikan dan hewan laut seukuranmu atau lebih kecil.
+---
+[choano_fish_danger]
+Ubur-ubur dan hiu selalu melukai. Biarkan penyu.
+---
+[choano_fish_pearls]
+Mutiara emas memberi 25 poin. Penyu juga menjatuhkannya.
+---

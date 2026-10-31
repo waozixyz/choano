@@ -60,3 +60,15 @@ Choano
 [choano_shop_close]
 关闭
 ---
+[choano_pause]
+暂停
+---
+[choano_fish_food]
+吃掉与自己一样大或更小的鱼和海洋动物。
+---
+[choano_fish_danger]
+水母和鲨鱼始终危险。不要打扰海龟。
+---
+[choano_fish_pearls]
+金色珍珠可得25分，海龟也会留下珍珠。
+---

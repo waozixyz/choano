@@ -3,7 +3,7 @@
 
 The image runs through APPIMAGE_EXTRACT_AND_RUN, so FUSE is not needed. Its
 title screens must match the native build's pixel for pixel, proving the
-packed art loads, and both modes must swim, dash and restart. Only this test's
+packed art loads, and both modes must swim and restart. Only this test's
 own display and processes are touched.
 """
 import os
@@ -141,14 +141,11 @@ def run_title(command, cwd, fish, shot):
 
 
 def play(window, fish, launch, pid):
-    """Starts a run in the saved mode and swims; Fish mode also dashes."""
+    """Starts a run in the saved mode and swims."""
     subprocess.run(['xdotool', 'windowfocus', window, 'key', 'Return'], check=True, env=env)
     time.sleep(.2)
     subprocess.run(['xdotool', 'keydown', 'Right'], check=True, env=env)
     time.sleep(.4)
-    if fish:
-        subprocess.run(['xdotool', 'key', 'x'], check=True, env=env)
-        time.sleep(.3)
     subprocess.run(['xdotool', 'keyup', 'Right', 'key', 'r'], check=True, env=env)
     time.sleep(.3)
     assert launch.poll() is None and Path(f'/proc/{pid}').exists(), \
@@ -181,7 +178,7 @@ try:
     assert modes > 0.05, f'Fish title art did not replace the dish title: {modes:.4f}'
     print('Choano AppImage local test passed on private Xvfb: assets and libraries packed, titles match the '
           f'native build (RMSE dish {shots["dish"]:.4f}, fish {shots["fish"]:.4f}; modes differ by {modes:.4f}), '
-          'and both modes swim, dash and restart.')
+          'and both modes swim and restart.')
 finally:
     stop(server)
     # Title captures only served the comparison above; the runtime keeps what it unpacked.

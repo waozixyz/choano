@@ -34,6 +34,11 @@
       "file": "assets/choano/accessory-ribbon.png",
       "prompt": "Replace the erroneous golden halo with a red-pink satin ribbon bow with two fabric loops, center knot and two short tails; glossy hand-painted 2D Choano game sprite. Square 512x512 RGBA, transparent background, bow centered in the upper half within x96..416,y32..300; lower half transparent; no creature, text or extra items.",
       "source": "Built-in imagegen through Harmony generate_image; generated 512x512 RGBA PNG copied without pixel changes. Alpha bounds (96,48)-(416,231)."
+    },
+    {
+      "file": "assets/choano/accessory-halo.png",
+      "source": "Built-in image_gen; generated RGBA master retained in generated_images, fitted to 400 pixels and centered without changing colors or alpha on a 512x512 transparent canvas.",
+      "prompt": "A delicate luminous golden halo made of light: flattened horizontal ellipse, thin near-white warm yellow core, diffuse soft pale gold bloom and a few tiny sparkles. True alpha transparency, empty center, no metal, outline, jewelry thickness or backdrop. Float above a cartoon fish, following the owner glow reference."
     }
   ]
 }

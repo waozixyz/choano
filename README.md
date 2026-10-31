@@ -6,7 +6,7 @@ time to move; cumulative growth earns extra lives. An illustrated title screen o
 
 Reaching full size unlocks Fish mode in the open sea. Fish of many kinds,
 seahorses, lobsters and starfish are food at your size or smaller and bite
-when bigger; seahorses are big, so grow before you hunt them. Dash past
+when bigger; seahorses are big, so grow before you hunt them. Avoid
 jellyfish, collect golden pearls, feast on sardine schools, and swim clear
 when tense music announces a shark. Now and then a gentle sea turtle swims
 by: it never bites and leaves a short trail of golden pearls.
@@ -29,9 +29,8 @@ for Choano. Original Moeboid assets and binaries are excluded; see
 ## Controls
 
 Desktop and browser: hold arrow keys or WASD to swim. Enter after game over
-or R starts a fresh run. In Fish mode, X or Shift dashes. On touch screens hold and drag
-anywhere to swim that way; letting go glides smoothly to a stop, and a tap alone does nothing. Fish mode adds a
-Dash button. Swipe steering is the default; choose the direction pad or
+or R starts a fresh run. On touch screens hold and drag
+anywhere to swim that way; letting go glides smoothly to a stop, and a tap alone does nothing. Swipe steering is the default; choose the direction pad or
 turn sound off in the in-app Settings, also reachable from Pause. Profile pauses play and opens the shared Entity account UI;
 Back returns to the same run. Signing in is optional. Earned growth stages
 follow that account; the current run stays on this device and is not restored
@@ -69,7 +68,7 @@ Movement reads Kryon’s owned frame snapshot on desktop, Windows, browser and
 compatible portable hosts. Keyboard shortcuts and text keep their existing
 event queues. Simulation advances at 60 fixed steps per second, independent of
 rendering speed; a frame can catch up at most 100 ms after a stall. Short
-frames preserve dash presses until the next step.
+frames preserve partial simulation time until the next step.
 The portable source now requires a host with `frame_snapshot.CaptureFrameInputHost`;
 Arcade 0.7.113 does not provide it. A new portable release must wait for a
 compatible host.

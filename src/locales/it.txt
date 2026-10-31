@@ -60,3 +60,15 @@ in Ameba
 [choano_shop_close]
 Chiudi
 ---
+[choano_pause]
+Pausa
+---
+[choano_fish_food]
+Mangia pesci e animali marini della tua taglia o più piccoli.
+---
+[choano_fish_danger]
+Meduse e squali fanno sempre male. Lascia stare le tartarughe.
+---
+[choano_fish_pearls]
+Le perle dorate valgono 25 punti. Anche le tartarughe le rilasciano.
+---

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.6] - 2026-10-31
+
+- Keep the score readable with an icon-only Pause button and the Shop on the title screen only.
+- Restore the fish artwork’s original colors and remove colored bubbles around sea creatures.
+- Float a soft, transparent glowing halo above the player’s head.
+- Remove Dash from touch and keyboard controls.
+- Explain which creatures are edible, that jellyfish and sharks always hurt, and that golden pearls give 25 points, including those left by turtles.
+
 ## [0.1.5] - 2026-10-31
 
 - Carry Choano’s theme into Profile and keep labels readable after using buttons.

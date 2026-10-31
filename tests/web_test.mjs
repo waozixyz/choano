@@ -86,15 +86,15 @@ try{
   }
   throw Error('Unknown action '+label);
  };
- const wardrobe=async title=>{
-  const {w}=await dimensions();
-  await click(title?34:16+actionWidth('Pause')+26,26);
+ const wardrobe=async()=>{
+  await click(34,26);
   await until('Module.choanoWardrobeOpen');
-  if(await evaluate('Module.choanoPage')!==(title?0:2))throw Error('Wardrobe did not preserve title/pause play');
-  const position=await where();await delay(350);
-  if(!title&&Math.hypot(...(await where()).map((v,i)=>v-position[i]))>.1)throw Error('Wardrobe advanced the game');
+  if(await evaluate('Module.choanoPage')!==0)throw Error('Shop must stay on title');
   await press('Escape','Escape',27);await until('!Module.choanoWardrobeOpen');
-  if(!title){if(await evaluate('Module.choanoPage')!==2)throw Error('Closing wardrobe resumed play');await press('Escape','Escape',27);await until('Module.choanoPage===1')}
+ };
+ const shopHidden=async()=>{
+  await click(120,26);await delay(150);
+  if(await evaluate('Module.choanoWardrobeOpen || Module.choanoPage!==1'))throw Error('Gameplay shop must be absent');
  };
  // Clicks where the title's compact Downloads pill sits, left of Settings and the wardrobe. The
  // new tab it opens is caught and cancelled, so nothing leaves this profile.
@@ -133,7 +133,7 @@ try{
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.shop.png');
  await press('Escape','Escape',27);await until('!Module.choanoWardrobeOpen');
  await command('Input.dispatchMouseEvent',{type:'mouseMoved',x:200,y:200});await delay(100);
- await downloadsOpen('landscape title');await wardrobe(true);
+ await downloadsOpen('landscape title');await wardrobe();
  const lockedSize=await dimensions();
  await click(lockedSize.w/2+80,lockedSize.h-98);
  await until('Module.choanoFishLocked && Module.choanoFishLockMessage');
@@ -142,7 +142,7 @@ try{
  await press('ArrowRight','ArrowRight',39);await delay(150);
  let size=await dimensions();await click(size.w/2,size.h-44);await until('Module.choanoPage===1 && Math.abs(Module.choanoX-245)<1');
  if(await evaluate('Module.choanoMode')!==0)throw Error('Fish mode was playable before it was earned');
- await wardrobe(false);
+ await shopHidden();
  await downloadsHidden('during play');if(await evaluate('Module.choanoPage')!==1)throw Error('A click in the top bar left the game');
  await until('choanoAudioStarts.some(source=>!source.loop && source.duration>0)');
  // Mute during an actual cue: completed chimes have no live gain node.
@@ -186,7 +186,7 @@ try{
  if(await evaluate('Module.choanoX')-touchBefore<8)throw Error('In-app direction pad did not swim right');
  await press('m','KeyM',77);await until('Module.choanoMuted');await delay(1500);
  await command('Page.reload');await until('globalThis.Module?.choanoReady && Module.choanoPage===0');await delay(300);await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.portrait.png');
- await downloadsOpen('portrait title');await wardrobe(true);
+ await downloadsOpen('portrait title');await wardrobe();
  if(!await evaluate('Module.choanoMuted'))throw Error('Sound preference was not retained');
  await press('Enter','Enter',13);await until('Module.choanoPage===1');
  // Swipe steering again, in portrait, then Fish mode as if earned.
@@ -232,7 +232,7 @@ try{
  await command('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});
  await until('globalThis.Module?.choanoReady && Module.choanoPage===0');
  if(missing.length)throw Error('Missing assets: '+missing.join(', '));if(errors.length)throw Error(errors.join('\n'));
- console.log('Choano local browser tests passed: app title/chrome, title-only Downloads to the latest release, locked Fish mode, choice, keyboard/click no start/held free touch steering/clean turns after long drags in Amoeba and Fish, landscape and portrait/round landscape and rimmed portrait dish/release glide/tap no start/pad, title and playing wardrobe/pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
+ console.log('Choano local browser tests passed: app title/chrome, title-only Downloads to the latest release, locked Fish mode, choice, keyboard/click no start/held free touch steering/clean turns after long drags in Amoeba and Fish, landscape and portrait/round landscape and rimmed portrait dish/release glide/tap no start/pad, title-only shop/pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
 }finally{
  const exited=!browser.pid||browser.exitCode!==null?Promise.resolve():new Promise(r=>browser.once('exit',r));
  if(socket?.readyState===WebSocket.OPEN)await command('Browser.close').catch(()=>{});

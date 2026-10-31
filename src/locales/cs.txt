@@ -60,3 +60,15 @@ v Amébě
 [choano_shop_close]
 Zavřít
 ---
+[choano_pause]
+Pauza
+---
+[choano_fish_food]
+Jez ryby a mořské živočichy své velikosti nebo menší.
+---
+[choano_fish_danger]
+Medúzy a žraloci vždy zraňují. Želvy nech na pokoji.
+---
+[choano_fish_pearls]
+Zlaté perly dávají 25 bodů. Zanechávají je i želvy.
+---

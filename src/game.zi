@@ -14,16 +14,13 @@ INITIAL_ENEMIES :: 4;
 // The amoeba dish and, once a player reaches full size there, the open sea.
 MODE_AMOEBA :: 0;
 MODE_FISH :: 1;
-// Fish mode: open water above the sand, swifter and floatier fish, a dash
-// with a cooldown, a moment's safety after a bite, stinging jellyfish and
+// Fish mode: open water above the sand, swifter and floatier fish,
+// a moment's safety after a bite, stinging jellyfish and
 // drifting golden pearls.
 SEA_TOP :: 24.0;
 SEA_BOTTOM :: 372.0;
 FISH_SPEED :: 140.0;
 FISH_EASE :: 5.0;
-DASH_BOOST :: 2.2;
-DASH_SECONDS :: .35;
-DASH_COOLDOWN :: 1.2;
 SAFE_SECONDS :: 2.0;
 FISH_START :: 4;
 FISH_MOST :: 11;
@@ -57,7 +54,7 @@ TURTLE_HEIGHT :: 122.0;
 TURTLE_SPEED :: 32.0;
 TURTLE_PEARLS :: 5;
 TURTLE_DROP :: 1.5;
-// Regular fish use one neutral artwork set, tinted and sized by stage.
+// Fish keep their original artwork colors; stage determines their size.
 FISH_SPECIES :: 8;
 // Now and then a shark hunts: tense music starts first, then it sweeps
 // across, swallowing fish in its way.
@@ -87,7 +84,7 @@ FOOD_VISUAL_SCALE :: .84;
 SIMULATION_STEP :: 0.016666666666666666;
 JELLY_SIZE :: 60.0;
 PEARL_SIZE :: 26.0;
-FISH_HINT_SECONDS :: 6.0;
+FISH_HINT_SECONDS :: 12.0;
 CUE_NONE :: 0;
 CUE_FOOD :: 1;
 CUE_DANGER :: 2;
@@ -119,8 +116,6 @@ GameInput :: struct {
     right: bool
     up: bool
     down: bool
-    // Fish mode: a dash starts this frame, if it is ready.
-    dash: bool
     // A touch heading in any direction, up to unit length; keys win.
     steer_x: float32
     steer_y: float32
@@ -141,8 +136,6 @@ Game :: struct {
     coast_deceleration: float32
     // Set once a run reaches full size; the app takes it to award it.
     full_size: bool
-    dash_timer: float64
-    dash_cooldown: float64
     safe_timer: float64
     jelly_timer: float64
     pearl_timer: float64
@@ -164,7 +157,6 @@ Game :: struct {
     next_growth_threshold: s32
     growth_stages: s32
     simulation_remainder: float64
-    pending_dash: bool
     score: s32
     lives: s32
     next_spawn_timer: float64
@@ -198,15 +190,6 @@ FishVisualSize :: (stage: s32) -> float32 {
     return cast(float32)FishSize(index) * FISH_VISUAL_LENGTH
 }
 FishContainmentSize :: (stage: s32) -> float32 { return FishVisualSize(stage) * 1.16 }
-FishStageColor :: (stage: s32) -> u32 {
-    colors: [10]u32 = .[0xfff6b8ff, 0x8ff5e3ff, 0x77d8ffff, 0x8fb8ffff, 0x6f78ffff,
-        0x8b5cf6ff, 0xc026d3ff, 0xf97316ff, 0xdc2626ff, 0x581c87ff]
-    index := stage - 1
-    if index < 0 { index = 0 }
-    if index > 9 { index = 9 }
-    return colors[index]
-}
-PLAYER_FISH_COLOR :: 0xeef8ffff;
 CreatureCue :: (enemy: Enemy) -> s32 {
     if enemy.kind == KIND_SARDINE { return CUE_FOOD }
     if enemy.kind == KIND_JELLY || enemy.kind == KIND_SHARK { return CUE_DANGER }
@@ -530,17 +513,6 @@ MovePlayer :: (input: GameInput, delta: float64) {
     // Keys ease the velocity towards their heading, so the amoeba glides.
     fish := game.mode == MODE_FISH
     speed: float32 = ifx fish then FISH_SPEED else AMOEBA_PLAYER_SPEED
-    if fish && input.dash && game.dash_cooldown <= 0.0 {
-        game.dash_timer = DASH_SECONDS
-        game.dash_cooldown = DASH_COOLDOWN
-        if target_x == 0.0 && target_y == 0.0 {
-            // A dash from rest darts the way the fish faces.
-            target_x = ifx game.player_facing == 0 then -1.0 else 1.0
-        }
-        game.player_velocity_x = target_x * speed * DASH_BOOST
-        game.player_velocity_y = target_y * speed * DASH_BOOST
-    }
-    if game.dash_timer > 0.0 { speed *= DASH_BOOST }
     ease := cast(float32)delta * (ifx fish then FISH_EASE else PLAYER_EASE)
     if ease > 1.0 { ease = 1.0 }
     heading := cast(float32)Math.Sqrt(cast(float64)(target_x * target_x + target_y * target_y))
@@ -661,15 +633,11 @@ UpdateGame :: (input: GameInput, delta: float64) {
     // Keep simulation, steering and random turns independent of rendering speed.
     // Retain the existing 100 ms stall limit; never catch up a paused game.
     if delta > .1 { delta = .1 }
-    game.pending_dash = game.pending_dash || input.dash
     game.simulation_remainder += delta
-    step_input := input
     while game.simulation_remainder + .000000001 >= SIMULATION_STEP && !game.over {
         game.simulation_remainder -= SIMULATION_STEP
         if game.simulation_remainder < 0.0 { game.simulation_remainder = 0.0 }
-        step_input.dash = game.pending_dash
-        game.pending_dash = false
-        StepGame(step_input, SIMULATION_STEP)
+        StepGame(input, SIMULATION_STEP)
     }
 }
 
@@ -1115,8 +1083,6 @@ SeaCollisions :: () {
 
 UpdateSea :: (input: GameInput, delta: float64) {
     if game.hint_timer > 0.0 { game.hint_timer -= delta }
-    if game.dash_timer > 0.0 { game.dash_timer -= delta }
-    if game.dash_cooldown > 0.0 { game.dash_cooldown -= delta }
     if game.safe_timer > 0.0 { game.safe_timer -= delta }
     if game.frenzy_timer > 0.0 { game.frenzy_timer -= delta }
     if game.frenzy_timer <= 0.0 { game.frenzy = 0 }

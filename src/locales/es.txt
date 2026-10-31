@@ -60,3 +60,15 @@ en Ameba
 [choano_shop_close]
 Cerrar
 ---
+[choano_pause]
+Pausa
+---
+[choano_fish_food]
+Come peces y animales marinos de tu tamaño o menores.
+---
+[choano_fish_danger]
+Medusas y tiburones siempre dañan. No ataques tortugas.
+---
+[choano_fish_pearls]
+Las perlas doradas dan 25 puntos; las tortugas también las dejan.
+---

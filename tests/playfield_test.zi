@@ -144,12 +144,6 @@ FishCuesAndColors :: () -> s32 {
     failures += Expect(CreatureCue(Enemy.{.kind = KIND_TURTLE}) == CUE_NONE, "turtles are neutral")
     failures += Expect(CreatureCue(Enemy.{.kind = KIND_PEARL}) == CUE_NONE, "pearls have no danger cue")
 
-    for stage: STAGE_FIRST + 1..STAGE_LAST {
-        color_stage := cast(s32)stage
-        if FishStageColor(color_stage) == FishStageColor(color_stage - 1) { failures += 1 }
-        if FishStageColor(color_stage) == PLAYER_FISH_COLOR { failures += 1 }
-    }
-    failures += Expect(failures == 0, "every fish stage has one unique color and the player color is distinct")
     return failures
 }
 
