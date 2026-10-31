@@ -1,3 +1,4 @@
+Audio :: #import "audio_host";
 using Desktop :: #import "kryon/Desktop";
 DesktopLoop :: #import "kryon/desktop_loop";
 Timer :: #import "std/timer_linux";
@@ -14,6 +15,8 @@ Timer :: #import "std/timer_linux";
 ClockMillisecondsHost :: () -> s64 { return Timer.MonotonicMilliseconds() }
 
 DrawGameFrame :: (session: Session) -> bool {
+    Audio.AudioBegin(session)
+    defer { Audio.AudioEnd() }
     if !DesktopFrameInputBegin(session) { return false }
     defer { FrameInputEnd(session) }
     BeginDesktopFrame()
@@ -35,6 +38,8 @@ main :: () -> s32 {
     unused DesktopSetTitle("Choano")
     session: Session = SessionOpen()
     if !SessionValid(session) { CloseDesktop(); return 1 }
+    Audio.AudioOpen()
+    defer { Audio.AudioClose() }
     ok: bool = true
     while ok && PollDesktop() {
         KeyboardModifiersSend(session, DesktopModifiers())

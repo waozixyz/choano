@@ -166,7 +166,7 @@ print('Choano local asset and package tests passed: 195 PNGs, 4 JPEG titles, 6 q
 # a check or padlock must be geometry/an image, never a missing text glyph.
 import re
 import subprocess
-font = Path(subprocess.check_output(['ziran', 'pkg', 'path', 'kryon', '--locked'], text=True).strip()) / 'assets/fonts/LiberationSans-Regular.ttf'
+font = Path(subprocess.check_output(['ziran', 'pkg', 'path', 'kryon', *([] if (ROOT / 'ziran.local.toml').exists() else ['--locked'])], text=True).strip()) / 'assets/fonts/LiberationSans-Regular.ttf'
 # Read the font cmap with the standard library (CI needs no fontTools install).
 data = font.read_bytes()
 tables = {data[12+i*16:16+i*16].decode(): struct.unpack_from('>II', data, 20+i*16) for i in range(struct.unpack_from('>H', data, 4)[0])}

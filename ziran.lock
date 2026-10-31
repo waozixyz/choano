@@ -19,11 +19,12 @@
       "url": "https://github.com/open-quantum-safe/liboqs.git"
     },
     {
-      "commit": "0c26d33c226fd7c57bc5e36247d0652d223bac10",
-      "dependencies": {"crypto": "pc23fbf455e97614d", "kryon": "pdd22085a09dedfd1"},
-      "id": "p1d00a48434a023b7",
+      "commit": "ba6a3059f10071e1c521f7fee456f569dec1de98",
+      "dependencies": {"crypto": "pc23fbf455e97614d", "kryon": "pe5e9983467e15f53"},
+      "dependency_refs": {"crypto": "master", "kryon": "ee9d204548295e6c6900939ba1120efe44659e79"},
+      "id": "p41314754ab04e82d",
       "name": "Apps",
-      "ref": "0c26d33c226fd7c57bc5e36247d0652d223bac10",
+      "ref": "ba6a3059f10071e1c521f7fee456f569dec1de98",
       "url": "https://github.com/waozixyz/apps.git"
     },
     {
@@ -38,6 +39,7 @@
     {
       "commit": "22d2ddbdc236796953c905a05a2cebf5ab1b4ff3",
       "dependencies": {"liboqs": "p1aaef6f156781e69"},
+      "dependency_refs": {"liboqs": "main"},
       "id": "p7098ac9cd92f7e5f",
       "name": "Oqs",
       "ref": "master",
@@ -46,6 +48,7 @@
     {
       "commit": "8250ece58a03f4d9c07cd8434780d659b54f5d7f",
       "dependencies": {"crypto": "pc23fbf455e97614d", "oqs": "p7098ac9cd92f7e5f"},
+      "dependency_refs": {"crypto": "master", "oqs": "master"},
       "id": "p7de54c8ad98fe034",
       "name": "DaochiClient",
       "ref": "master",
@@ -62,7 +65,8 @@
     },
     {
       "commit": "e8cc64d1731eecfab07e9fe55cc4fcd8368ae8fb",
-      "dependencies": {"daochi_client": "p7de54c8ad98fe034", "kryon": "pdd22085a09dedfd1", "monocypher": "p809b4d31a48625a3", "qrcode": "p0dfa70137405b096"},
+      "dependencies": {"daochi_client": "p7de54c8ad98fe034", "kryon": "pe5e9983467e15f53", "monocypher": "p809b4d31a48625a3", "qrcode": "p0dfa70137405b096"},
+      "dependency_refs": {"daochi_client": "master", "kryon": "master", "monocypher": "master", "qrcode": "master"},
       "id": "pb85975f45ad5e9e0",
       "name": "Entity",
       "ref": "master",
@@ -77,14 +81,6 @@
       "url": "https://github.com/ziranlang/crypto.git"
     },
     {
-      "commit": "b8ff4618fdb1eff6172faa18475137b43c33dfa3",
-      "dependencies": {"raylib": "p5a77c9c35110e925"},
-      "id": "pdd22085a09dedfd1",
-      "name": "kryon",
-      "ref": "master",
-      "url": "https://github.com/kryonlabs/kryon.git"
-    },
-    {
       "commit": "9cc6872f75447c3a24c16764f9829d0f58751cb0",
       "dependencies": {},
       "id": "pe1027b9d16704793",
@@ -93,8 +89,18 @@
       "url": "https://github.com/kryonlabs/mingcute.git"
     },
     {
+      "commit": "ee9d204548295e6c6900939ba1120efe44659e79",
+      "dependencies": {"raylib": "p5a77c9c35110e925"},
+      "dependency_refs": {"raylib": "fafa2cea97d0cb379d832086ba45a989fa6f9c8e"},
+      "id": "pe5e9983467e15f53",
+      "name": "kryon",
+      "ref": "master",
+      "url": "https://github.com/kryonlabs/kryon.git"
+    },
+    {
       "commit": "d32e4b606ece83e8869c954f66c334f44f7b4838",
-      "dependencies": {"kryon": "pdd22085a09dedfd1"},
+      "dependencies": {"kryon": "pe5e9983467e15f53"},
+      "dependency_refs": {"kryon": "master"},
       "id": "pe878ed78ee9f8300",
       "name": "Game2D",
       "ref": "master",
@@ -102,12 +108,13 @@
     }
   ],
   "root": {
-    "dependencies": {"apps": "p1d00a48434a023b7", "entity": "pb85975f45ad5e9e0", "game2d": "pe878ed78ee9f8300", "kryon": "pdd22085a09dedfd1", "mingcute": "pe1027b9d16704793"},
+    "dependencies": {"apps": "p41314754ab04e82d", "entity": "pb85975f45ad5e9e0", "game2d": "pe878ed78ee9f8300", "kryon": "pe5e9983467e15f53", "mingcute": "pe1027b9d16704793"},
+    "dependency_refs": {"apps": "ba6a3059f10071e1c521f7fee456f569dec1de98", "entity": "master", "game2d": "master", "kryon": "ee9d204548295e6c6900939ba1120efe44659e79", "mingcute": "master"},
     "name": "Choano"
   },
   "toolchain": {
-    "commit": "5461202417d48e2b31122354419179b262d7530c",
-    "ref": "5461202417d48e2b31122354419179b262d7530c",
+    "commit": "3f6234e9a181cdad20fac4fad1d1afb1b8ccf054",
+    "ref": "3f6234e9a181cdad20fac4fad1d1afb1b8ccf054",
     "url": "https://github.com/ziranlang/ziran.git"
   }
 }

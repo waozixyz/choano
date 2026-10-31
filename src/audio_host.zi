@@ -1,0 +1,49 @@
+// Standalone owner; hosted Apps instances supply their own owner and reader.
+#import "kryon/media_audio_host"
+#import "kryon/media_audio_raylib"
+#import "kryon/session"
+#import "std/file"
+#if #defined(ANDROID_BUILD) {
+    #import "std/byte_text_linux"
+    #import "std/c_string"
+    asset_raylib :: #system_library "raylib";
+    ReadAsset :: (name: *u8, size: *s32) -> *u8 #foreign asset_raylib "LoadFileData";
+    FreeAsset :: (bytes: *u8) #foreign asset_raylib "UnloadFileData";
+}
+Paths :: #import "sound_paths";
+#import "std/format"
+owner: MediaAudioOwner;
+AudioAsset :: (path: string) -> bool {
+    if path == Paths.SHARK_MUSIC { return true }
+    for event: cast(s32)1..6 {
+        text: Vec(u8)
+        BuilderPrint(*text, "assets/choano/audio/%.wav", Paths.SoundPath(event))
+        if path == BuilderFinish(text) { return true }
+    }
+    return false
+}
+AudioRead :: (context: *void, path: string) -> string {
+    unused context
+    #if #defined(ANDROID_BUILD) {
+        name: [256]u8
+        if !CopyCString(path, name[:]) { return "" }
+        count: s32
+        data := ReadAsset(*name[0], *count)
+        if data == null { return "" }
+        defer { FreeAsset(data) }
+        // The provider consumes bytes synchronously; return owned text.
+        copy: Vec(u8)
+        BuilderPrint(*copy, "%", TextFromBytes(BytesFromPointer(data, cast(u64)count)))
+        return BuilderFinish(copy)
+    } else {
+        bytes, found := ReadEntireFile(path)
+        return ifx found then bytes else ""
+    }
+}
+AudioBegin :: (session: Session) { MediaAudioBegin(*owner, session, AudioAsset, AudioRead, null) }
+AudioEnd :: () { MediaAudioEnd() }
+audio_opened: bool;
+AudioOpen :: () {
+    if !audio_opened { MediaAudioUseRaylib(); audio_opened = true }
+}
+AudioClose :: () { MediaAudioOwnerClose(*owner) }

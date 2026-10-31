@@ -1,0 +1,82 @@
+// Exercise the game's adapter through the real MediaAudio scope/owner contract.
+Sound :: #import "sound";
+#import "kryon/media_audio"
+#import "kryon/media_audio_host"
+#import "kryon/session"
+#import "std/file"
+plays: s32;
+stops: s32;
+unloads: s32;
+suspended: bool;
+unavailable: bool;
+last_gain: float32;
+last_music: bool;
+last_loop: bool;
+Allow :: (path: string) -> bool { return path.count > 0 }
+Deny :: (path: string) -> bool { return false }
+Read :: (context: *void, path: string) -> string {
+    bytes, found := ReadEntireFile(path)
+    return ifx found then bytes else ""
+}
+Provider :: (voice: *MediaAudioVoice, command: MediaAudioCommand, bytes: string) -> MediaAudioResult {
+    if command.operation == .Load && unavailable { return .{.code = .Unavailable} }
+    if command.operation == .Load {
+        if bytes.count < 44 { return .{.code = .Failed} }
+        voice.resource = cast(*void)1; voice.state = .Ready
+        last_gain = command.gain; last_music = command.music
+    }
+    if command.operation == .Play {
+        plays += 1; last_loop = command.looping
+        if suspended { return .{.code = .Suspended, .state = voice.state} }
+        voice.state = .Playing
+    }
+    if command.operation == .Stop { stops += 1; voice.state = .Stopped }
+    if command.operation == .Gain { last_gain = command.gain }
+    if command.operation == .Unload { unloads += 1; voice.* = .{} }
+    return .{.code = .Ok, .state = voice.state, .capabilities = 7}
+}
+main :: () -> s32 {
+    session := SessionOpen()
+    defer { unused SessionClose(session) }
+    if Sound.SoundPlayEvent(session, 1) { return 1 }
+    owner: MediaAudioOwner
+    MediaAudioUseProvider(Provider)
+    MediaAudioBegin(*owner, session, Deny, Read, null)
+    if Sound.SoundPlayEvent(session, 1) || plays != 0 { return 2 }
+    Sound.SoundMusic(session, true)
+    if plays != 0 { return 2 }
+    MediaAudioEnd()
+    MediaAudioBegin(*owner, session, Allow, Read, null)
+    defer { MediaAudioEnd(); MediaAudioOwnerClose(*owner) }
+    unavailable = true
+    if Sound.SoundPlayEvent(session, 1) || plays != 0 { return 13 }
+    unavailable = false
+    for event: cast(s32)1..6 {
+        if !Sound.SoundPlayEvent(session, event) || last_gain != 1.0 || last_music || last_loop { return 3 }
+    }
+    if plays != 6 || stops != 5 { return 4 }
+    suspended = true
+    Sound.SoundMusic(session, true)
+    if owner.voices[6].state == .Playing { return 5 }
+    suspended = false
+    Sound.SoundMusic(session, true)
+    if owner.voices[6].state != .Playing || !last_music || !last_loop { return 6 }
+    before := plays
+    Sound.SoundMusic(session, true)
+    if plays != before { return 7 }
+    Sound.SoundSetMuted(session, true)
+    if last_gain != 0.0 || Sound.SoundPlayEvent(session, 2) { return 8 }
+    Sound.SoundMusic(session, true)
+    if owner.voices[6].state != .Stopped { return 9 }
+    Sound.SoundSetMuted(session, false)
+    Sound.SoundMusic(session, true)
+    if owner.voices[6].state != .Playing || last_gain != cast(float32).6 { return 10 }
+    MediaAudioEnd()
+    MediaAudioOwnerClose(*owner)
+    if unloads != 7 { return 11 }
+    // Rebinding the same outer session after disposal must reload the voice.
+    MediaAudioBegin(*owner, session, Allow, Read, null)
+    if !Sound.SoundPlayEvent(session, 1) { return 12 }
+    print("Choano local audio policy tests passed\n")
+    return 0
+}

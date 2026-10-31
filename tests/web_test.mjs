@@ -22,7 +22,16 @@ try{
  let port;for(let i=0;i<600;i++){if(browserFailure||browser.exitCode!==null)throw Error('Browser could not start: '+(browserFailure||browserDiagnostics));try{port=(await readFile(join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0];break}catch{}await delay(50)}if(!port)throw Error('Browser startup timed out: '+browserDiagnostics);
  const targets=await(await fetch(`http://127.0.0.1:${port}/json/list`)).json();socket=new WebSocket(targets.find(t=>t.type==='page').webSocketDebuggerUrl);await new Promise((r,j)=>{socket.onopen=r;socket.onerror=j});
  socket.onmessage=e=>{const m=JSON.parse(e.data);if(m.method==='Runtime.exceptionThrown')errors.push(m.params.exceptionDetails.exception?.description||m.params.exceptionDetails.text);if(m.method==='Runtime.consoleAPICalled'&&m.params.type==='error')errors.push(m.params.args.map(a=>a.value||a.description).join(' '));const p=pending.get(m.id);if(!p)return;clearTimeout(p.timer);pending.delete(m.id);m.error?p.reject(Error(JSON.stringify(m.error))):p.resolve(m.result)};
- await command('Runtime.enable');await command('Page.enable');await command('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});
+ await command('Runtime.enable');await command('Page.enable');
+ await command('Page.addScriptToEvaluateOnNewDocument',{source:`
+ (()=>{
+ globalThis.choanoAudioStarts=[];globalThis.choanoAudioGains=[];
+ const start=AudioBufferSourceNode.prototype.start;
+ AudioBufferSourceNode.prototype.start=function(...args){choanoAudioStarts.push({loop:this.loop,duration:this.buffer?.duration});return start.apply(this,args)};
+ const createGain=AudioContext.prototype.createGain;
+ AudioContext.prototype.createGain=function(...args){const node=createGain.apply(this,args);choanoAudioGains.push(node);return node};
+ })();
+ `});await command('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});
 
  const press=async(key,code,vk)=>{await command('Input.dispatchKeyEvent',{type:'keyDown',key,code,windowsVirtualKeyCode:vk});await command('Input.dispatchKeyEvent',{type:'keyUp',key,code,windowsVirtualKeyCode:vk})};
  const click=async(x,y)=>{await command('Input.dispatchMouseEvent',{type:'mousePressed',x,y,button:'left',clickCount:1});await delay(80);await command('Input.dispatchMouseEvent',{type:'mouseReleased',x,y,button:'left',clickCount:1});await delay(120)};
@@ -135,7 +144,13 @@ try{
  if(await evaluate('Module.choanoMode')!==0)throw Error('Fish mode was playable before it was earned');
  await wardrobe(false);
  await downloadsHidden('during play');if(await evaluate('Module.choanoPage')!==1)throw Error('A click in the top bar left the game');
- if(await evaluate("(Module.music(true),Module.musicOn===true&&Module.loop.loop===true&&(Module.music(false),Module.loop.paused))")!==true)throw Error('The shark loop does not start and stop');
+ await until('choanoAudioStarts.some(source=>!source.loop && source.duration>0)');
+ // Mute during an actual cue: completed chimes have no live gain node.
+ const audioStarts=await evaluate('choanoAudioStarts.length');
+ await press('r','KeyR',82);await until(`choanoAudioStarts.length>${audioStarts}`);
+ await press('m','KeyM',77);await until('Module.choanoMuted');
+ await until('choanoAudioGains.some(node=>node.gain.value===0)');
+ await press('m','KeyM',77);await until('!Module.choanoMuted');
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.game.png');
  const before=await evaluate('Module.choanoX');await command('Input.dispatchKeyEvent',{type:'keyDown',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});await delay(350);await command('Input.dispatchKeyEvent',{type:'keyUp',key:'ArrowRight',code:'ArrowRight',windowsVirtualKeyCode:39});
  if(await evaluate('Module.choanoX')-before<10)throw Error('Keyboard swimming failed');
@@ -161,7 +176,7 @@ try{
  };
  await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.settings.png');
  await settingsChoice(true,0);if(await evaluate('Module.choanoPage')!==3)throw Error('Control choice left Settings');
- await settingsChoice(true,1);await until('Module.muted');await settingsChoice(false,1);await until('!Module.muted');
+ await settingsChoice(true,1);await until('Module.choanoMuted');await settingsChoice(false,1);await until('!Module.choanoMuted');
  await press('Escape','Escape',27);await until('Module.choanoPage===2');await press('Escape','Escape',27);await until('Module.choanoPage===1');
  await press('Escape','Escape',27);await until('Module.choanoPage===2');await click(actionCenter(size.w,'Profile'),26);await until('Module.profileVisible');await press('Escape','Escape',27);await until('!Module.profileVisible');await delay(150);await press('Escape','Escape',27);await until('Module.choanoPage===1');await delay(150);
  await press('r','KeyR',82);await until('Math.abs(Module.choanoX-245)<1');
@@ -169,10 +184,10 @@ try{
  await command('Emulation.setDeviceMetricsOverride',{width:390,height:740,deviceScaleFactor:1,mobile:true});await delay(350);
  const touchBefore=await evaluate('Module.choanoX');await command('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:165,y:630}]});await delay(350);await command('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  if(await evaluate('Module.choanoX')-touchBefore<8)throw Error('In-app direction pad did not swim right');
- await press('m','KeyM',77);await until('Module.muted');await delay(1500);
+ await press('m','KeyM',77);await until('Module.choanoMuted');await delay(1500);
  await command('Page.reload');await until('globalThis.Module?.choanoReady && Module.choanoPage===0');await delay(300);await shot(process.env.CHOANO_SCREENSHOT&&process.env.CHOANO_SCREENSHOT+'.portrait.png');
  await downloadsOpen('portrait title');await wardrobe(true);
- if(!await evaluate('Module.muted'))throw Error('Sound preference was not retained');
+ if(!await evaluate('Module.choanoMuted'))throw Error('Sound preference was not retained');
  await press('Enter','Enter',13);await until('Module.choanoPage===1');
  // Swipe steering again, in portrait, then Fish mode as if earned.
  // Stop the app before replacing its IDBFS record so its in-memory settings

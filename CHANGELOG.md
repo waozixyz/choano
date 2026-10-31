@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Play the existing event chimes and shark loop through shared Kryon MediaAudio, including compatible Apps hosts, while preserving cue priority and sound settings.
+
 ## [0.1.4] - 2026-10-30
 
 - Release movement keys to stop swimming in compatible game libraries, with the same diagonal steering as desktop.

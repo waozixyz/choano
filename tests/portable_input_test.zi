@@ -1,3 +1,6 @@
+AudioFixture :: #import "audio_test";
+#import "kryon/media_audio_host"
+sound_allowed: bool;
 // Actual Choano node/2 bundle through the published Apps and widget boundary.
 #import "apps/host"
 #import "apps/protocol"
@@ -21,12 +24,12 @@
 
 Allow :: (context: *void, node: *AppNode, name: string) -> bool {
     unused context; unused node
-    return name == "AppRecordHost" || name == "SaveAppRecordHost"
+    return name == "AppRecordHost" || name == "SaveAppRecordHost" || (name == "AppSoundHost" && sound_allowed)
 }
 Service :: (context: *void, node: *AppNode, module: *u8, function: *u8, arguments: *HostValue, count: s32, result: *HostValue) -> s32 {
     unused context; unused node; unused module; unused arguments; unused count
     if TextFromCString(function) == "AppRecordHost" {
-        value := "1s100"
+        value := "1s000"
         result.* = HostValue.{.kind = cast(s32)HostString, .type_name = HostTextData("string"),
             .data = HostTextData(value), .length = cast(usize)value.count}
     } else { result.* = HostScalar("bool", 1) }
@@ -65,6 +68,7 @@ PlayerX :: (session: Session) -> float32 { return PlayerPosition(session).x }
 main :: () -> s32 {
     if !OpenDesktopSized(900, 680) { print("portable input: desktop open failed\n"); return 1 }
     defer { CloseDesktop() }
+    MediaAudioUseProvider(AudioFixture.Provider)
     session := SessionOpen()
     defer { unused SessionClose(session) }
     bytes, found := ReadEntireFile("work/frame-input-adoption/guest.zx")
@@ -80,6 +84,11 @@ main :: () -> s32 {
     runtime.legacy.frame = .{.session = session, .width = 900, .height = 680, .now = 1.0}
     sample := FrameInputSnapshot.{.available = true, .focused = true}
     if !Draw(*host, sample, KeyEnter) || !Draw(*host, sample) { return 3 }
+    if AudioFixture.plays != 0 { return 23 }
+    sound_allowed = true
+    for index: 0..11 { if !Draw(*host, sample) { return 24 } }
+    if !Draw(*host, sample, 82) { return 24 }
+    if AudioFixture.plays == 0 { return 25 }
     start := PlayerX(session)
     if start == -9999.0 { return 4 }
     sample.keys[68] = cast(u8)(FrameKeyHeld | FrameKeyPressed)
@@ -113,6 +122,8 @@ main :: () -> s32 {
     if PlayerX(session) != paused { return 20 }
     if AppHostBack(*host) < 0 { return 21 }
     if !Draw(*host, sample, 82) || !Draw(*host, sample) { return 22 }
+    sound_allowed = false
+    if !Draw(*host, sample) || AudioFixture.unloads == 0 { return 26 }
     // Capture cannot be used after the callback or under another session.
     if CaptureFrameInput(session).available { return 12 }
     print("Choano local portable input test passed: held/repeat/release through Apps and WidgetHost.\n")

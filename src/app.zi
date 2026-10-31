@@ -37,14 +37,9 @@ Trophy :: #import "mingcute/mingcute_regular_trophy";
 #import "sprites"
 Accessories :: #import "accessories";
 Shell :: #import "shell";
-#if #defined(CHOANO_PORTABLE) {
-    #import "portable_sound"
-} else #if #defined(PLATFORM_WEB) {
-    #import "web_sound"
-} else #if #defined(ANDROID_BUILD) || #defined(CHOANO_RAYLIB) {
-    #import "raylib_sound"
-} else {
-    #import "sound"
+#import "sound"
+#if #defined(ANDROID_BUILD) {
+    Audio :: #import "audio_host";
 }
 
 toast: AchievementToast;
@@ -474,13 +469,13 @@ SoundRank :: (event: s32) -> s32 {
     if event == SOUND_EAT { return 1 }
     return 0
 }
-PlayEvents :: (now: float64) {
+PlayEvents :: (session: Session, now: float64) {
     best: s32;
     for index: cast(s32)0..game.event_count - 1 {
         if SoundRank(game.events[index]) > SoundRank(best) { best = game.events[index] }
     }
     if best != 0 && !(best == last_sound && now - last_sound_at < .16) {
-        unused SoundPlayEvent(best)
+        unused SoundPlayEvent(session, best)
         last_sound = best
         last_sound_at = now
     }
@@ -526,6 +521,11 @@ ProfileHeader :: (session: Session, viewport: Rectangle) -> bool {
 
 #program_export
 Frame :: (session: Session, viewport: Rectangle) -> s32 {
+    #if #defined(ANDROID_BUILD) {
+        Audio.AudioOpen()
+        Audio.AudioBegin(session)
+        defer { Audio.AudioEnd() }
+    }
     UsePalette(session)
     defer { unused WidgetPaletteRestore(session) }
     unused Box(session, BoxProps.{.key = cast(u64)49000, .bounds = viewport,
@@ -549,8 +549,8 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
             viewport.height - cast(float32)(safe.top + safe.bottom) / density}
     }
     area := Shell.Begin(session, controls, key, now, viewport)
-    SoundSetMuted(Shell.muted)
-    SoundMusic(Shell.Playing() && SharkAlert())
+    SoundSetMuted(session, Shell.muted)
+    SoundMusic(session, Shell.Playing() && SharkAlert())
     if Shell.WantsBoard() { DrawGame(session, area) }
     if Shell.HudVisible() { DrawHud(session, Shell.bar) }
     Shell.End(session, now, game.over)
@@ -580,7 +580,7 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
         UpdateGame(input, now - last_tick)
         if game.mode == MODE_AMOEBA { Shell.SyncAccessoryGrowth(game.player_stage) }
         if game.full_size { game.full_size = false; AwardFullSize(now) }
-        PlayEvents(now)
+        PlayEvents(session, now)
         last_tick = now
     }
     return 0

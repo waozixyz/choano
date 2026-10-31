@@ -7,11 +7,11 @@ tool = "kryon"
 
 [toolchain]
 git = "https://github.com/ziranlang/ziran.git"
-ref = "5461202417d48e2b31122354419179b262d7530c"
+ref = "3f6234e9a181cdad20fac4fad1d1afb1b8ccf054"
 
 [dependencies.kryon]
 git = "https://github.com/kryonlabs/kryon.git"
-ref = "master"
+ref = "ee9d204548295e6c6900939ba1120efe44659e79"
 
 [install]
 bin = "Choano"
@@ -35,7 +35,7 @@ working_directory = "."
 
 [dependencies.apps]
 git = "https://github.com/waozixyz/apps.git"
-ref = "0c26d33c226fd7c57bc5e36247d0652d223bac10"
+ref = "ba6a3059f10071e1c521f7fee456f569dec1de98"
 
 [dependencies.entity]
 git = "https://github.com/waozixyz/entity.git"

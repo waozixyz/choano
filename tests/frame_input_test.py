@@ -52,7 +52,8 @@ def main():
         with guest.open('rb') as source:
             digest = hashlib.file_digest(source, 'sha256').hexdigest()
         (WORK / 'portable.sha256').write_text(digest)
-        compiler_root = Path(ENV.get('ZIRAN_ROOT', Path(shutil.which(ZIRAN)).resolve().parents[2]))
+        compiler_root = Path(ENV.get('ZIRAN_ROOT') or subprocess.check_output(
+            [ZIRAN, 'pkg', 'path', 'ziran', *LOCKED], text=True, env=ENV).strip())
         archive = Path(ENV.get('ZIRAN_LIB', compiler_root / 'build/libziran.a'))
         if not archive.is_file():
             raise RuntimeError('Set ZIRAN_LIB to the existing toolchain libziran.a; this test never rebuilds it')

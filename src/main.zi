@@ -1,3 +1,4 @@
+Audio :: #import "audio_host";
 #import "android_run"
 #import "kryon/AndroidSurface"
 Timer :: #import "std/timer_linux";
@@ -9,6 +10,7 @@ main :: (argc: s32, argv: **u8) -> s32 {
     unused argc
     unused argv
     SetAndroidViewportPolicy(AndroidViewportPolicyFull())
+    defer { Audio.AudioClose() }
     return AndroidRunMain()
 }
 

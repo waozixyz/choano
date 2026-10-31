@@ -1,3 +1,4 @@
+Audio :: #import "audio_host";
 using Canvas :: #import "kryon/Canvas";
 #import "kryon/bundle_storage_web"
 #import "kryon/session"
@@ -45,10 +46,14 @@ main :: () -> s32 {
     defer { unused SessionClose(session) }
     App.SetProfileAvailable(true)
     App.SetDownloadsAvailable(true)
+    Audio.AudioOpen()
+    defer { Audio.AudioClose() }
     visible: bool;
     saved := PageNow()
     WebSet(WebModule, WebName("choanoReady"), WebBool(true))
     while PollCanvas() {
+        Audio.AudioBegin(session)
+        defer { Audio.AudioEnd() }
         if !CanvasFrameInputBegin(session) { return 1 }
         defer { FrameInputEnd(session) }
         scope := WebScope()
@@ -76,6 +81,8 @@ main :: () -> s32 {
         } else {
             now := PageNow() / 1000.0
             if Progress.ProgressPump(now, App.AmoebaStage(), cast(s64)(WebAsNumber(WebCall0(WebGetObject(WebGlobal, WebName("Date")), WebName("now"))) / 1000.0)) {
+                Audio.AudioClose()
+                Audio.AudioBegin(session)
                 Game.StartGame(cast(u32)PageNow(), Game.game.mode); App.PauseClock()
             }
             App.AccountProgress(Progress.HighestStage())
@@ -91,6 +98,7 @@ main :: () -> s32 {
             WebSet(WebModule, WebName("choanoFishLocked"), WebBool(!Shell.fish_unlocked))
             WebSet(WebModule, WebName("choanoFishLockMessage"), WebBool(Shell.fish_lock_message))
             WebSet(WebModule, WebName("choanoWardrobeOpen"), WebBool(Shell.wardrobe_open))
+            WebSet(WebModule, WebName("choanoMuted"), WebBool(Shell.muted))
             WebSet(WebModule, WebName("choanoPage"), WebNumber(cast(float64)App.NavigationPage()))
             WebSet(WebModule, WebName("choanoScore"), WebNumber(cast(float64)Game.game.score))
             WebSet(WebModule, WebName("choanoX"), WebNumber(cast(float64)Game.game.player_x))

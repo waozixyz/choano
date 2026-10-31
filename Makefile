@@ -1,7 +1,9 @@
+LOCKED := $(if $(wildcard ziran.local.toml),,--locked)
+
 .PHONY: all test input-test native portable web appimage appimage-test android android-gplay
 all: native portable
 native:
-	ziran build --project --locked native
+	python3 scripts/build.py native
 portable:
 	python3 scripts/build.py bundle
 web:
@@ -18,19 +20,22 @@ android-gplay:
 	python3 scripts/android.py build --edition gplay
 test:
 	python3 tests/release_test.py
+	python3 tests/build_test.py
 	python3 tests/desktop_release_test.py
 	python3 tests/assets_test.py
-	ziran check --project --locked
-	ziran build --project --locked --target=c --exe --entry game_test:main -o build/game-test tests/game_test.zi
+	ziran check --project $(LOCKED)
+	ziran build --project $(LOCKED) --target=c --exe --entry game_test:main -o build/game-test tests/game_test.zi
 	./build/game-test/game_test
-	ziran build --project --locked --target=c --exe --entry playfield_test:main -o build/playfield-test tests/playfield_test.zi
+	ziran build --project $(LOCKED) --target=c --exe --entry playfield_test:main -o build/playfield-test tests/playfield_test.zi
 	./build/playfield-test/playfield_test
-	ziran build --project --locked --target=c --define CHOANO_PROGRESS_TEST --exe --entry progress_test:main -o build/progress-test tests/progress_test.zi
+	ziran build --project $(LOCKED) --target=c --define CHOANO_PROGRESS_TEST --exe --entry progress_test:main -o build/progress-test tests/progress_test.zi
 	./build/progress-test/progress_test
-	ziran build --project --locked --target=c --exe --entry accessories_test:main -o build/accessories-test tests/accessories_test.zi
+	ziran build --project $(LOCKED) --target=c --exe --entry accessories_test:main -o build/accessories-test tests/accessories_test.zi
 	./build/accessories-test/accessories_test
-	ziran build --project --locked --target=c --exe --entry shell_test:main -o build/shell-test tests/shell_test.zi
+	ziran build --project $(LOCKED) --target=c --exe --entry shell_test:main -o build/shell-test tests/shell_test.zi
 	./build/shell-test/shell_test
+	ziran build --project $(LOCKED) --target=c --exe --entry audio_test:main -o build/audio-test tests/audio_test.zi
+	./build/audio-test/audio_test
 	python3 tests/frame_input_test.py
 
 # Actual Frame and portable Apps input contracts; uses an existing VM library.

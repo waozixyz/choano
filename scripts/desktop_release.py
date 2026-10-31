@@ -176,7 +176,7 @@ def check_image_decoders(appdir):
 
 
 def build_native():
-    run(ZIRAN, 'build', '--project', *LOCKED, 'native', cwd=ROOT)
+    run(sys.executable, ROOT / 'scripts/build.py', 'native', cwd=ROOT)
 
 
 def build_appimage(rebuild_native=True):

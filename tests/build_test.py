@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""Native renderer descriptor integrity and link order, without a compiler."""
+import hashlib
+import importlib.util
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location('choano_build', ROOT / 'scripts/build.py')
+build = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(build)
+
+class RendererTest(unittest.TestCase):
+    def setUp(self):
+        scratch = ROOT / 'work/audio-adoption'
+        subprocess.run(['git', 'check-ignore', str(scratch)], check=True, stdout=subprocess.DEVNULL)
+        self.temp = tempfile.TemporaryDirectory(dir=scratch)
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.meta = dict(schema=1, platform='linux-x86_64-gnu', archives=['second.a', 'first.a'], link_flags=['-lm', '-pthread'])
+        for name in self.meta['archives']:
+            (self.root / name).write_bytes(name.encode())
+        self.descriptor = self.root / 'artifact.tsv'
+        self.save()
+
+    def save(self):
+        (self.root / 'renderer.json').write_text(json.dumps(self.meta))
+        rows = dict(schema='1', artifact='renderer-raylib', platform='linux-x86_64-gnu')
+        for name in ['renderer.json', *self.meta['archives']]:
+            rows[name] = hashlib.sha256((self.root / name).read_bytes()).hexdigest()
+        self.descriptor.write_text(''.join(f'{k}\t{v}\n' for k, v in rows.items()))
+
+    def test_order_and_existing_libraries(self):
+        with patch.object(build.subprocess, 'check_output', return_value=str(self.descriptor)), patch.object(build, 'run') as run, patch.dict(os.environ, LDLIBS="'-Lwith spaces' -lcustom"):
+            build.native()
+        import shlex
+        self.assertEqual(shlex.split(run.call_args.kwargs['env']['LDLIBS']),
+            [str(self.root / 'second.a'), str(self.root / 'first.a'), '-lm', '-pthread', '-Lwith spaces', '-lcustom'])
+
+    def test_corrupt_archive(self):
+        (self.root / 'first.a').write_bytes(b'corrupt')
+        with self.assertRaisesRegex(RuntimeError, 'hash mismatch'):
+            build.renderer_links(self.descriptor)
+
+    def test_wrong_platform(self):
+        self.meta['platform'] = 'windows-x86_64-mingw'
+        self.save()
+        with self.assertRaisesRegex(RuntimeError, 'Unexpected'):
+            build.renderer_links(self.descriptor)
+
+    def test_corrupt_metadata(self):
+        (self.root / 'renderer.json').write_text('{}')
+        with self.assertRaisesRegex(RuntimeError, 'hash mismatch'):
+            build.renderer_links(self.descriptor)
+
+if __name__ == '__main__': unittest.main()

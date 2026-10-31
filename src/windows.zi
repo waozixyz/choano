@@ -1,3 +1,4 @@
+Audio :: #import "audio_host";
 // Windows: Choano on Kryon's raylib host. It draws the same Frame the Linux
 // desktop edition draws (src/desktop.zi), from the assets installed beside
 // the program, with raylib's keyboard, pointer and audio.
@@ -24,6 +25,8 @@ windows_c :: #system_library "c";
 ChangeDirectory :: (path: *u8) -> s32 #foreign windows_c "_chdir";
 
 DrawGameFrame :: (session: Session) -> bool {
+    Audio.AudioBegin(session)
+    defer { Audio.AudioEnd() }
     if !RaylibFrameInputBegin(session) { return false }
     defer { FrameInputEnd(session) }
     BeginRaylibFrame()
@@ -81,6 +84,8 @@ main :: () -> s32 {
         CloseRaylib()
         return 1
     }
+    Audio.AudioOpen()
+    defer { Audio.AudioClose() }
     ok := true
     while ok && PollRaylib() {
         ok = DrawGameFrame(session)

@@ -1,184 +1,63 @@
-#import "std/byte_text_linux"
-#import "std/c_string"
-#import "std/file"
-
-SOUND_EVENT_START :: 1
-SOUND_EVENT_EAT :: 2
-SOUND_EVENT_GROW :: 3
-SOUND_EVENT_EXTRA_LIFE :: 4
-SOUND_EVENT_LOSE_LIFE :: 5
-SOUND_EVENT_GAME_OVER :: 6
-
-SoundSpec :: struct {
-    freq: s32
-    format: u16
-    channels: u8
-    silence: u8
-    samples: u16
-    padding: u16
-    size: u32
-    callback: *void
-    userdata: *void
-}
-
-sound_sdl :: #system_library "SDL2";
-sound_c :: #system_library "c";
-SoundInit :: (flags: u32) -> s32 #foreign sound_sdl "SDL_InitSubSystem";
-SoundOpenDevice :: (device: *u8, capture: s32, desired: *SoundSpec, obtained: *SoundSpec,
-    changes: s32) -> u32 #foreign sound_sdl "SDL_OpenAudioDevice";
-SoundPause :: (device: u32, paused: s32) #foreign sound_sdl "SDL_PauseAudioDevice";
-SoundQueue :: (device: u32, data: *u8, length: u32) -> s32 #foreign sound_sdl "SDL_QueueAudio";
-SoundClear :: (device: u32) #foreign sound_sdl "SDL_ClearQueuedAudio";
-SoundFromMemory :: (bytes: *u8, count: s32) -> *void #foreign sound_sdl "SDL_RWFromConstMem";
-SoundLoadWave :: (source: *void, free_source: s32, spec: *SoundSpec, buffer: **u8,
-    length: *u32) -> *SoundSpec #foreign sound_sdl "SDL_LoadWAV_RW";
-SoundFreeWave :: (buffer: *u8) #foreign sound_sdl "SDL_FreeWAV";
-SoundNewStream :: (source_format: u16, source_channels: u8, source_rate: s32,
-    format: u16, channels: u8, rate: s32) -> *void #foreign sound_sdl "SDL_NewAudioStream";
-SoundStreamPut :: (stream: *void, data: *u8, length: s32) -> s32 #foreign sound_sdl "SDL_AudioStreamPut";
-SoundStreamFlush :: (stream: *void) -> s32 #foreign sound_sdl "SDL_AudioStreamFlush";
-SoundStreamAvailable :: (stream: *void) -> s32 #foreign sound_sdl "SDL_AudioStreamAvailable";
-SoundStreamGet :: (stream: *void, data: *u8, length: s32) -> s32 #foreign sound_sdl "SDL_AudioStreamGet";
-SoundFreeStream :: (stream: *void) #foreign sound_sdl "SDL_FreeAudioStream";
-SoundQueued :: (device: u32) -> u32 #foreign sound_sdl "SDL_GetQueuedAudioSize";
-
-SOUND_INIT_AUDIO :: 16
-SOUND_S16 :: 32784
-SOUND_RATE :: 44100
-SOUND_BYTE_LIMIT :: 16777216
-
-sound_device: u32;
-sound_unavailable: bool;
-sound_files: [10]string;
-// A little over a tenth of a second stays queued, in chunks of samples.
-SOUND_AHEAD :: 13230
-SOUND_CHUNK :: 1024
-effect_pcm: [65536]u8;
-effect_bytes: s32;
-effect_at: s32;
-music_pcm: [1048576]u8;
-music_bytes: s32;
-music_at: s32;
-music_tried: bool;
-music_on: bool;
-mixed: [SOUND_CHUNK]s16;
-
-SoundPath :: (event: s32) -> string {
-    if event == SOUND_EVENT_START { return "assets/choano/audio/game-start.wav" }
-    if event == SOUND_EVENT_EAT { return "assets/choano/audio/eat.wav" }
-    if event == SOUND_EVENT_GROW { return "assets/choano/audio/grow.wav" }
-    if event == SOUND_EVENT_EXTRA_LIFE { return "assets/choano/audio/extra-life.wav" }
-    if event == SOUND_EVENT_LOSE_LIFE { return "assets/choano/audio/lose-life.wav" }
-    if event == SOUND_EVENT_GAME_OVER { return "assets/choano/audio/game-over.wav" }
-    return ""
-}
-
-SoundOpen :: () -> bool {
-    if sound_device != cast(u32)0 { return true }
-    if sound_unavailable || SoundInit(cast(u32)SOUND_INIT_AUDIO) != 0 {
-        sound_unavailable = true
-        return false
-    }
-    desired := SoundSpec.{.freq = SOUND_RATE, .format = cast(u16)SOUND_S16,
-        .channels = cast(u8)1, .samples = cast(u16)1024}
-    obtained: SoundSpec
-    sound_device = SoundOpenDevice(null, 0, *desired, *obtained, 0)
-    if sound_device == cast(u32)0 {
-        sound_unavailable = true
-        return false
-    }
-    SoundPause(sound_device, 0)
-    return true
-}
-
-// WAV BYTES as 44.1 kHz mono PCM in TARGET; its byte count, or -1.
-SoundDecode :: (bytes: string, target: []u8) -> s32 {
-    if bytes.count <= 0 || bytes.count > SOUND_BYTE_LIMIT { return -1 }
-    descriptor := cast(*TextDescriptor)(*bytes)
-    source := SoundFromMemory(descriptor.data, cast(s32)bytes.count)
-    if source == null { return -1 }
-    spec: SoundSpec
-    wave: *u8
-    length: u32
-    if SoundLoadWave(source, 1, *spec, *wave, *length) == null { return -1 }
-    stream := SoundNewStream(spec.format, spec.channels, spec.freq,
-        cast(u16)SOUND_S16, cast(u8)1, SOUND_RATE)
-    ready := stream != null && SoundStreamPut(stream, wave, cast(s32)length) == 0 &&
-        SoundStreamFlush(stream) == 0
-    SoundFreeWave(wave)
-    count: s32 = -1
-    if ready {
-        available := SoundStreamAvailable(stream) / 2 * 2
-        if available > 0 && cast(s64)available <= target.count &&
-            SoundStreamGet(stream, *target[0], available) == available { count = available }
-    }
-    if stream != null { SoundFreeStream(stream) }
-    return count
-}
-
-SoundSample :: (pcm: []u8, at: s32) -> s32 {
-    value := cast(s32)pcm[at] | (cast(s32)pcm[at + 1] << 8)
-    if value >= 32768 { value -= 65536 }
-    return value
-}
-
-// Keeps a little of the chime and the shark loop queued, mixed together.
-SoundPump :: () {
-    if sound_device == cast(u32)0 { return }
-    while cast(s32)SoundQueued(sound_device) < SOUND_AHEAD && (music_on || effect_at < effect_bytes) {
-        for index: cast(s32)0..SOUND_CHUNK - 1 {
-            value: s32 = 0
-            if effect_at < effect_bytes {
-                value += SoundSample(effect_pcm[:], effect_at)
-                effect_at += 2
-            }
-            if music_on {
-                value += SoundSample(music_pcm[:], music_at) * 3 / 5
-                music_at = (music_at + 2) % music_bytes
-            }
-            if value > 32767 { value = 32767 }
-            if value < -32767 { value = -32767 }
-            mixed[index] = cast(s16)value
-        }
-        unused SoundQueue(sound_device, cast(*u8)*mixed[0], cast(u32)(SOUND_CHUNK * 2))
-    }
-}
-
-SoundPlayBytes :: (bytes: string) -> bool {
-    if !SoundOpen() { return false }
-    count := SoundDecode(bytes, effect_pcm[:])
-    if count <= 0 { return false }
-    // A new chime replaces what is queued; the loop rewinds to carry on
-    // from what was actually heard.
-    queued := cast(s32)SoundQueued(sound_device)
-    SoundClear(sound_device)
-    if music_on { music_at = ((music_at - queued) % music_bytes + music_bytes) % music_bytes }
-    effect_bytes = count
-    effect_at = 0
-    SoundPump()
-    return true
-}
-
-// Plays the shark loop while ON, under the chimes.
-SoundMusic :: (on: bool) {
-    on = on && !sound_muted
-    if on && !music_tried {
-        music_tried = true
-        if SoundOpen() {
-            bytes, found := ReadEntireFile("assets/choano/audio/shark-music.wav")
-            if found { music_bytes = SoundDecode(bytes, music_pcm[:]) }
-        }
-    }
-    if on && !music_on { music_at = 0 }
-    music_on = on && music_bytes > 0
-    SoundPump()
-}
-
-SoundPlayEvent :: (event: s32) -> bool {
-    if sound_muted { return false }
-    bytes, found := ReadEntireFile(SoundPath(event))
-    return found && SoundPlayBytes(bytes)
-}
+// Choano owns cue selection and transitions; Kryon owns playback and devices.
+#import "kryon/media_audio"
+#import "kryon/session"
+#import "std/format"
+Paths :: #import "sound_paths";
 
 sound_muted: bool;
-SoundSetMuted :: (value: bool) { sound_muted = value }
+playing: s32;
+#if #defined(PLATFORM_WEB) {
+    EFFECT_GAIN :: .6;
+    MUSIC_GAIN :: .45;
+} else #if #defined(ANDROID_BUILD) || #defined(CHOANO_RAYLIB) {
+    EFFECT_GAIN :: 1.0;
+    MUSIC_GAIN :: .7;
+} else {
+    EFFECT_GAIN :: 1.0;
+    MUSIC_GAIN :: .6;
+}
+
+// Status is authoritative after host disposal/rebinding; no app-side loaded cache.
+SoundReady :: (session: Session, voice: s32, path: string, music: bool, gain: float32) -> bool {
+    status := MediaAudio(session, .{.operation = .Status, .voice = voice})
+    if status.code == .Ok && status.state != .Unloaded { return true }
+    loaded := MediaAudio(session, .{.operation = .Load, .voice = voice,
+        .asset = path, .music = music, .gain = gain})
+    return loaded.code == .Ok
+}
+SoundPlayEvent :: (session: Session, event: s32) -> bool {
+    if sound_muted || event < 1 || event > 6 { return false }
+    path: Vec(u8)
+    BuilderPrint(*path, "assets/choano/audio/%.wav", Paths.SoundPath(event))
+    if !SoundReady(session, event, BuilderFinish(path), false, EFFECT_GAIN) { return false }
+    if playing != 0 && playing != event {
+        unused MediaAudio(session, .{.operation = .Stop, .voice = playing})
+    }
+    result := MediaAudio(session, .{.operation = .Play, .voice = event})
+    if result.code != .Ok { return false }
+    playing = event
+    return true
+}
+SoundMusic :: (session: Session, on: bool) {
+    on = on && !sound_muted
+    status := MediaAudio(session, .{.operation = .Status, .voice = 7})
+    if !on {
+        if status.code == .Ok && status.state == .Playing {
+            unused MediaAudio(session, .{.operation = .Stop, .voice = 7})
+        }
+        return
+    }
+    if status.code == .Ok && status.state == .Playing { return }
+    if !SoundReady(session, 7, Paths.SHARK_MUSIC, true, MUSIC_GAIN) { return }
+    // A denied/suspended Play is never remembered as playing. Retry on a later
+    // active frame (the browser provider requires an actual user gesture).
+    unused MediaAudio(session, .{.operation = .Play, .voice = 7, .looping = true})
+}
+SoundSetMuted :: (session: Session, value: bool) {
+    if value == sound_muted { return }
+    sound_muted = value
+    for voice: cast(s32)1..7 {
+        gain: float32 = ifx value then 0.0 else ifx voice == 7 then MUSIC_GAIN else EFFECT_GAIN
+        unused MediaAudio(session, .{.operation = .Gain, .voice = voice, .gain = gain})
+    }
+}
