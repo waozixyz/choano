@@ -1,10 +1,38 @@
+#import "entity/game_progress"
 #import "std/json_scan"
 #import "std/format"
+#import "std/c_string"
 account: string = "a";
 remote_stage: s32 = 4;
 writes: s32;
+reads: s32;
 written_stage: s32;
 fail: bool;
+put_pending: bool;
+status_calls: s32;
+switch_in_load: bool;
+write_ok: bool = true;
+ready: bool = true;
+flush: bool = true;
+saved: [3]GameProgressRecord;
+markers: [3]bool;
+Slot :: (owner: string) -> s32 { return ifx owner == "a" then 0 else ifx owner == "b" then 1 else 2 }
+Close :: () {}
+Load :: (owner: string, record: *GameProgressRecord, pending: *bool) -> bool {
+    if !ready { return false }
+    index := Slot(owner)
+    if saved[index].unlocked == 0 {
+        unused CopyCString("choano", saved[index].game[:]); saved[index].unlocked = 1
+    }
+    record.* = saved[index]; pending.* = markers[index]
+    if switch_in_load { account = "b"; switch_in_load = false }
+    return true
+}
+Persist :: (owner: string, record: *GameProgressRecord, pending: bool) -> bool {
+    if !ready || !flush || !write_ok { return false }
+    saved[Slot(owner)] = record.*; markers[Slot(owner)] = pending
+    return true
+}
 Service :: (name: string, request: string) -> string {
     unused name
     if request == "{\"operation\":\"status\"}" {
@@ -15,11 +43,17 @@ Service :: (name: string, request: string) -> string {
     operation: [16]u8
     count := ReadStringText(request, FieldAt(request, 0, "operation"), operation[:])
     if count == 3 && operation[0] == #char "g" {
+        reads += 1
         out: Vec(u8)
         BuilderPrint(*out, "{\"status\":\"done\",\"document\":{\"game\":\"choano\",\"unlocked\":%,\"completed\":\"\",\"updated_at\":1}}", remote_stage)
         return BuilderFinish(out)
     }
+    if count == 6 && operation[0] == #char "s" {
+        status_calls += 1
+        return "{\"status\":\"done\",\"request\":7}"
+    }
     writes += 1
     written_stage = cast(s32)ReadNumber(request, FieldAt(request, FieldAt(request, 0, "document"), "unlocked")).value
+    if put_pending { return "{\"status\":\"pending\",\"request\":7}" }
     return ifx fail then "{\"status\":\"failed\"}" else "{\"status\":\"done\"}"
 }

@@ -20,13 +20,13 @@ ChoanoFrame :: (message: AppMessage) -> bool {
         cast(float32)(frame.height - frame.top - frame.bottom)}
     Runtime.CaptureKey()
     key := Runtime.PressedKey()
-    if key == 80 { unused Runtime.Service("entity.profile", "open"); App.PauseClock() }
-    if Progress.ProgressPump(frame.now, App.AmoebaStage(), message.time) {
+    if key == 80 { Progress.Reset(); unused Runtime.Service("entity.profile", "open"); App.PauseClock() }
+    if Progress.ProgressPump(frame.now, App.AmoebaStage(), message.time, !App.ProgressPlaying()) {
         Game.StartGame(cast(u32)(frame.now * 1000.0), Game.game.mode); App.PauseClock()
     }
-    App.AccountProgress(Progress.HighestStage())
+    if !App.ProgressPlaying() { App.AccountProgress(Progress.HighestStage()) }
     ok := App.Frame(frame.session, area) == 0
-    if App.TakeProfileRequest() { unused Runtime.Service("entity.profile", "open"); App.PauseClock() }
+    if App.TakeProfileRequest() { Progress.Reset(); unused Runtime.Service("entity.profile", "open"); App.PauseClock() }
     return ok
 }
 

@@ -1,52 +1,77 @@
-// Highest growth stage is earned progress. A run's position, lives and RNG
-// stay on the device; the account provider owns record IDs and cryptography.
+// Only earned amoeba growth follows an account. Runs remain device-only.
+#import "entity/game_progress_client"
 #import "entity/game_progress"
+#import "std/text_buffer"
 #import "std/c_string"
 #import "std/json_scan"
-#import "std/text_buffer"
-#import "std/format"
-#import "std/vec"
 #if #defined(CHOANO_PROGRESS_TEST) {
     Account :: #import "progress_fixture";
-} else #if #defined(CHOANO_PORTABLE) {
-    Account :: #import "portable_runtime";
+    Storage :: #import "progress_fixture";
 } else {
-    Account :: #import "web_account";
+    Storage :: #import "progress_storage";
+    #if #defined(CHOANO_PROGRESS_STORAGE_TEST) {
+        Account :: #import "progress_fixture";
+    } else #if #defined(CHOANO_PORTABLE) {
+        Account :: #import "portable_runtime";
+    } else #if #defined(PLATFORM_WEB) {
+        Account :: #import "web_account";
+    } else {
+        Account :: #import "progress_guest";
+    }
 }
-owner: [97]u8;
-record: GameProgressRecord;
-next_poll: float64;
-dirty: bool;
-ProgressPump :: (now: float64, stage: s32, stamp: s64) -> bool {
-    if now < next_poll { return false }
-    next_poll = now + 2.0
+client: GameProgressClient;
+identity: [129]u8;
+bound: bool;
+known_owner: bool;
+// Call before profile reconfiguration, including a same-identity relogin.
+Reset :: () { GameProgressClientReset(*client); Storage.Close(); bound = false }
+verified: [129]u8;
+Owner :: (context: *void) -> string {
+    unused context
     status := Account.Service("entity.records", "{\"operation\":\"status\"}")
-    current: [97]u8
-    if ReadStringText(status, FieldAt(status, 0, "account"), current[:]) < 0 { return false }
-    changed := TextUntilNul(owner[:]) != TextUntilNul(current[:])
-    if changed { owner = current; record = .{}; dirty = false; return true }
-    if current[0] == 0 { return false }
-    unused CopyCString("choano", record.game[:])
-    if record.unlocked < 1 { record.unlocked = 1 }
-    request: Vec(u8)
-    GameProgressGetRequest("choano", *request)
-    incoming: GameProgressRecord
-    if GameProgressReply(Account.Service("entity.records", BuilderFinish(request)), *incoming) {
-        unused GameProgressMerge(*record, *incoming)
-    }
-    if stage > record.unlocked {
-        record.unlocked = stage
-        record.updated_at = stamp
-        dirty = true
-    }
-    if !dirty { return false }
-    output: Vec(u8)
-    GameProgressPutRequest(*record, *output)
-    answer := Account.Service("entity.records", BuilderFinish(output))
-    state: [32]u8
-    dirty = ReadStringText(answer, FieldAt(answer, 0, "status"), state[:]) < 0 ||
-        TextUntilNul(state[:]) != "done"
-    return false
+    verified = .{}
+    if ReadStringText(status, FieldAt(status, 0, "account"), verified[:]) < 0 { return "unavailable" }
+    if TextUntilNul(verified[:]) == "local" { return "" }
+    return TextUntilNul(verified[:])
 }
-
-HighestStage :: () -> s32 { return record.unlocked }
+Service :: (context: *void, name: string, request: string) -> string {
+    unused context
+    return Account.Service(name, request)
+}
+Persist :: (context: *void, owner: string, record: *GameProgressRecord, pending: bool) -> bool {
+    unused context
+    return Storage.Persist(owner, record, pending)
+}
+ProgressPump :: (now: float64, stage: s32, stamp: s64, allow_read: bool = true) -> bool {
+    status := Account.Service("entity.records", "{\"operation\":\"status\"}")
+    current: [129]u8
+    if ReadStringText(status, FieldAt(status, 0, "account"), current[:]) < 0 { return false }
+    if TextUntilNul(current[:]) == "local" { current = .{} }
+    changed := known_owner && TextUntilNul(current[:]) != TextUntilNul(identity[:])
+    if changed { Reset() }
+    known_owner = true
+    identity = current
+    if !bound {
+        record: GameProgressRecord
+        pending: bool
+        if !Storage.Load(TextUntilNul(identity[:]), *record, *pending) { return changed }
+        client.service = Service; client.owner = Owner; client.persist = Persist
+        result := GameProgressClientBind(*client, TextUntilNul(identity[:]), *record, pending)
+        if result.state == .OwnerChanged { Reset(); return true }
+        bound = true
+        // Never attribute the previous owner's active run to a new binding.
+        stage = 0
+    }
+    earned: GameProgressRecord
+    if stage > 0 && GameProgressClientRead(*client, *earned) && stage > earned.unlocked {
+        earned.unlocked = stage; earned.updated_at = stamp
+        unused GameProgressClientQueue(*client, *earned)
+    }
+    unused GameProgressClientPump(*client, cast(s64)(now * 1000.0), allow_read)
+    return changed
+}
+HighestStage :: () -> s32 {
+    value: GameProgressRecord
+    return ifx client.result.durable && GameProgressClientRead(*client, *value) then value.unlocked else 0
+}
+Result :: () -> GameProgressClientResult { return client.result }

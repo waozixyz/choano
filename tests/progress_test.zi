@@ -1,24 +1,61 @@
 Progress :: #import "progress";
 Fixture :: #import "progress_fixture";
+#import "entity/game_progress_client"
 Expect :: (value: bool, name: string) -> bool {
     if !value { print("Choano progress local test failed: %\n", name) }
     return value
 }
 main :: () -> s32 {
-    if !Expect(Progress.ProgressPump(0.0, 1, 1), "new account resets its run") { return 1 }
-    unused Progress.ProgressPump(2.0, 2, 2)
-    if !Expect(Fixture.writes == 0 && Progress.HighestStage() == 4, "download before upload preserves earned stages") { return 1 }
-    Fixture.fail = true
+    Fixture.ready = false
+    unused Progress.ProgressPump(0.0, 5, 1)
+    if !Expect(Fixture.reads == 0 && Fixture.writes == 0, "before ready no service") { return 1 }
+    Fixture.ready = true
+    unused Progress.ProgressPump(1.0, 1, 1, false)
+    if !Expect(Fixture.reads == 0, "active play defers hydration") { return 1 }
+    unused Progress.ProgressPump(2.0, 1, 2)
+    unused Progress.ProgressPump(3.0, 1, 3)
+    if !Expect(Fixture.writes == 0 && Progress.HighestStage() == 4, "hydrate before put") { return 1 }
+    Fixture.flush = false
     unused Progress.ProgressPump(4.0, 5, 4)
-    if !Expect(Fixture.writes == 1 && Progress.dirty, "failed writes remain pending") { return 1 }
-    Fixture.fail = false
+    result := Progress.Result()
+    if !Expect(Fixture.writes == 0 && !result.durable, "failed flush cannot upload or acknowledge") { return 1 }
+    Fixture.flush = true; Fixture.write_ok = false
+    unused Progress.ProgressPump(5.0, 5, 5)
+    result = Progress.Result()
+    if !Expect(Fixture.writes == 0 && !result.durable, "failed write cannot upload") { return 1 }
+    Fixture.write_ok = true; Fixture.fail = true
     unused Progress.ProgressPump(6.0, 5, 6)
-    if !Expect(Fixture.writes == 2 && !Progress.dirty && Fixture.written_stage == 5, "retry the same earned progress") { return 1 }
-    Fixture.account = "b"
-    Fixture.remote_stage = 1
-    if !Expect(Progress.ProgressPump(8.0, 5, 8), "account switch resets the run") { return 1 }
-    unused Progress.ProgressPump(10.0, 1, 10)
-    if !Expect(Fixture.writes == 2 && Progress.HighestStage() == 1, "old account's progress never enters the new account") { return 1 }
+    result = Progress.Result()
+    if !Expect(Fixture.writes == 1 && result.dirty && result.durable, "failed upload retained durably") { return 1 }
+    Fixture.fail = false
+    unused Progress.ProgressPump(8.0, 5, 8)
+    unused Progress.ProgressPump(10.0, 5, 10)
+    result = Progress.Result()
+    if !Expect(Fixture.writes == 2 && !result.dirty && result.durable && Fixture.written_stage == 5, "ack marker durably saved") { return 1 }
+    Fixture.account = "b"; Fixture.remote_stage = 1
+    if !Expect(Progress.ProgressPump(12.0, 5, 12), "switch resets run") { return 1 }
+    unused Progress.ProgressPump(14.0, 1, 14)
+    if !Expect(Fixture.writes == 2 && Progress.HighestStage() == 1, "new account isolated") { return 1 }
+    Progress.Reset()
+    if !Expect(!Progress.ProgressPump(16.0, 5, 16), "same identity rebind preserves the run") { return 1 }
+    Fixture.account = ""
+    unused Progress.ProgressPump(18.0, 1, 18)
+    unused Progress.ProgressPump(20.0, 3, 20)
+    if !Expect(Fixture.writes == 2 && Progress.HighestStage() == 3, "guest local only") { return 1 }
+    Fixture.account = "a"
+    unused Progress.ProgressPump(22.0, 3, 22, false)
+    if !Expect(Progress.HighestStage() == 5, "return loads own durable earnings") { return 1 }
+    Fixture.put_pending = true
+    unused Progress.ProgressPump(24.0, 6, 24)
+    unused Progress.ProgressPump(26.0, 7, 26, false)
+    unused Progress.ProgressPump(28.0, 7, 28, false)
+    result = Progress.Result()
+    if !Expect(Fixture.status_calls == 1 && result.dirty && result.durable && Progress.HighestStage() == 7, "new earnings survive pending put ack during active play") { return 1 }
+    Progress.Reset()
+    Fixture.switch_in_load = true
+    if !Expect(Progress.ProgressPump(30.0, 7, 30) && Progress.HighestStage() == 0, "owner change during load rejects stale seed") { return 1 }
+    unused Progress.ProgressPump(32.0, 1, 32, false)
+    if !Expect(Progress.HighestStage() == 1, "changed owner binds only own durable seed") { return 1 }
     print("Choano local progress tests passed.\n")
     return 0
 }

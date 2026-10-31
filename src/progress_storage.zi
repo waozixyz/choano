@@ -1,0 +1,101 @@
+// Choano's versioned earned save: one atomic document per public owner.
+// Preferences and legacy records are retained; no current-run data is stored.
+#import "entity/game_progress"
+#import "std/json_scan"
+#import "std/text_buffer"
+#import "std/c_string"
+#import "std/format"
+#import "std/vec"
+Prefs :: #import "preferences";
+Game :: #import "game";
+#if #defined(CHOANO_PORTABLE) {
+    Context :: #import "kryon/app_context";
+    Close :: () {}
+    Ready :: () -> bool { return Context.DocumentStorageReady() }
+    Confirm :: () -> bool { return Context.DocumentFlush() }
+    Read :: (name: string) -> string { return Context.DocumentRead(name) }
+    ReleaseRead :: (text: string) { unused text }
+    Missing :: () -> bool { return Context.DocumentStatus() == 0 }
+    Write :: (name: string, value: string) -> bool {
+        return Context.DocumentWrite(name, value) && Context.DocumentFlush()
+    }
+} else {
+    #import "kryon/app_files"
+    files: AppFiles;
+    root: string;
+    Close :: () { AppFilesClose(*files); root = "" }
+    Ready :: () -> bool {
+        if files.root == "" {
+            if root == "" {
+                #if #defined(ANDROID_BUILD) {
+                    path := Prefs.Path()
+                    root = path[:path.count - 15]
+                } else { root = Prefs.Root() }
+            }
+            if !AppFilesOpen(*files, root) { return false }
+        }
+        return AppFilesReady(*files)
+    }
+    Confirm :: () -> bool { return AppFilesFlush(*files) }
+    Read :: (name: string) -> string { return AppFileRead(*files, name) }
+    ReleaseRead :: (text: string) { AppFileFree(text) }
+    Missing :: () -> bool { return files.status == 0 }
+    Write :: (name: string, value: string) -> bool {
+        return AppFileWrite(*files, name, value) && AppFilesFlush(*files)
+    }
+}
+Name :: (owner: string, output: []u8) -> string {
+    // A public identity is a single filename component, never a path.
+    for byte: owner {
+        if !((byte >= #char "a" && byte <= #char "z") || (byte >= #char "A" && byte <= #char "Z") ||
+            (byte >= #char "0" && byte <= #char "9") || byte == #char "-" || byte == #char "_") { return "" }
+    }
+    out: Vec(u8)
+    BuilderPrint(*out, "choano.earned.%.v1", ifx owner == "" then "guest" else owner)
+    copied := CopyCString(TextView(VecSlice(out, 0, out.count)), output)
+    VecFree(out)
+    return ifx copied then TextUntilNul(output) else ""
+}
+Load :: (owner: string, record: *GameProgressRecord, pending: *bool) -> bool {
+    if !Ready() || !Confirm() { return false }
+    name_bytes: [256]u8
+    name := Name(owner, name_bytes[:])
+    if name == "" { return false }
+    text := Read(name)
+    defer { ReleaseRead(text) }
+    if text == "" && Missing() {
+        record.* = .{}; unused CopyCString("choano", record.game[:]); record.unlocked = 1
+        pending.* = false
+        // Existing device earnings belong to the guest only.
+        if owner == "" {
+            legacy := Prefs.Load()
+            if legacy.accessories_stage > record.unlocked { record.unlocked = legacy.accessories_stage }
+            if legacy.fish_unlocked { record.unlocked = Game.PLAYER_STAGE_LAST }
+        }
+        return Persist(owner, record, false)
+    }
+    at := FieldAt(text, 0, "earned")
+    if at < 0 { return false }
+    end := ValueEnd(text, at, 0)
+    if end <= at || !GameProgressRead(text[at:end], record) || TextUntilNul(record.game[:]) != "choano" { return false }
+    marker := FieldAt(text, 0, "pending")
+    if marker < 0 { return false }
+    marker_end := ValueEnd(text, marker, 0)
+    if marker_end <= marker { return false }
+    if text[marker:marker_end] == "true" { pending.* = true }
+    else if text[marker:marker_end] == "false" { pending.* = false }
+    else { return false }
+    return true
+}
+Persist :: (owner: string, record: *GameProgressRecord, pending: bool) -> bool {
+    if !Ready() { return false }
+    name_bytes: [256]u8
+    name := Name(owner, name_bytes[:])
+    if name == "" { return false }
+    out: Vec(u8)
+    BuilderPrint(*out, "{\"pending\":%,\"earned\":", ifx pending then "true" else "false")
+    GameProgressWrite(record, *out)
+    BuilderPrint(*out, "}")
+    defer { VecFree(out) }
+    return Write(name, TextView(VecSlice(out, 0, out.count)))
+}

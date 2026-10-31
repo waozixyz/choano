@@ -1,0 +1,4 @@
+Service :: (name: string, request: string) -> string {
+    unused name; unused request
+    return "{\"account\":\"local\"}"
+}

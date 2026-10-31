@@ -215,6 +215,22 @@ try{
  await prefer('1s111');
  if(await evaluate('Module.choanoMode')!==1)throw Error('Fish mode did not start once earned');if(await evaluate('Module.choanoDishFrame')!==false)throw Error('Fish mode kept the dish rim');await turns('Fish portrait',195,400,null);
  await command('Emulation.clearDeviceMetricsOverride');await delay(350);await press('r','KeyR',82);await delay(200);await turns('Fish landscape',300,200,null);
+ // Inspect the real durable record after leaving the running page. Both fields
+ // share one IDBFS entry, and reopening must not restore an active run.
+ await command('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/browser-storage.html`});
+ await until('document.title==="Browser storage setup"');
+ const earned=await evaluate(`new Promise((resolve,reject)=>{
+  const request=indexedDB.open('/kryon-apps');request.onerror=()=>reject(request.error);
+  request.onsuccess=()=>{const db=request.result,tx=db.transaction('FILE_DATA','readonly');
+   const row=tx.objectStore('FILE_DATA').get('/kryon-apps/choano/choano.earned.guest.v1');
+   row.onsuccess=()=>resolve(row.result?JSON.parse(new TextDecoder().decode(row.result.contents)):null);
+   tx.oncomplete=()=>db.close();tx.onerror=()=>reject(tx.error);
+  };
+ })`);
+ if(!earned || typeof earned.pending!=='boolean' || earned.earned.game!=='choano' || earned.earned.unlocked<1 ||
+    Object.keys(earned.earned).sort().join(',')!=='completed,game,unlocked,updated_at')throw Error('Earned record and pending marker were not saved atomically');
+ await command('Page.navigate',{url:`http://127.0.0.1:${server.address().port}/`});
+ await until('globalThis.Module?.choanoReady && Module.choanoPage===0');
  if(missing.length)throw Error('Missing assets: '+missing.join(', '));if(errors.length)throw Error(errors.join('\n'));
  console.log('Choano local browser tests passed: app title/chrome, title-only Downloads to the latest release, locked Fish mode, choice, keyboard/click no start/held free touch steering/clean turns after long drags in Amoeba and Fish, landscape and portrait/round landscape and rimmed portrait dish/release glide/tap no start/pad, title and playing wardrobe/pause, nested navigation, Profile, restart, persisted controls/sound, portrait and reload.');
 }finally{

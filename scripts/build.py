@@ -64,7 +64,9 @@ def bundle():
 
 def profile():
     entity, kryon, ziran, qr = map(package, ('entity', 'kryon', 'ziran', 'qrcode'))
-    run(ZIRAN, 'bundle', '--root', entity, '--module-path', entity / 'src',
+    # This legacy Profile entry uses explicit module paths. Invoke the locked
+    # compiler itself so the global launcher cannot emit another ZX version.
+    run(ziran / 'build/bin/ziran', 'bundle', '--root', entity, '--module-path', entity / 'src',
         '--module-path', kryon / 'src/ui', '--module-path', 'kryon=' + str(kryon / 'src/ui'),
         '--module-path', 'kryon=' + str(kryon / 'src/backend'),
         '--module-path', 'qrcode=' + str(qr / 'src'), '--module-path', ziran / 'std',

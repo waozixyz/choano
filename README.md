@@ -140,3 +140,17 @@ swimming, Profile/Back, restart and reload in headless Chromium. Successful
 master builds deploy to the Cloudflare Pages project `choano` and connect
 `choano.waozi.xyz`. Repository secrets `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID` configure deployment; credentials are never committed.
+
+Earned amoeba growth uses Entity's shared `GameProgressClient`. Choano keeps
+one versioned private document per public account (and one for the guest),
+containing only earned growth and its pending marker. Saves acknowledge the
+private filesystem flush before an upload or local acknowledgement. Existing
+preferences and legacy records remain intact; a new account starts from its
+own save, and no run position, lives, score or RNG is synced or resumed.
+Remote earnings are adopted when the existing game UI is outside active play.
+
+Portable hosts must explicitly grant the document read/write/status/readiness
+and flush capabilities and bind their authorized node's private `AppFiles`
+through `AppPlatform.documents`. The standalone browser binds its own private
+files directly. Older Arcade hosts need their own adoption; this change does
+not publish a catalog update or claim compatibility with Arcade 0.7.113.

@@ -1,0 +1,24 @@
+// Exercises the production atomic native/browser storage adapter.
+Storage :: #import "progress_storage";
+Prefs :: #import "preferences";
+#import "entity/game_progress"
+#import "std/c_string"
+#import "std/text_buffer"
+main :: () -> s32 {
+    value: GameProgressRecord
+    pending: bool
+    if !Storage.Load("account-a", *value, *pending) || pending || value.unlocked != 1 { return 1 }
+    value.unlocked = 5
+    if !Storage.Persist("account-a", *value, true) { return 2 }
+    Storage.Close()
+    if !Storage.Load("account-a", *value, *pending) || !pending || value.unlocked != 5 { return 3 }
+    if !Storage.Persist("account-a", *value, false) { return 4 }
+    Storage.Close()
+    if !Storage.Load("account-b", *value, *pending) || pending || value.unlocked != 1 { return 5 }
+    if Storage.Load("../account-a", *value, *pending) { return 6 }
+    Storage.Close()
+    if !Storage.Load("account-a", *value, *pending) || pending || value.unlocked != 5 { return 7 }
+    Storage.Close()
+    print("Choano local production earned save/reload tests passed.\n")
+    return 0
+}

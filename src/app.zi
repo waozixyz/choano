@@ -1,3 +1,6 @@
+#if !#defined(CHOANO_PORTABLE) && !#defined(PLATFORM_WEB) {
+    Progress :: #import "progress";
+}
 #if #defined(ANDROID_BUILD) || #defined(PLATFORM_ANDROID) || #defined(__ANDROID__) {
     #import "kryon/android_device"
     #import "kryon/AndroidSurface"
@@ -490,6 +493,7 @@ SetProfileAvailable :: (available: bool) { Shell.profile_available = available }
 TakeProfileRequest :: () -> bool { return Shell.TakeProfile() }
 SetDownloadsAvailable :: (available: bool) { Shell.downloads_available = available }
 TakeDownloadsRequest :: () -> bool { return Shell.TakeDownloads() }
+ProgressPlaying :: () -> bool { return Shell.HudVisible() }
 NavigationPage :: () -> s32 { return Shell.Page() }
 // Account progress that already reached full size unlocks Fish mode quietly
 // on this device too.
@@ -521,6 +525,11 @@ ProfileHeader :: (session: Session, viewport: Rectangle) -> bool {
 
 #program_export
 Frame :: (session: Session, viewport: Rectangle) -> s32 {
+    #if !#defined(CHOANO_PORTABLE) && !#defined(PLATFORM_WEB) {
+        progress_now := cast(float64)Clock.Milliseconds() / 1000.0
+        unused Progress.ProgressPump(progress_now, AmoebaStage(), cast(s64)progress_now, !ProgressPlaying())
+        if !ProgressPlaying() { AccountProgress(Progress.HighestStage()) }
+    }
     #if #defined(ANDROID_BUILD) {
         Audio.AudioOpen()
         Audio.AudioBegin(session)

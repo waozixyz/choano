@@ -1,12 +1,20 @@
 AudioFixture :: #import "audio_test";
 #import "kryon/media_audio_host"
 sound_allowed: bool;
+progress_files: AppFiles;
+Documents :: (context: *void, node: *AppNode) -> *AppFiles {
+    if TextUntilNul(node.identity.id[:]) != "xyz.waozi.choano" { return null }
+    return *progress_files
+}
+
 // Actual Choano node/2 bundle through the published Apps and widget boundary.
 #import "apps/host"
 #import "apps/protocol"
 #import "apps/tree"
 #import "kryon/session"
 #import "kryon/app_protocol"
+#import "kryon/app_files"
+#import "kryon/app_context_host"
 #import "kryon/geometry"
 #import "std/bundle_host"
 #import "std/byte_text_linux"
@@ -20,15 +28,26 @@ sound_allowed: bool;
 #import "kryon/tree"
 #import "kryon/Frame"
 #import "std/file"
+#import "std/environment_linux"
 #import "std/c_string"
+#import "std/text_buffer"
 
 Allow :: (context: *void, node: *AppNode, name: string) -> bool {
     unused context; unused node
-    return name == "AppRecordHost" || name == "SaveAppRecordHost" || (name == "AppSoundHost" && sound_allowed)
+    return AppHostDocumentFunction(name) || name == "DocumentReadHost" || name == "DocumentWriteHost" || name == "DocumentStatusHost" || name == "AppRecordHost" || name == "SaveAppRecordHost" || (name == "AppSoundHost" && sound_allowed)
 }
 Service :: (context: *void, node: *AppNode, module: *u8, function: *u8, arguments: *HostValue, count: s32, result: *HostValue) -> s32 {
     unused context; unused node; unused module; unused arguments; unused count
-    if TextFromCString(function) == "AppRecordHost" {
+    name := TextFromCString(function)
+    if name == "DocumentReadHost" {
+        result.* = AppHostText(AppFileRead(*progress_files, AppArgumentText(arguments[0])))
+    } else if name == "DocumentWriteHost" {
+        result.* = HostScalar("bool", ifx AppFileWrite(*progress_files, AppArgumentText(arguments[0]), AppArgumentText(arguments[1])) then 1 else 0)
+    } else if name == "DocumentStatusHost" {
+        result.* = HostScalar("s32", cast(s64)progress_files.status)
+    } else if name == "AppServiceHost" {
+        result.* = AppHostText("{\"account\":\"local\"}")
+    } else if name == "AppRecordHost" {
         value := "1s000"
         result.* = HostValue.{.kind = cast(s32)HostString, .type_name = HostTextData("string"),
             .data = HostTextData(value), .length = cast(usize)value.count}
@@ -73,7 +92,9 @@ main :: () -> s32 {
     defer { unused SessionClose(session) }
     bytes, found := ReadEntireFile("work/frame-input-adoption/guest.zx")
     host: AppHost
-    platform := AppPlatform.{.host_api = 41, .allows = Allow, .call = Service, .widgets = Widgets, .save = Save}
+    if !AppFilesOpen(*progress_files, EnvironmentText("CHOANO_DATA")) { return 27 }
+    defer { AppFilesClose(*progress_files) }
+    platform := AppPlatform.{.documents = Documents, .host_api = 41, .allows = Allow, .call = Service, .widgets = Widgets, .save = Save}
     digest, digest_found := ReadEntireFile("work/frame-input-adoption/portable.sha256")
     if !found || !digest_found || !AppHostStart(*host, bytes, "local.test", "xyz.waozi.choano", "choano",
         digest, "input-test", platform, "", "en", APPS_NODE_PROTOCOL) { return 2 }

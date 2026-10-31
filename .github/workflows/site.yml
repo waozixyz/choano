@@ -62,6 +62,7 @@ jobs:
         run: |
           export CHROMIUM="$(command -v google-chrome || command -v chromium)"
           node tests/web_test.mjs build/web
+          python3 tests/progress_browser_test.py
       # Keep deployment in the verified workspace, without Actions artifact quota.
       - name: Prepare the Cloudflare Pages project
         if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'

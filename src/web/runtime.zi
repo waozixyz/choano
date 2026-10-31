@@ -40,7 +40,7 @@ main :: () -> s32 {
     Entity.EntityHostProfileSections(10)
     Entity.EntityHostGameContext("choano")
     if !found || !Entity.EntityHostOpen(profile, "/kryon-apps/choano-profile", "choano", true) { return 1 }
-    defer { unused Entity.EntityHostClose(); unused BundleStorageSync(false) }
+    defer { Progress.Reset(); unused Entity.EntityHostClose(); unused BundleStorageSync(false) }
     session := SessionOpen()
     if !SessionValid(session) { return 1 }
     defer { unused SessionClose(session) }
@@ -80,16 +80,17 @@ main :: () -> s32 {
             }
         } else {
             now := PageNow() / 1000.0
-            if Progress.ProgressPump(now, App.AmoebaStage(), cast(s64)(WebAsNumber(WebCall0(WebGetObject(WebGlobal, WebName("Date")), WebName("now"))) / 1000.0)) {
+            if Progress.ProgressPump(now, App.AmoebaStage(), cast(s64)(WebAsNumber(WebCall0(WebGetObject(WebGlobal, WebName("Date")), WebName("now"))) / 1000.0), !App.ProgressPlaying()) {
                 Audio.AudioClose()
                 Audio.AudioBegin(session)
                 Game.StartGame(cast(u32)PageNow(), Game.game.mode); App.PauseClock()
             }
-            App.AccountProgress(Progress.HighestStage())
+            if !App.ProgressPlaying() { App.AccountProgress(Progress.HighestStage()) }
             unused App.Frame(session, viewport)
             // A new tab, so the game keeps its place.
             if App.TakeDownloadsRequest() { unused OpenUri(DOWNLOADS_URL) }
             if App.TakeProfileRequest() {
+                Progress.Reset()
                 Entity.EntityHostReload()
                 unused Entity.EntityHostPage("profile")
                 visible = true

@@ -1,0 +1,51 @@
+Progress :: #import "progress";
+Fixture :: #import "progress_fixture";
+Storage :: #import "progress_storage";
+#import "entity/game_progress"
+#import "kryon/bundle_storage_web"
+#import "std/web"
+Check :: () -> s32 {
+    value: GameProgressRecord
+    pending: bool
+    if Storage.Load("a", *value, *pending) { return 1 }
+    if !BundleStorageOpen() { return 2 }
+    while !BundleStorageReady() && !BundleStorageFailed() { WebSleep(5) }
+    if BundleStorageFailed() { return 3 }
+    if WebAsNumber(WebGet(WebGlobal, WebName("progressRecovery"))) == 2.0 {
+        if !Storage.Load("a", *value, *pending) || pending || value.unlocked != 5 { return 10 }
+        Storage.Close()
+        return 0
+    }
+    unused Progress.ProgressPump(0.0, 1, 0)
+    unused Progress.ProgressPump(2.0, 1, 2)
+    if !WebAsBool(WebGet(WebGlobal, WebName("progressRecovery"))) {
+        unused WebCall1(WebGlobal, WebName("progressFlushFailure"), WebBool(true))
+        unused Progress.ProgressPump(4.0, 5, 4)
+        result := Progress.Result()
+        if result.durable || Fixture.writes != 0 { return 4 }
+        unused Progress.ProgressPump(5.0, 5, 5)
+        result = Progress.Result()
+        if result.durable || Fixture.writes != 0 { return 8 }
+        Progress.Reset()
+        return 0
+    }
+    if Progress.HighestStage() != 4 { return 9 }
+    unused Progress.ProgressPump(6.0, 5, 6)
+    unused Progress.ProgressPump(8.0, 5, 8)
+    result := Progress.Result()
+    if !result.durable || result.dirty || Fixture.writes != 1 { return 5 }
+    Progress.Reset()
+    if !Storage.Load("a", *value, *pending) || pending || value.unlocked != 5 { return 6 }
+    Storage.Close()
+    Fixture.account = "b"; Fixture.remote_stage = 1
+    unused Progress.ProgressPump(10.0, 1, 10)
+    if Progress.HighestStage() != 1 || Fixture.writes != 1 { return 7 }
+    Progress.Reset()
+    return 0
+}
+#program_export
+main :: () -> s32 {
+    code := Check()
+    WebSet(WebGlobal, WebName("progressTestResult"), WebNumber(cast(float64)code))
+    return code
+}
