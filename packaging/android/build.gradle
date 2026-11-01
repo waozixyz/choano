@@ -74,3 +74,6 @@ android {
 if (googlePlay) {
     apply from: new File(kryonDir, 'templates/android-gplay.gradle')
 }
+
+// "Continue as @name" between waozi apps, in every edition.
+apply from: new File(kryonDir, 'templates/android-account-handoff.gradle')

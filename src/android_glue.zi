@@ -1,9 +1,12 @@
 #import "android_device"
 #import "android_jni"
+Handoff :: #import "entity/account_handoff";
 
 // Registers Kryon's canonical Android natives on Choano's activity.
 #program_export
 JNI_OnLoad :: (vm: *JniVm, reserved: *void) -> s32 {
     unused reserved
-    return AndroidJniOnLoad(vm, "xyz/waozi/choano/MainActivity")
+    version := AndroidJniOnLoad(vm, "xyz/waozi/choano/MainActivity")
+    Handoff.AccountHandoffJniOnLoad(vm)
+    return version
 }

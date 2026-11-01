@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- On Android, Continue as can use the account from another signed-in Waozi app, once you approve it there.
+
 ## [0.1.8] - 2026-10-31
 
 - Keep the Fish HUD clear of the misleading Avoid indicator and introduce the sea with a little fish guide and speech bubbles.
