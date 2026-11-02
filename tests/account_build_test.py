@@ -109,6 +109,18 @@ class AccountBuildTest(unittest.TestCase):
         self.assertEqual(target.read_bytes(), b'profile')
         self.assertFalse(target.with_name('entity.zx.new').exists())
 
+    def test_android_manifest_may_reach_the_account_node(self):
+        manifest = (ROOT / 'packaging/android/AndroidManifest.xml').read_text()
+        self.assertIn('android.permission.INTERNET', manifest)
+
+    def test_android_system_backups_leave_out_the_account_key(self):
+        manifest = (ROOT / 'packaging/android/AndroidManifest.xml').read_text()
+        self.assertIn('@xml/backup_rules', manifest)
+        self.assertIn('@xml/data_extraction_rules', manifest)
+        for name, count in (('backup_rules', 1), ('data_extraction_rules', 2)):
+            rules = (ROOT / f'packaging/android/res/xml/{name}.xml').read_text()
+            self.assertEqual(rules.count('<exclude domain="file" path="profile/" />'), count)
+
     def test_android_links_entity_crypto_per_abi(self):
         cpp = self.root / 'droid/app/src/main/cpp'
         cpp.mkdir(parents=True)

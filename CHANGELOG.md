@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Let the Android app reach the network, so online sign-in, backups and Friends work.
+- Keep the account key out of Android system backups, which have no passphrase.
+
 - Use Entity's reviewed account authorization and the shared game navigation modules.
 - On Android, Continue as can use the account from another signed-in Waozi app, once you approve it there.
 
