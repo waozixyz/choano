@@ -39,11 +39,11 @@ ref = "f39508361f79a10a57643e97b613b34e434b9834"
 
 [dependencies.entity]
 git = "https://github.com/waozixyz/entity.git"
-ref = "92a033e048b920b1b43940040771fc51e7d1f9f7"
+ref = "298a5413faf4d8bbcf0af38de1c0e3755876b18c"
 
 [dependencies.game2d]
 git = "https://github.com/kryonlabs/game2d.git"
-ref = "bad2caaa84ef3eae61e40c99bf572d2b060d0ca2"
+ref = "42db0b20e0fd431f254ea8a06e553accda7d2e84"
 
 [dependencies.mingcute]
 git = "https://github.com/kryonlabs/mingcute.git"

@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Use Entity's reviewed account authorization and the shared game navigation modules.
 - On Android, Continue as can use the account from another signed-in Waozi app, once you approve it there.
 
 ## [0.1.8] - 2026-10-31
