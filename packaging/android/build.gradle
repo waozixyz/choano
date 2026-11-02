@@ -10,7 +10,8 @@ def envOrProp = { String envName, String propName ->
 def kryonDir = envOrProp('KRYON_DIR', 'kryon.dir')
 def ziranDir = envOrProp('ZIRAN_DIR', 'ziran.dir')
 def raylibDir = envOrProp('RAYLIB_DIR', 'raylib.dir')
-if (kryonDir == null || ziranDir == null || raylibDir == null) {
+def webpDir = envOrProp('WEBP_DIR', 'webp.dir')
+if (kryonDir == null || ziranDir == null || raylibDir == null || webpDir == null) {
     throw new GradleException('Build through scripts/android.py build')
 }
 def androidAbis = (project.findProperty('app.abis') ?: 'arm64-v8a,armeabi-v7a').split(',').toList()
@@ -46,6 +47,7 @@ android {
                 arguments '-DKRYON_DIR=' + kryonDir,
                     '-DZIRAN_DIR=' + ziranDir,
                     '-DRAYLIB_DIR=' + raylibDir,
+                    '-DWEBP_DIR=' + webpDir,
                     '-DAPP_EDITION=' + appEdition
             }
         }

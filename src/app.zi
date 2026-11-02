@@ -3,7 +3,6 @@
 }
 #if #defined(ANDROID_BUILD) || #defined(PLATFORM_ANDROID) || #defined(__ANDROID__) {
     #import "kryon/android_device"
-    #import "kryon/AndroidSurface"
 }
 #import "kryon/session"
 #import "kryon/frame_snapshot"
@@ -520,7 +519,12 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     }
     UsePalette(session)
     defer { unused WidgetPaletteRestore(session) }
-    unused Box(session, BoxProps.{.key = cast(u64)49000, .bounds = viewport,
+    // The sea runs behind the system bars; the game and Profile stay in viewport.
+    full := viewport
+    #if #defined(ANDROID_BUILD) || #defined(PLATFORM_ANDROID) || #defined(__ANDROID__) {
+        full = AndroidWindowBounds()
+    }
+    unused Box(session, BoxProps.{.key = cast(u64)49000, .bounds = full,
         .fill = ColorFromPacked(0x051120ff)})
     held_input = FrameMovement(CaptureFrameInput(session))
     now := cast(float64)Clock.Milliseconds() / 1000.0
@@ -538,18 +542,7 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
         }
     }
     Shop.Pump(now)
-    controls := viewport
-    #if #defined(ANDROID_BUILD) || #defined(PLATFORM_ANDROID) || #defined(__ANDROID__) {
-        insets: AndroidWindowInsets
-        unused GetAndroidWindowInsets(*insets)
-        safe := SafeAreaForPolicy(insets, AndroidViewportPolicySafeArea())
-        density := AndroidLayoutZoom()
-        controls = Rectangle.{viewport.x + cast(float32)safe.left / density,
-            viewport.y + cast(float32)safe.top / density,
-            viewport.width - cast(float32)(safe.left + safe.right) / density,
-            viewport.height - cast(float32)(safe.top + safe.bottom) / density}
-    }
-    area := Shell.Begin(session, controls, key, now, viewport)
+    area := Shell.Begin(session, viewport, key, now, full)
     SoundSetMuted(session, Shell.muted)
     SoundMusic(session, Shell.Playing() && SharkAlert())
     if Shell.WantsBoard() { DrawGame(session, area) }

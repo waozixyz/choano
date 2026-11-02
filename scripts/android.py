@@ -144,7 +144,7 @@ def account_provider(android, edition, abis):
 
 def build(edition, abis=ABIS):
     run(ZIRAN, 'fetch', *LOCKED, cwd=ROOT)
-    kryon, compiler, raylib = package('kryon'), package('ziran'), package('raylib')
+    kryon, compiler, raylib, webp = package('kryon'), package('ziran'), package('raylib'), package('libwebp')
     if not all((compiler / 'build/bin' / name).is_file() for name in ('ziran', 'zi2c')):
         run('make', '-s', '-j2', '-C', compiler, 'build/bin/ziran', 'build/bin/zi2c', 'build/bin/zi2zir')
     android = sdk()
@@ -170,6 +170,7 @@ def build(edition, abis=ABIS):
     name, code = version()
     command = ['sh', ROOT / 'droid/gradlew', '-p', ROOT / 'droid', '--no-daemon', '--max-workers=1',
                '-Pkryon.dir=' + str(kryon), '-Pziran.dir=' + str(compiler), '-Praylib.dir=' + str(raylib / 'src'),
+               '-Pwebp.dir=' + str(webp),
                '-Papp.abis=' + abis, '-Papp.edition=' + edition, '-Papp.versionName=' + name,
                '-Papp.versionCode=' + str(code), '-Pandroid.aapt2FromMavenOverride=' + str(aapt2)]
     # Kryon's Play Billing needs AndroidX; only the Google Play edition has it.
