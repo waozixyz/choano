@@ -124,7 +124,20 @@ def bundle():
     staged = ROOT / 'build/portable-assets'
     if staged.exists():
         shutil.rmtree(staged)
-    shutil.copytree(ROOT / 'assets', staged, ignore=without_profile, copy_function=link_or_copy)
+    # Every portable asset belongs to the game's verified namespace. Native
+    # editions also use root-level packaging manifests, which portable hosts
+    # must not expose outside assets/choano/.
+    shutil.copytree(ROOT / 'assets/choano', staged / 'choano', copy_function=link_or_copy)
+    for name in ('ARTWORK.json', 'manifest.json'):
+        source = ROOT / 'assets' / name
+        if source.is_file():
+            shutil.copyfile(source, staged / 'choano' / name)
+    # The game publishes its identity with the unchanged portable payload.
+    # Hosts validate this descriptor before exposing the game to a player.
+    descriptor = json.loads((ROOT / 'catalog.json').read_text())
+    public = {key: value for key, value in descriptor.items()
+              if key not in ('build_defines', 'prepare_assets')}
+    (staged / 'choano/catalog.json').write_text(json.dumps(public, indent=2) + '\n')
     run(ZIRAN, 'bundle', '--project', *LOCKED, '--define', 'CHOANO_PORTABLE',
         '--define', 'KRYON_HOSTED_UI', '--entry', 'portable:Main',
         '--asset-dir', 'assets=' + str(staged), '-o', 'build/choano.zx', 'src/portable.zi')

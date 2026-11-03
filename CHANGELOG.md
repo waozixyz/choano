@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Supply genuine gameplay screenshots and a self-identifying portable bundle for Arcade’s console library.
+
 - Keep the Profile title bar clear of the camera and status bar on Android.
 - Let the Android app reach the network, so online sign-in, backups and Friends work.
 - Keep the account key out of Android system backups, which have no passphrase.
