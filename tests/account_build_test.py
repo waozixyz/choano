@@ -57,10 +57,12 @@ class AccountBuildTest(unittest.TestCase):
         program.write_bytes(b'old program')
         with patch.object(build, 'run') as run, patch.object(build, 'profile_asset') as profile, \
                 patch.object(build, 'renderer_links', return_value=['renderer.a']), \
+                patch.object(build, 'avif_links', return_value=['libkryonavif.so']) as avif, \
                 patch.object(build, 'account_links', return_value=['libmonocypher.a', '-lgtk']) as accounts, \
                 patch.object(build, 'NATIVE_WORK', work), patch.object(build, 'NATIVE', program):
             build.native()
         profile.assert_called_once()
+        avif.assert_called_once_with()
         accounts.assert_called_once_with('linux-x86_64-gnu')
         command = list(map(str, run.call_args.args))
         for define in ('CHOANO_ACCOUNTS', 'POSIX_THREADS'):
@@ -69,6 +71,7 @@ class AccountBuildTest(unittest.TestCase):
         self.assertIn('desktop:main', command)
         self.assertEqual(command[-1], 'src/desktop.zi')
         links = shlex.split(run.call_args.kwargs['env']['LDLIBS'])
+        self.assertIn('libkryonavif.so', links)
         self.assertEqual(links[:3], ['renderer.a', 'libmonocypher.a', '-lgtk'])
         self.assertEqual(program.read_bytes(), b'new program')
         self.assertTrue(os.access(program, os.X_OK))
