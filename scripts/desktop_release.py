@@ -267,37 +267,62 @@ def windows_runtime(compiler):
     return runtime
 
 
-def windows_raylib():
-    """Static raylib from the locked package, configured out of tree."""
-    source = package('raylib')
-    folder = WINDOWS / 'raylib'
-    library = folder / 'raylib/libraylib.a'
-    linking = ' '.join(mingw_library_flags())
-    gcc = windows_tool(MINGW + 'gcc')
-    gxx = windows_tool(MINGW + 'g++')
-    identity = f'{source}\n{gcc}\n{gxx}\n{RAYLIB_FLAGS}\n{linking}'
-    if built(library, identity):
-        return source, library
-    if folder.exists():
-        shutil.rmtree(folder)
-    folder.mkdir(parents=True)
+def windows_toolchain(folder):
+    """A CMake toolchain file in FOLDER for this MinGW cross compiler."""
     toolchain = folder / 'mingw.cmake'
     toolchain.write_text(f'''set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
-set(CMAKE_C_COMPILER {gcc})
-set(CMAKE_CXX_COMPILER {gxx})
+set(CMAKE_C_COMPILER {windows_tool(MINGW + 'gcc')})
+set(CMAKE_CXX_COMPILER {windows_tool(MINGW + 'g++')})
 set(CMAKE_RC_COMPILER {windows_tool(MINGW + 'windres')})
 set(CMAKE_AR {windows_tool(MINGW + 'ar')})
 set(CMAKE_RANLIB {windows_tool(MINGW + 'ranlib')})
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 ''')
-    run('cmake', '-S', source, '-B', folder, '-DCMAKE_TOOLCHAIN_FILE=' + str(toolchain),
-        '-DCMAKE_BUILD_TYPE=Release', '-DBUILD_SHARED_LIBS=OFF', '-DBUILD_EXAMPLES=OFF', '-DPLATFORM=RGFW',
-        '-DOPENGL_VERSION=1.1', '-DOPENGL_opengl_LIBRARY=opengl32', '-DOPENGL_gl_LIBRARY=opengl32',
-        '-DCMAKE_C_FLAGS=' + RAYLIB_FLAGS, '-DCMAKE_EXE_LINKER_FLAGS=' + linking)
-    run('cmake', '--build', folder, '--target', 'raylib', '--parallel', '1')
+    return toolchain
+
+
+def windows_cmake_library(name, source, library, identity, *configure):
+    """LIBRARY from SOURCE's CMake target NAME, configured out of tree in
+    LIBRARY's build folder unless IDENTITY already built it."""
+    folder = WINDOWS / name
+    if built(library, identity):
+        return library
+    if folder.exists():
+        shutil.rmtree(folder)
+    folder.mkdir(parents=True)
+    # A Nix MinGW links its thread library only from these folders, also in
+    # CMake's own compiler checks.
+    run('cmake', '-S', source, '-B', folder, '-DCMAKE_TOOLCHAIN_FILE=' + str(windows_toolchain(folder)),
+        '-DCMAKE_BUILD_TYPE=Release', '-DBUILD_SHARED_LIBS=OFF',
+        '-DCMAKE_EXE_LINKER_FLAGS=' + ' '.join(mingw_library_flags()), *configure)
+    run('cmake', '--build', folder, '--target', name, '--parallel', '1')
     record(library, identity)
+    return library
+
+
+def windows_raylib():
+    """Static raylib from the locked package, configured out of tree."""
+    source = package('raylib')
+    library = WINDOWS / 'raylib/raylib/libraylib.a'
+    linking = ' '.join(mingw_library_flags())
+    identity = f'{source}\n{windows_tool(MINGW + "gcc")}\n{windows_tool(MINGW + "g++")}\n{RAYLIB_FLAGS}\n{linking}'
+    windows_cmake_library(
+        'raylib', source, library, identity, '-DBUILD_EXAMPLES=OFF', '-DPLATFORM=RGFW',
+        '-DOPENGL_VERSION=1.1', '-DOPENGL_opengl_LIBRARY=opengl32', '-DOPENGL_gl_LIBRARY=opengl32',
+        '-DCMAKE_C_FLAGS=' + RAYLIB_FLAGS)
     return source, library
+
+
+def windows_webp():
+    """Kryon's static WebP decoder (kryonwebp), which its raylib host links
+    for WebP images, from Kryon's own CMake project and the locked libwebp."""
+    project = package('kryon') / 'cmake/webp'
+    source = package('libwebp')
+    library = WINDOWS / 'kryonwebp/libkryonwebp.a'
+    identity = f'{project}\n{source}\n{windows_tool(MINGW + "gcc")}\n{" ".join(mingw_library_flags())}'
+    return windows_cmake_library('kryonwebp', project, library, identity,
+                                 f'-DWEBP_DIR={source}', '-DCMAKE_C_FLAGS=-O2')
 
 
 def windows_icon(target):
@@ -350,6 +375,7 @@ def build_windows_program():
     compiler = package('ziran')
     runtime = windows_runtime(compiler)
     raylib_source, raylib = windows_raylib()
+    webp = windows_webp()
     # The program's icon in Explorer, the taskbar and the installer.
     windows_icon(WINDOWS / 'choano.ico')
     (WINDOWS / 'choano.rc').write_text('1 ICON "choano.ico"\n')
@@ -363,7 +389,7 @@ def build_windows_program():
     program = WINDOWS / 'Choano.exe'
     partial = WINDOWS / 'Choano.new.exe'
     run(windows_tool(MINGW + 'gcc'), '-std=c11', '-O2', '-ffunction-sections', '-fdata-sections', *includes,
-        *sorted(generated.rglob('*.c')), runtime, raylib, WINDOWS / 'choano-resource.o', '-Wl,--gc-sections',
+        *sorted(generated.rglob('*.c')), runtime, raylib, webp, WINDOWS / 'choano-resource.o', '-Wl,--gc-sections',
         *mingw_library_flags(), '-static', '-static-libgcc', '-mwindows', *accounts, *WINDOWS_LIBRARIES,
         '-o', partial)
     run(windows_tool(MINGW + 'strip'), partial)
