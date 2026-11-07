@@ -1,7 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.9] - 2026-11-07
 
+- Runs in the latest Inner Breeze and Arcade.
 - Supply genuine gameplay screenshots and a self-identifying portable bundle for Arcade’s console library.
 
 - Keep the Profile title bar clear of the camera and status bar on Android.

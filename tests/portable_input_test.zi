@@ -94,7 +94,7 @@ main :: () -> s32 {
     host: AppHost
     if !AppFilesOpen(*progress_files, EnvironmentText("CHOANO_DATA")) { return 27 }
     defer { AppFilesClose(*progress_files) }
-    platform := AppPlatform.{.documents = Documents, .host_api = 41, .allows = Allow, .call = Service, .widgets = Widgets, .save = Save}
+    platform := AppPlatform.{.documents = Documents, .host_api = 43, .allows = Allow, .call = Service, .widgets = Widgets, .save = Save}
     digest, digest_found := ReadEntireFile("work/frame-input-adoption/portable.sha256")
     if !found || !digest_found || !AppHostStart(*host, bytes, "local.test", "xyz.waozi.choano", "choano",
         digest, "input-test", platform, "", "en", APPS_NODE_PROTOCOL) { return 2 }
