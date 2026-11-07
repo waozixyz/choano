@@ -59,6 +59,27 @@ for name in sys.argv[2:]:
         sys.exit('cannot decode ' + name)
 print('\\n'.join(sorted({line.split()[-1] for line in open('/proc/self/maps') if '.so' in line})))
 '''
+# Kryon's desktop renderer decodes AVIF art with its self-contained
+# libkryonavif.so, found in the AppDir's usr/lib. Opens the AppDir's copy and
+# decodes each named image; prints where every library it loaded came from.
+AVIF = 'libkryonavif.so'
+AVIF_PROBE = '''
+import ctypes, sys
+avif = ctypes.CDLL(sys.argv[1])
+avif.avifDecoderCreate.restype = ctypes.c_void_p
+avif.avifDecoderSetIOMemory.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t]
+avif.avifDecoderParse.argtypes = [ctypes.c_void_p]
+avif.avifDecoderNextImage.argtypes = [ctypes.c_void_p]
+avif.avifDecoderDestroy.argtypes = [ctypes.c_void_p]
+for name in sys.argv[2:]:
+    data = open(name, 'rb').read()
+    decoder = avif.avifDecoderCreate()
+    if (not decoder or avif.avifDecoderSetIOMemory(decoder, data, len(data))
+            or avif.avifDecoderParse(decoder) or avif.avifDecoderNextImage(decoder)):
+        sys.exit('cannot decode ' + name)
+    avif.avifDecoderDestroy(decoder)
+print('\\n'.join(sorted({line.split()[-1] for line in open('/proc/self/maps') if '.so' in line})))
+'''
 SETUP = ROOT / 'build/Choano-setup.exe'
 WINDOWS = ROOT / 'build/windows'
 WINDOWS_PACKAGING = ROOT / 'packaging/windows'
@@ -66,9 +87,10 @@ WINDOWS_PACKAGING = ROOT / 'packaging/windows'
 MINGW = os.environ.get('MINGW_PREFIX', 'x86_64-w64-mingw32-')
 WINDOWS_DEFINES = ['--define', '_WIN32', '--define', 'PLATFORM_DESKTOP', '--define', '__x86_64__',
                    '--define', 'CHOANO_RAYLIB', '--define', 'CHOANO_ACCOUNTS']
-WINDOWS_LIBRARIES = ['-lopengl32', '-lgdi32', '-lwinmm', '-luser32', '-lshell32', '-lole32', '-luuid', '-lm']
-# raylib as Shovey and Breeze ship it on Windows: RGFW and OpenGL 1.1, with
-# JPEG decoding for the title art.
+# libssp: the audio package's MinGW libopus keeps its stack protector.
+WINDOWS_LIBRARIES = ['-lssp', '-lopengl32', '-lgdi32', '-lwinmm', '-luser32', '-lshell32', '-lole32', '-luuid', '-lm']
+# raylib as Shovey and Breeze ship it on Windows: RGFW and OpenGL 1.1. Kryon's
+# static libavif decoder supplies AVIF image support.
 RAYLIB_FLAGS = '-O2 -ffunction-sections -fdata-sections -DSUPPORT_FILEFORMAT_JPG=1 -DSUPPORT_FILEFORMAT_TTF=1'
 
 
@@ -157,22 +179,40 @@ def system_library(soname):
     raise SystemExit(f'desktop release: the build host has no {soname}; install libgdk-pixbuf-2.0-0')
 
 
-def check_image_decoders(appdir):
-    """The AppDir's own GdkPixbuf, GLib and codecs decode Choano's JPEG and PNG
-    art with only its empty module list, so no host loader is needed."""
+def probe_decoder(appdir, library, probe, files):
+    """Runs PROBE with the AppDir's LIBRARY on FILES; fails if it cannot decode
+    them or loads a host copy of an image library."""
     lib = (appdir / 'usr/lib').resolve()
-    env = {k: v for k, v in os.environ.items() if not k.startswith(('GDK_PIXBUF', 'LD_'))}
+    env = {k: v for k, v in os.environ.items() if not k.startswith(('GDK_PIXBUF', 'LD_', 'KRYON_AVIF'))}
     env['GDK_PIXBUF_MODULE_FILE'] = str(appdir / PIXBUF_MODULES)
-    art = [ROOT / 'assets/choano/title-landscape.jpg', ROOT / 'assets/choano/fish/turtle-hd.png']
-    result = subprocess.run([sys.executable, '-I', '-c', DECODE_PROBE, lib / PIXBUF, *art],
+    result = subprocess.run([sys.executable, '-I', '-c', probe, lib / library, *files],
                             env=env, text=True, capture_output=True)
     if result.returncode:
-        raise SystemExit(f'desktop release: the bundled {PIXBUF} cannot decode the art: '
+        raise SystemExit(f'desktop release: the bundled {library} cannot decode the art: '
                          f'{result.stderr.strip() or result.stdout.strip()}')
     for path in map(Path, result.stdout.split()):
-        if path.name.startswith(('libgdk_pixbuf', 'libglib-', 'libgobject-', 'libgio-', 'libgmodule-',
-                                 'libjpeg', 'libpng')) and lib not in path.parents:
-            raise SystemExit(f'desktop release: the bundled {PIXBUF} loaded the host\'s {path}')
+        if path.name.startswith(('libkryonavif', 'libgdk_pixbuf', 'libglib-', 'libgobject-', 'libgio-',
+                                 'libgmodule-', 'libjpeg', 'libpng')) and lib not in path.parents:
+            raise SystemExit(f'desktop release: the bundled {library} loaded the host\'s {path}')
+
+
+def check_avif_decoder(appdir):
+    """The AppDir's own libkryonavif.so decodes Choano's AVIF art."""
+    if not (appdir / 'usr/lib' / AVIF).is_file():
+        raise SystemExit(f'desktop release: the AppImage carries no {AVIF} for the AVIF art')
+    probe_decoder(appdir, AVIF, AVIF_PROBE, [ROOT / 'assets/choano/title-landscape.avif',
+                                             ROOT / 'assets/choano/fish/turtle-hd.avif'])
+
+
+def check_pixbuf_decoder(appdir):
+    """The AppDir's own GdkPixbuf, GLib and codecs decode the PNG icon with
+    only its empty module list, so no host loader is needed."""
+    probe_decoder(appdir, PIXBUF, DECODE_PROBE, [ROOT / 'assets/choano/icon.png'])
+
+
+def check_image_decoders(appdir):
+    check_avif_decoder(appdir)
+    check_pixbuf_decoder(appdir)
 
 
 def build_native():
@@ -325,6 +365,35 @@ def windows_webp():
                                  f'-DWEBP_DIR={source}', '-DCMAKE_C_FLAGS=-O2')
 
 
+def windows_avif():
+    """Kryon's static AVIF decoder, which its raylib host links for AVIF art:
+    libavif with dav1d inside, and libaom, from Kryon's own CMake project and
+    the avif package's locked sources."""
+    project = package('kryon') / 'cmake/avif'
+    sources = {name: package(name) for name in ('avif', 'libavif', 'libaom', 'dav1d')}
+    folder = WINDOWS / 'avif_static'
+    archives = [folder / 'avif/libavif.a', folder / 'aom/libaom.a']
+    identity = '\n'.join([str(project), *map(str, sources.values()), windows_tool(MINGW + 'gcc'),
+                          ' '.join(mingw_library_flags())])
+    windows_cmake_library('avif_static', project, archives[0], identity,
+                          f'-DKRYON_AVIF_PACKAGE_DIR={sources["avif"]}', f'-DAVIF_DIR={sources["libavif"]}',
+                          f'-DAOM_DIR={sources["libaom"]}', f'-DDAV1D_DIR={sources["dav1d"]}')
+    missing = [path for path in archives if not path.is_file()]
+    if missing:
+        raise SystemExit('desktop release: the AVIF build made no ' + ', '.join(map(str, missing)))
+    return archives
+
+
+def windows_opus():
+    """libopus for the Ogg Opus decoder in Kryon's raylib audio, from the
+    audio package's own CMake recipe and its locked sources."""
+    sources = {name: package(name) for name in ('audio', 'libopus', 'libsamplerate')}
+    library = WINDOWS / 'opus/libopus/libopus.a'
+    identity = '\n'.join([*map(str, sources.values()), windows_tool(MINGW + 'gcc'), ' '.join(mingw_library_flags())])
+    return windows_cmake_library('opus', sources['audio'] / 'native', library, identity,
+                                 f'-DOPUS_DIR={sources["libopus"]}', f'-DSAMPLERATE_DIR={sources["libsamplerate"]}')
+
+
 def windows_icon(target):
     square_icon(256).save(target, sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128),
                                          (256, 256)])
@@ -376,6 +445,8 @@ def build_windows_program():
     runtime = windows_runtime(compiler)
     raylib_source, raylib = windows_raylib()
     webp = windows_webp()
+    avif = windows_avif()
+    opus = windows_opus()
     # The program's icon in Explorer, the taskbar and the installer.
     windows_icon(WINDOWS / 'choano.ico')
     (WINDOWS / 'choano.rc').write_text('1 ICON "choano.ico"\n')
@@ -389,7 +460,7 @@ def build_windows_program():
     program = WINDOWS / 'Choano.exe'
     partial = WINDOWS / 'Choano.new.exe'
     run(windows_tool(MINGW + 'gcc'), '-std=c11', '-O2', '-ffunction-sections', '-fdata-sections', *includes,
-        *sorted(generated.rglob('*.c')), runtime, raylib, webp, WINDOWS / 'choano-resource.o', '-Wl,--gc-sections',
+        *sorted(generated.rglob('*.c')), runtime, raylib, webp, *avif, opus, WINDOWS / 'choano-resource.o', '-Wl,--gc-sections',
         *mingw_library_flags(), '-static', '-static-libgcc', '-mwindows', *accounts, *WINDOWS_LIBRARIES,
         '-o', partial)
     run(windows_tool(MINGW + 'strip'), partial)

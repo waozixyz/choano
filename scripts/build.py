@@ -42,6 +42,20 @@ def renderer_links():
     return renderers.renderer_link(renderers.renderer_metadata(artifact), preloads=False)
 
 
+def avif_links():
+    """Kryon's desktop renderer decodes AVIF art with its self-contained
+    libkryonavif.so, kept in DT_NEEDED so packaging carries it beside the
+    game. Kryon's host also finds it in the program's lib and ../lib folders;
+    LDLIBS is split on spaces unquoted, so it takes no $ORIGIN run path."""
+    artifacts = shared_script('ziran', 'ziran_artifacts')
+    renderers = shared_script('kryon', 'renderer_artifact')
+    artifact = artifacts.request('kryon:renderer-desktop', 'linux-x86_64-gnu', project=ROOT, ziran=ZIRAN)
+    links = []
+    for library in renderers.renderer_metadata(artifact)['shared_libraries']:
+        links += ['-Wl,--no-as-needed', library, '-Wl,--as-needed', '-Wl,-rpath,' + str(Path(library).parent)]
+    return links
+
+
 def artifact(selection, platform, env=None):
     return shared_script('ziran', 'ziran_artifacts').request(selection, platform, project=ROOT, ziran=ZIRAN, env=env)
 
@@ -105,6 +119,7 @@ def native():
     for query in (['sdl2', 'cairo', 'freetype2', 'pangocairo', 'fontconfig', 'gio-2.0'], ['libcurl']):
         found = subprocess.run(['pkg-config', '--libs', *query], text=True, capture_output=True)
         links.extend(shlex.split(found.stdout) if found.returncode == 0 else ['-l:libcurl.so.4'])
+    links.extend(avif_links())
     links.extend(['-pthread', *shlex.split(os.environ.get('LDLIBS', ''))])
     env = {**os.environ, 'LDLIBS': shlex.join(links),
            'CFLAGS': os.environ.get('CFLAGS', '-O2') + ' -ffunction-sections -fdata-sections -Wno-main -pthread',
@@ -163,7 +178,7 @@ def web():
         '--profile', ROOT / 'build/entity.zx', '--output', output / 'game.html',
         '--source', 'src/web/runtime.zi', '--entry', 'runtime:main',
         '--linked', ROOT / 'build/entity.zx')
-    # The browser renderer and Web Audio load the same replacement PNG/WAV files.
+    # The browser decodes the same AVIF art; Web Audio plays the same WAV files.
     if (output / 'assets').exists():
         shutil.rmtree(output / 'assets')
     shutil.copytree(ROOT / 'assets', output / 'assets', ignore=without_profile)

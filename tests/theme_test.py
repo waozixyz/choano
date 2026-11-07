@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise KSS and the actual shared Profile host color protocol."""
+"""Exercise the CSS theme and the actual shared Profile host color protocol."""
 import os
 from pathlib import Path
 import shlex

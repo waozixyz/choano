@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- Choano's theme is a CSS sheet now, read by Kryon's CSS package.
+- The art ships as AVIF, about an eighth of its former size.
+
 ## [0.1.9] - 2026-11-07
 
 - Runs in the latest Inner Breeze and Arcade.

@@ -120,9 +120,9 @@ class DesktopReleaseTest(unittest.TestCase):
         for name in names:
             self.assertEqual((source / name).read_bytes(), (staged / name).read_bytes(), name)
         # The art and music the native game opens by these paths.
-        for name in ('choano/title-landscape.jpg', 'choano/title-portrait.jpg',
-                     'choano/fish/title-landscape.jpg', 'choano/fish/title-portrait.jpg',
-                     'choano/fish/turtle-hd.png', 'choano/background-inside.png',
+        for name in ('choano/title-landscape.avif', 'choano/title-portrait.avif',
+                     'choano/fish/title-landscape.avif', 'choano/fish/title-portrait.avif',
+                     'choano/fish/turtle-hd.avif', 'choano/background-inside.avif',
                      'choano/audio/shark-music.wav'):
             self.assertIn(Path(name), names)
 
@@ -174,13 +174,25 @@ class DesktopReleaseTest(unittest.TestCase):
         # GdkPixbuf linked into an AppDir that lacks its GLib takes the host's.
         host = desktop.system_library(desktop.PIXBUF)
         lib = self.appdir / 'usr/lib'
+        lib.mkdir(parents=True, exist_ok=True)
         shutil.copy2(host, lib / desktop.PIXBUF)
         with self.assertRaises(SystemExit) as failure:
-            desktop.check_image_decoders(self.appdir)
+            desktop.check_pixbuf_decoder(self.appdir)
         self.assertIn("loaded the host's", str(failure.exception))
         (lib / desktop.PIXBUF).write_bytes(b'not a library')
         with self.assertRaises(SystemExit) as failure:
+            desktop.check_pixbuf_decoder(self.appdir)
+        self.assertIn('cannot decode the art', str(failure.exception))
+
+    def test_avif_art_needs_the_appdir_codec(self):
+        with self.assertRaises(SystemExit) as failure:
             desktop.check_image_decoders(self.appdir)
+        self.assertIn('carries no libkryonavif.so', str(failure.exception))
+        lib = self.appdir / 'usr/lib'
+        lib.mkdir(parents=True, exist_ok=True)
+        (lib / desktop.AVIF).write_bytes(b'not a library')
+        with self.assertRaises(SystemExit) as failure:
+            desktop.check_avif_decoder(self.appdir)
         self.assertIn('cannot decode the art', str(failure.exception))
 
     def test_tools_are_pinned_and_a_mismatch_is_rejected(self):

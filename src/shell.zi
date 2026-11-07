@@ -286,7 +286,7 @@ PlainButton :: (session: Session, key: u64, text: string, bounds: Rectangle,
     }
     if show_lock {
         unused Image(session, ImageProps.{.key = key + 11000,
-            .asset_path = "assets/choano/lock.png", .alt_text = "Locked",
+            .asset_path = "assets/choano/lock.avif", .alt_text = "Locked",
             .bounds = Rectangle.{bounds.x + 8.0, bounds.y + 12.0, 28.0, 28.0},
             .fit = ImageFit.ImageFitContain, .smooth = true})
     }
@@ -397,7 +397,7 @@ IconButton :: (session: Session, key: u64, bounds: Rectangle, path: string, labe
 }
 
 WardrobeIconButton :: (session: Session, key: u64, bounds: Rectangle) -> bool {
-    clicked := IconButton(session, key, bounds, "assets/choano/shop.png", Words.Shop(Words.Language()))
+    clicked := IconButton(session, key, bounds, "assets/choano/shop.avif", Words.Shop(Words.Language()))
     if wardrobe_unseen {
         unused Box(session, BoxProps.{.key = key + 2,
             .bounds = Rectangle.{bounds.x + bounds.width - 14.0, bounds.y + 4.0, 12.0, 12.0},
@@ -408,13 +408,13 @@ WardrobeIconButton :: (session: Session, key: u64, bounds: Rectangle) -> bool {
 
 TitleBackdrop :: (session: Session, viewport: Rectangle) {
     portrait := viewport.height > viewport.width
-    path := ifx portrait then "assets/choano/title-portrait.jpg" else "assets/choano/title-landscape.jpg"
-    if fish { path = ifx portrait then "assets/choano/fish/title-portrait.jpg" else "assets/choano/fish/title-landscape.jpg" }
+    path := ifx portrait then "assets/choano/title-portrait.avif" else "assets/choano/title-landscape.avif"
+    if fish { path = ifx portrait then "assets/choano/fish/title-portrait.avif" else "assets/choano/fish/title-landscape.avif" }
     extension: u32 = ifx fish then cast(u32)0x06324dff else cast(u32)0x0d6b83ff
     unused Box(session, BoxProps.{.key = cast(u64)50100, .bounds = TitleBackdropBounds(viewport),
         .fill = ColorFromPacked(extension)})
     TitleArtwork(session, viewport, path, portrait, cast(u64)50101)
-    unused Image(session, ImageProps.{.key = cast(u64)50102, .asset_path = "assets/choano/title-logo.png",
+    unused Image(session, ImageProps.{.key = cast(u64)50102, .asset_path = "assets/choano/title-logo.avif",
         .bounds = TitleLogoBounds(viewport), .fit = ImageFit.ImageFitContain, .smooth = true,
         .alt_text = "Choano"})
 }
@@ -430,10 +430,10 @@ TitleArtwork :: (session: Session, viewport: Rectangle, path: string, portrait: 
     scale := viewport.width / width
     if viewport.height / height > scale { scale = viewport.height / height }
     region := ifx portrait then Rectangle.{64.0, 160.0, 896.0, 256.0} else Rectangle.{256.0, 64.0, 1024.0, 272.0}
-    patch := ifx portrait then "assets/choano/title-clean-portrait.png" else "assets/choano/title-clean-landscape.png"
+    patch := ifx portrait then "assets/choano/title-clean-portrait.avif" else "assets/choano/title-clean-landscape.avif"
     if fish {
         region = ifx portrait then Rectangle.{32.0, 64.0, 960.0, 256.0} else Rectangle.{472.0, 16.0, 568.0, 160.0}
-        patch = ifx portrait then "assets/choano/title-clean-fish-portrait.png" else "assets/choano/title-clean-fish-landscape.png"
+        patch = ifx portrait then "assets/choano/title-clean-fish-portrait.avif" else "assets/choano/title-clean-fish-landscape.avif"
     }
     unused Image(session, ImageProps.{.key = key + 100, .asset_path = patch,
         .bounds = Rectangle.{viewport.x + (viewport.width - width * scale) * .5 + region.x * scale,
@@ -527,7 +527,7 @@ Begin :: (session: Session, viewport: Rectangle, key: s32, now: float64, full_vi
     }
     if settings_available {
         settings_width: float32 = 52.0
-        if IconButton(session, cast(u64)50011, SettingsIconBounds(viewport), "assets/choano/gear.png", Words.Settings(Words.Language())) {
+        if IconButton(session, cast(u64)50011, SettingsIconBounds(viewport), "assets/choano/gear.avif", Words.Settings(Words.Language())) {
             wardrobe_open = false
             purchase_id = -1
             purchase_requested = false
@@ -587,8 +587,8 @@ Mode :: (session: Session, key: u64, text: string, selected: bool, locked: bool,
 ArtworkBackdrop :: (session: Session, bounds: Rectangle) {
     if bounds.width <= 0.0 || bounds.height <= 0.0 { return }
     portrait := bounds.height > bounds.width
-    path := ifx portrait then "assets/choano/title-portrait.jpg" else "assets/choano/title-landscape.jpg"
-    if fish { path = ifx portrait then "assets/choano/fish/title-portrait.jpg" else "assets/choano/fish/title-landscape.jpg" }
+    path := ifx portrait then "assets/choano/title-portrait.avif" else "assets/choano/title-landscape.avif"
+    if fish { path = ifx portrait then "assets/choano/fish/title-portrait.avif" else "assets/choano/fish/title-landscape.avif" }
     extension: u32 = ifx fish then cast(u32)0x06324dff else cast(u32)0x0d6b83ff
     unused Box(session, BoxProps.{.key = cast(u64)50100, .bounds = bounds,
         .fill = ColorFromPacked(extension)})
@@ -633,7 +633,7 @@ SettingsPage :: (session: Session) {
     words := Words.SettingsLabels(Words.Language())
     title := Words.Settings(Words.Language())
     strong: [1]TextRange = .[.{0, cast(s32)title.count}]
-    unused Image(session, ImageProps.{.key = cast(u64)50403, .asset_path = "assets/choano/gear.png",
+    unused Image(session, ImageProps.{.key = cast(u64)50403, .asset_path = "assets/choano/gear.avif",
         .bounds = Rectangle.{panel.x + 24.0, panel.y + 14.0, 40.0, 40.0},
         .fit = ImageFit.ImageFitContain, .smooth = true})
     unused Text(session, TextProps.{.key = cast(u64)50404, .text = title, .font = 26, .strong = strong[:],
@@ -854,7 +854,7 @@ AccessoryCard :: (session: Session, id: s32, bounds: Rectangle, stacked: bool) -
         accessory_preview = Rectangle.{preview.x + (size - accessory_size) * .5 + player_size * .08,
             accessory_center_y - accessory_size * .5, accessory_size, accessory_size}
     }
-    unused Image(session, ImageProps.{.key = cast(u64)(50340 + id), .asset_path = "assets/choano/organisms-hd.png",
+    unused Image(session, ImageProps.{.key = cast(u64)(50340 + id), .asset_path = "assets/choano/organisms-hd.avif",
         .bounds = player_preview, .source = player_source, .smooth = true, .tint = 0,
         .fit = ImageFit.ImageFitContain})
     accessory_source := Accessories.SourceContentBounds(id)
@@ -880,7 +880,7 @@ AccessoryCard :: (session: Session, id: s32, bounds: Rectangle, stacked: bool) -
             unused Text(session, TextProps.{.key = cast(u64)(50430 + id), .text = price, .font = 13,
                 .bounds = layout.price, .vertical_align = TextAlign.TextAlignCenter})
         }
-        unused Image(session, ImageProps.{.key = cast(u64)(50360 + id), .asset_path = "assets/choano/lock.png",
+        unused Image(session, ImageProps.{.key = cast(u64)(50360 + id), .asset_path = "assets/choano/lock.avif",
             .bounds = layout.lock, .alt_text = words.locked, .smooth = true, .tint = 0,
             .fit = ImageFit.ImageFitContain})
     }

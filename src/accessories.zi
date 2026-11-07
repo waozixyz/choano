@@ -59,12 +59,12 @@ AssetToken :: (id: s32) -> string {
 }
 
 PreviewAssetPath :: (id: s32) -> string {
-    if id == ACCESSORY_PEARL { return "assets/choano/accessory-pearl.png" }
-    if id == ACCESSORY_FLOWER { return "assets/choano/accessory-flower.png" }
-    if id == ACCESSORY_WIZARD { return "assets/choano/accessory-wizard.png" }
-    if id == ACCESSORY_RIBBON { return "assets/choano/accessory-ribbon.png" }
-    if id == ACCESSORY_CROWN { return "assets/choano/accessory-crown.png" }
-    return "assets/choano/accessory-halo.png"
+    if id == ACCESSORY_PEARL { return "assets/choano/accessory-pearl.avif" }
+    if id == ACCESSORY_FLOWER { return "assets/choano/accessory-flower.avif" }
+    if id == ACCESSORY_WIZARD { return "assets/choano/accessory-wizard.avif" }
+    if id == ACCESSORY_RIBBON { return "assets/choano/accessory-ribbon.avif" }
+    if id == ACCESSORY_CROWN { return "assets/choano/accessory-crown.avif" }
+    return "assets/choano/accessory-halo.avif"
 }
 
 SourceContentBounds :: (id: s32) -> Rectangle {

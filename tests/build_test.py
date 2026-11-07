@@ -56,6 +56,7 @@ class RendererTest(unittest.TestCase):
         (self.root / 'native/desktop').write_bytes(b'program')
         with patch.object(build, 'run') as run, patch.object(build, 'profile_asset'), \
                 patch.object(build, 'account_links', return_value=['-laccount']), \
+                patch.object(build, 'avif_links', return_value=['-Wl,--no-as-needed', 'libkryonavif.so']), \
                 patch.object(build, 'NATIVE_WORK', self.root / 'native'), \
                 patch.object(build, 'NATIVE', self.root / 'Choano-native'), \
                 patch.dict(os.environ, LDLIBS="'-Lwith spaces' -lcustom"):
@@ -63,6 +64,8 @@ class RendererTest(unittest.TestCase):
         links = shlex.split(run.call_args.kwargs['env']['LDLIBS'])
         self.assertEqual(links[:5], [str(resolved / 'second.a'), str(resolved / 'first.a'), '-lm', '-pthread', '-laccount'])
         self.assertEqual(links[-2:], ['-Lwith spaces', '-lcustom'])
+        # The AVIF codec stays a runtime dependency of the program.
+        self.assertIn('libkryonavif.so', links)
 
     def test_corrupt_archive(self):
         (self.root / 'first.a').write_bytes(b'corrupt')

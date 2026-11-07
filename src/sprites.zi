@@ -24,7 +24,7 @@ OrganismSource :: (kind: string, stage: s32, frame: s32) -> Rectangle {
     return cells[index + 4]
 }
 
-FISH_SHEET :: "assets/choano/fish/fish-hd.png";
+FISH_SHEET :: "assets/choano/fish/fish-hd.avif";
 FISH_JELLY :: 14;
 FISH_PEARL :: 15;
 // Fish mode's sheet: the player's fish, ten fish by size, a jellyfish and a
@@ -53,7 +53,7 @@ FishSource :: (index: s32) -> Rectangle {
 }
 // A fish of STAGE, one to ten.
 // The shark, its warning fin and a sardine, from their own sheet.
-HUNTER_SHEET :: "assets/choano/fish/hunters-hd.png";
+HUNTER_SHEET :: "assets/choano/fish/hunters-hd.avif";
 HUNTER_SHARK :: 0;
 HUNTER_FIN :: 1;
 HUNTER_SARDINE :: 2;
@@ -64,14 +64,14 @@ HunterSource :: (index: s32) -> Rectangle {
 }
 
 // A seahorse, a lobster and a starfish, facing right, from their own sheet.
-ANIMAL_SHEET :: "assets/choano/fish/sea-animals-hd.png";
+ANIMAL_SHEET :: "assets/choano/fish/sea-animals-hd.avif";
 AnimalSource :: (index: s32) -> Rectangle {
     cells: [3]Rectangle = .[.{169.0, 33.0, 403.0, 653.0}, .{689.0, 91.0, 802.0, 522.0}, .{1508.0, 49.0, 633.0, 600.0}]
     if index < 0 || index > 2 { return cells[0] }
     return cells[index]
 }
 // The visiting sea turtle, facing right: the opaque bounds of its picture.
-TURTLE_SHEET :: "assets/choano/fish/turtle-hd.png";
+TURTLE_SHEET :: "assets/choano/fish/turtle-hd.avif";
 TurtleSource :: () -> Rectangle { return .{38.0, 60.0, 561.0, 312.0} }
 // The width that makes SOURCE's longer side LONGEST, so upright cells keep
 // their height in bounds.

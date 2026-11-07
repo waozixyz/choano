@@ -57,7 +57,7 @@ def version():
 def launcher_icons(res):
     """The launcher icon at each density: the player amoeba in Choano's water."""
     from PIL import Image
-    sheet = Image.open(ROOT / 'assets/choano/organisms-hd.png').convert('RGBA')
+    sheet = Image.open(ROOT / 'assets/choano/organisms-hd.avif').convert('RGBA')
     cell = sheet.crop((0, 0, sheet.width // 4, sheet.height // 4))
     player = cell.crop(cell.getchannel('A').point(lambda a: 255 if a > 32 else 0).getbbox())
     water = Image.open(ROOT / 'assets/choano/icon.png').convert('RGB').getpixel((5, 40))
@@ -165,8 +165,12 @@ def build(edition, abis=ABIS):
         shutil.rmtree(res)
     launcher_icons(res)
     # The startup screen shows the title art, as the title screen does.
+    # Android before 12 decodes no AVIF resources, so the window background
+    # is a JPEG made from the shipped AVIF title.
+    from PIL import Image
     (res / 'drawable-nodpi').mkdir()
-    shutil.copyfile(ROOT / 'assets/choano/title-portrait.jpg', res / 'drawable-nodpi/startup_art.jpg')
+    with Image.open(ROOT / 'assets/choano/title-portrait.avif') as title:
+        title.convert('RGB').save(res / 'drawable-nodpi/startup_art.jpg', quality=90)
     name, code = version()
     command = ['sh', ROOT / 'droid/gradlew', '-p', ROOT / 'droid', '--no-daemon', '--max-workers=1',
                '-Pkryon.dir=' + str(kryon), '-Pziran.dir=' + str(compiler), '-Praylib.dir=' + str(raylib / 'src'),
@@ -176,7 +180,15 @@ def build(edition, abis=ABIS):
     # Kryon's Play Billing needs AndroidX; only the Google Play edition has it.
     if edition == 'gplay':
         command.append('-Pandroid.useAndroidX=true')
-    env = dict(os.environ, ANDROID_HOME=str(android), ANDROID_SDK_ROOT=str(android), CMAKE_BUILD_PARALLEL_LEVEL='1')
+    env = dict(os.environ, ANDROID_HOME=str(android), ANDROID_SDK_ROOT=str(android), CMAKE_BUILD_PARALLEL_LEVEL='1',
+               GRADLE_USER_HOME=str(OUT / 'gradle-home'))
+    # Kryon's Android CMake builds its AVIF and Opus codecs from these locked
+    # sources, as its own scripts/android-build.sh passes them.
+    for variable, name_ in (('KRYON_ANDROID_AVIF_DIR', 'libavif'), ('KRYON_ANDROID_AOM_DIR', 'libaom'),
+                            ('KRYON_DAV1D_DIR', 'dav1d'), ('KRYON_AVIF_PACKAGE_DIR', 'avif'),
+                            ('KRYON_WEBP_PACKAGE_DIR', 'webp'), ('KRYON_ANDROID_AUDIO_DIR', 'audio'),
+                            ('KRYON_ANDROID_OPUS_DIR', 'libopus'), ('KRYON_ANDROID_SAMPLERATE_DIR', 'libsamplerate')):
+        env[variable] = str(package(name_))
     for name_ in ('MAKEFLAGS', 'MFLAGS', 'MAKEOVERRIDES', 'DISPLAY', 'WAYLAND_DISPLAY', 'XAUTHORITY'):
         env.pop(name_, None)
     run(*command, 'assembleRelease', cwd=ROOT, env=env)
@@ -208,7 +220,7 @@ def verify(apk, edition, tools):
         names = archive.namelist()
         abis = sorted(p.split('/')[1] for p in names if re.fullmatch(r'lib/[^/]+/libmain\.so', p))
         assert abis == sorted(ABIS.split(',')), 'Both supported ARM architectures must be present'
-        assert 'assets/assets/choano/organisms-hd.png' in names, "The game's artwork is missing"
+        assert 'assets/assets/choano/organisms-hd.avif' in names, "The game's artwork is missing"
         assert 'assets/assets/choano/audio/eat.wav' in names, "The game's chimes are missing"
         assert 'assets/assets/entity.zx' in names, 'The account Profile bundle is missing'
         dex = b''.join(archive.read(n) for n in names if re.fullmatch(r'classes\d*\.dex', n))

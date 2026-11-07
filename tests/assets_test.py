@@ -63,33 +63,41 @@ for name, digest in files.items():
     path = ROOT / name
     assert hashlib.sha256(path.read_bytes()).hexdigest() == digest, name
     if path.suffix == '.png':
-        with path.open('rb') as handle:
-            header = handle.read(33)
-        assert header[:8] == b'\x89PNG\r\n\x1a\n', name
-        width, height = struct.unpack('>II', header[16:24])
+        # The one PNG: the install, favicon, Windows and Android icon source.
+        assert path.name == 'icon.png', name
+        assert path.read_bytes()[:8] == b'\x89PNG\r\n\x1a\n', name
+    elif path.suffix == '.avif':
+        # scripts/avif_assets.py: Jungle's AVIF settings from local masters.
+        assert path.read_bytes()[4:12] == b'ftypavif', name
+        with Image.open(path) as image:
+            assert image.format == 'AVIF', name
+            width, height = image.size
+            rgba = image.mode == 'RGBA'
         assert width > 0 and height > 0, name
         if path.name.startswith(('player-', 'enemy-')):
             size = int(path.stem.split('-')[-2])
-            assert (width, height) == (size, size) and header[25] == 6, name
+            assert (width, height) == (size, size) and rgba, name
         if path.name.startswith('accessory-'):
-            assert (width, height) == (512, 512) and header[25] == 6, name
+            # Source rectangles are in the overlay's 512 px pixels.
+            assert (width, height) == (512, 512) and rgba, name
             with Image.open(path) as image:
                 alpha_bbox = image.convert('RGBA').getchannel('A').getbbox()
             assert alpha_bbox and all(margin > 0 for margin in (
                 alpha_bbox[0], alpha_bbox[1], width - alpha_bbox[2], height - alpha_bbox[3])), name
-            if path.name == 'accessory-ribbon.png':
+            if path.name == 'accessory-ribbon.avif':
                 with Image.open(path) as ribbon:
                     opaque = [pixel for pixel in ribbon.convert('RGBA').getdata() if pixel[3] >= 240]
                 assert opaque and sum(r > 150 and g < 175 and r > g * 1.2 and r > b * 1.1
                                       for r, g, b, a in opaque) > len(opaque) * .6, \
                     'The ribbon must be a coral satin bow, not a second golden halo'
-        if path.name == 'turtle-hd.png':
-            assert (width, height) == (640, 427) and header[25] == 6, name
-        if path.name == 'title-logo.png':
-            assert width >= 2048 and header[25] == 6, name
+        if path.name == 'turtle-hd.avif':
+            assert (width, height) == (640, 427) and rgba, name
+        if path.name == 'title-logo.avif':
+            # 75% of the 2416 x 736 master.
+            assert (width, height) == (1812, 552) and rgba, name
             with Image.open(path) as image:
-                assert image.mode == 'RGBA', name
-                alpha = image.getchannel('A')
+                image = image.convert('RGBA')
+                alpha = image.getchannel('A').point(lambda value: 255 if value > 8 else 0)
                 alpha_bbox = alpha.getbbox()
                 assert alpha_bbox, name
                 margins = (alpha_bbox[0], alpha_bbox[1],
@@ -105,7 +113,7 @@ for name, digest in files.items():
                            for r, g, b in opaque) > len(opaque) * .55, name
                 assert sum(max(r, g, b) < 110 for r, g, b in opaque) > len(opaque) * .005, name
         if path.name.startswith('blob-'):
-            assert (width, height) == (39, 39) and header[25] == 6, name
+            assert (width, height) == (39, 39) and rgba, name
     elif path.name == 'shark-music.wav':
         # The one loop: only while a shark hunts, and still kept quiet.
         with wave.open(str(path)) as sound:
@@ -114,14 +122,6 @@ for name, digest in files.items():
             raw = sound.readframes(sound.getnframes())
             samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
             assert max(map(abs, samples)) <= .35 * 32767, 'Shark loop too loud'
-    elif path.suffix == '.jpg':
-        data = path.read_bytes()
-        details = jpeg_details(data)
-        assert data[:2] == b'\xff\xd8' and data[-2:] == b'\xff\xd9', name
-        assert b'JFIF' in data[:32] and details is not None, name
-        marker, height, components, sampling = details
-        assert marker == 0xc0 and components == 3 and sampling == [0x11] * 3, name
-        assert len(data) < 800_000 and height >= 1024, name
     elif path.suffix == '.wav':
         with wave.open(str(path)) as sound:
             assert sound.getcomptype() == 'NONE' and sound.getnchannels() == 1
@@ -131,8 +131,9 @@ for name, digest in files.items():
             assert len(set(raw)) > 1, name
             samples = struct.unpack('<' + 'h' * (len(raw)//2), raw)
             assert max(map(abs, samples)) <= .12 * 32767, 'Effect too loud: ' + name
-assert len([p for p in actual if p.endswith('.png')]) == 198
-assert len([p for p in actual if p.endswith('.jpg')]) == 4
+assert [p for p in actual if p.endswith('.png')] == ['assets/choano/icon.png']
+assert len([p for p in actual if p.endswith('.avif')]) == 201
+assert not [p for p in actual if p.endswith(('.jpg', '.jpeg', '.webp'))]
 assert len([p for p in actual if p.endswith('.wav')]) == 7
 assert not (ROOT / 'assets/original').exists()
 for p in (ROOT / 'assets').rglob('*'):
@@ -148,25 +149,18 @@ for path in (ROOT / 'assets/choano/achievement-locales').glob('*.json'):
     assert {k for a in awards['achievements'] for k in (a['title_key'], a['description_key'])} <= set(values), path
     assert values.get('fish_first_hint', '').strip(), path
 assert '[dependencies.arcade]' not in (ROOT / 'ziran.toml').read_text()
-title_regions = {
-    'title-portrait.jpg': (78, 173, 941, 395),
-    'title-landscape.jpg': (280, 88, 1255, 320),
-    'fish/title-portrait.jpg': (40, 70, 980, 307),
-    'fish/title-landscape.jpg': (480, 25, 1035, 170),
-}
-for name, size in [('title-portrait.jpg', (1024, 1536)), ('title-landscape.jpg', (1536, 1024)),
-                   ('fish/title-portrait.jpg', (1024, 1536)), ('fish/title-landscape.jpg', (1536, 1024))]:
+# The title art is drawn in its 1024 x 1536 / 1536 x 1024 design space
+# (src/shell.zi); it ships at 75% under the AVIF standard.
+for name, size in [('title-portrait.avif', (768, 1152)), ('title-landscape.avif', (1152, 768)),
+                   ('fish/title-portrait.avif', (768, 1152)), ('fish/title-landscape.avif', (1152, 768))]:
     with Image.open(ROOT / 'assets/choano' / name) as image:
         assert image.mode == 'RGB' and image.size == size, name
-        # Original artwork is retained; a separate patch removes its baked logo.
-        pass
 
-for name, minimum in [('organisms-hd.png',1254)]:
-    with (ROOT / 'assets/choano' / name).open('rb') as handle:
-        header=handle.read(33)
-    assert min(struct.unpack('>II',header[16:24])) >= minimum, name
+for name, minimum in [('organisms-hd.avif', 1254)]:
+    with Image.open(ROOT / 'assets/choano' / name) as image:
+        assert min(image.size) >= minimum and image.mode == 'RGBA', name
 
-print('Choano local asset and package tests passed: 198 PNGs, 4 JPEG titles, 6 quiet chimes and the shark loop.')
+print('Choano local asset and package tests passed: 201 AVIF images, the PNG icon, 6 quiet chimes and the shark loop.')
 
 # UI labels must stay within the bundled Latin font's coverage. In particular,
 # a check or padlock must be geometry/an image, never a missing text glyph.
@@ -194,17 +188,18 @@ for name in ('shell.zi', 'app.zi', 'accessories.zi'):
     for text in re.findall(r'"([^"\n]*)"', source):
         assert all(ord(c) in covered or c in '\n\t' for c in text), (name,text)
 for name in ('gear', 'shop', 'lock'):
-    image = Image.open(ROOT/f'assets/choano/{name}.png').convert('RGBA')
-    assert image.size == (1024,1024)
-    assert all(image.getpixel(point)[3] == 0 for point in ((0,0),(1023,0),(0,1023),(1023,1023)))
+    # 75% of the 1024 px masters.
+    image = Image.open(ROOT/f'assets/choano/{name}.avif').convert('RGBA')
+    assert image.size == (768,768)
+    assert all(image.getpixel(point)[3] == 0 for point in ((0,0),(767,0),(0,767),(767,767)))
     alpha = image.getchannel('A')
     # A white plate inside transparent corners is still a plate: keep every
     # outer edge transparent, with padding, and require a cut-out silhouette.
-    left, top, right, bottom = alpha.getbbox()
-    assert min(left, top, 1024-right, 1024-bottom) >= 24, name
+    left, top, right, bottom = alpha.point(lambda value: 255 if value > 8 else 0).getbbox()
+    assert min(left, top, 768-right, 768-bottom) >= 18, name
     histogram = alpha.histogram()
-    assert histogram[0] > 1024*1024*.25, name
-    assert sum(histogram[200:]) > sum(histogram[1:])*.9, name
+    assert sum(histogram[:9]) > 768*768*.25, name
+    assert sum(histogram[200:]) > sum(histogram[9:])*.9, name
 
 for path in (ROOT/'src/locales').glob('*.txt'):
     values = dict(re.findall(r'\[([^\]]+)\]\n([^\n]+)\n---', path.read_text()))
@@ -216,5 +211,5 @@ for path in (ROOT/'assets/choano/achievement-locales').glob('*.json'):
     assert text and text in (ROOT/'src/locales'/f'{path.stem}.txt').read_text()
     assert text in (ROOT/'src/ui_strings.zi').read_text()
 for name in ('portrait', 'landscape', 'fish-portrait', 'fish-landscape'):
-    with Image.open(ROOT/f'assets/choano/title-clean-{name}.png') as image:
+    with Image.open(ROOT/f'assets/choano/title-clean-{name}.avif') as image:
         assert largest_pink_component(image.convert('RGB'), (0,0,*image.size)) < 1000

@@ -18,5 +18,5 @@
   "assets": "assets/choano",
   "locales": "src/locales",
   "locale_prefix": "choano_",
-  "preview": "assets/choano/title-landscape.jpg"
+  "preview": "assets/choano/title-landscape.avif"
 }

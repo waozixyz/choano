@@ -1,7 +1,7 @@
 # Choano assets
 
-Choano ships 198 replacement PNG images, 4 compressed JPEG title images, and
-7 replacement PCM WAV sounds.
+Choano ships 201 replacement AVIF images, its PNG icon, and 7 replacement
+PCM WAV sounds.
 The artwork was generated and assembled for Choano; the sound effects were
 synthesized for Choano. No original Moeboid artwork, audio, executable, DLL,
 or extracted game payload is distributed in this repository or its builds.
@@ -21,7 +21,22 @@ and source roles are recorded in `assets/ARTWORK.json`. Organisms render
 from the full 1254 × 1254 generated atlas through per-frame source rectangles,
 with mirroring handled by the standard Kryon Image mesh. Their game-space
 sizes and collision rules remain unchanged. Fish mode's seahorse, lobster and
-starfish come from one generated sheet, `assets/choano/fish/sea-animals-hd.png`,
+starfish come from one generated sheet, `assets/choano/fish/sea-animals-hd.avif`,
 recorded with its prompt in `assets/ARTWORK.json`. The visiting sea turtle,
-`assets/choano/fish/turtle-hd.png`, is a 640 × 427 RGBA encoding of its
+`assets/choano/fish/turtle-hd.avif`, is a 640 × 427 RGBA encoding of its
 generated 1536 × 1024 picture, also recorded there with its prompt.
+
+## AVIF
+
+`scripts/avif_assets.py` exports the art with Jungle's AVIF settings
+(`AVIFENC` names avifenc; 8-bit, full range, speed 6, one thread) from the
+former PNG and JPEG files, kept as masters in the ignored
+`backup/image-masters/`. Pictures of 512 px or more that are drawn into a
+layout rectangle (the titles, their clean patches, the logo, the gear, lock
+and Shop icons and the fish sea) ship at 75% size, q35; transparent ones
+keep YUV444 color and q90 alpha. Sprite sheets, accessory overlays and
+smaller pictures keep their pixels: q70 YUV444 with exact alpha, or q35 when
+opaque. `assets/choano/icon.png` stays PNG for the install icon, favicon and
+the Windows, AppImage and Android icons; Android's startup screen is a JPEG
+made from the AVIF title at build time, since Android before 12 has no AVIF
+resources.

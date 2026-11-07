@@ -15,7 +15,7 @@ by: it never bites and leaves a short trail of golden pearls.
 · [Downloads](https://github.com/waozixyz/choano/releases/latest)
 · [Source](https://github.com/waozixyz/choano)
 
-![Choano replacement artwork](assets/choano/title-landscape.jpg)
+![Choano replacement artwork](assets/choano/title-landscape.avif)
 
 Six quiet event chimes replace the old beat and spawn noises. There is no
 loading message or browser footer; forming bubbles stay beneath the player.
@@ -104,9 +104,9 @@ through `APPIMAGE_EXTRACT_AND_RUN`, without FUSE. Releases name it
 
 `python3 scripts/desktop_release.py windows` builds `build/Choano-setup.exe`.
 `src/windows.zi` runs the same game Frame on Kryon's raylib host (RGFW, OpenGL
-1.1, JPEG titles and raylib audio for the chimes and shark loop), linked
-statically with MinGW-w64 from the locked Ziran runtime and raylib; the build
-keeps its intermediates in `build/windows`. NSIS (`makensis`) packs the
+1.1, AVIF art through Kryon's static libavif and raylib audio for the chimes
+and shark loop), linked statically with MinGW-w64 from the locked Ziran
+runtime and raylib; the build keeps its intermediates in `build/windows`. NSIS (`makensis`) packs the
 program, Kryon's Liberation Sans and every asset into a per-user installer:
 no administrator rights, Start menu and desktop shortcuts, and an uninstall
 entry in the player's own registry. Settings live in
@@ -174,8 +174,8 @@ not publish a catalog update or claim compatibility with Arcade 0.7.113.
 
 ## Shared theme
 
-`src/choano.kss` is the single theme source. The game uses
-`Theme.Use(session, "src/choano.kss")`; embedded Entity Profile uses the same
+`src/choano.css` is the single theme source. The game uses
+`Theme.Use(session, "src/choano.css")`; embedded Entity Profile uses the same
 scope and inherits its semantic colors. `scripts/theme.py` embeds the sheet
 for native, Android, browser and portable builds; `make test` verifies it stays
-in sync. Edit the KSS file, then run `python3 scripts/theme.py`.
+in sync. Edit the CSS file, then run `python3 scripts/theme.py`.

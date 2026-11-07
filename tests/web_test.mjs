@@ -5,7 +5,7 @@ import {readFile,mkdtemp,mkdir,rm,writeFile} from 'node:fs/promises';
 import {join,extname,resolve} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 const root=resolve(process.argv[2]||'build/web');
-const types={'.html':'text/html','.js':'text/javascript','.wasm':'application/wasm','.png':'image/png','.wav':'audio/wav','.json':'application/json'};
+const types={'.html':'text/html','.js':'text/javascript','.wasm':'application/wasm','.png':'image/png','.avif':'image/avif','.wav':'audio/wav','.json':'application/json'};
 const missing=[],errors=[];
 const server=createServer(async(req,res)=>{const url=new URL(req.url,'http://x');const path=url.pathname;if(path==='/browser-storage.html'){res.writeHead(200,{'Content-Type':'text/html'});res.end('<!doctype html><title>Browser storage setup</title><link rel="icon" href="/assets/choano/icon.png">');return}try{if(['/game.js','/game.wasm','/assets/manifest.json'].includes(path)&&!url.searchParams.has('v'))throw Error('Unversioned cached asset');const file=resolve(root,'.'+(path==='/'?'/index.html':path));if(!file.startsWith(root+'/'))throw Error('Path');const data=await readFile(file);res.writeHead(200,{'Content-Type':types[extname(file)]||'application/octet-stream'});res.end(data)}catch{missing.push(path);res.writeHead(404);res.end()}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
@@ -117,8 +117,8 @@ try{
   if((await evaluate('caught.splice(0)')).length)throw Error('Downloads shows '+label);
  };
  await until('globalThis.Module?.choanoReady && Module.choanoPage===0');await delay(400);
- if(!await evaluate('Module.FS.stat("/assets/choano/organisms-hd.png").size>1000000'))throw Error('High-resolution organisms not loaded');
- if(!await evaluate('Module.FS.stat("/assets/choano/shop.png").size>10000'))throw Error('Illustrated Shop is not bundled');
+ if(!await evaluate('Module.FS.stat("/assets/choano/organisms-hd.avif").size>300000'))throw Error('High-resolution organisms not loaded');
+ if(!await evaluate('Module.FS.stat("/assets/choano/shop.avif").size>10000'))throw Error('Illustrated Shop is not bundled');
  if(!await evaluate('document.querySelectorAll("header,footer,button,#loading").length===0 && Module.canvas.clientWidth===innerWidth && Module.canvas.clientHeight===innerHeight'))throw Error('HTML app chrome remains');
  await shot(process.env.CHOANO_SCREENSHOT);
  // Exercise the real image control, including its paint and browser cursor.

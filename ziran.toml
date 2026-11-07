@@ -11,7 +11,7 @@ ref = "0e91eb43bd665f02db86eb9b9cdd875b5436a066"
 
 [dependencies.kryon]
 git = "https://github.com/kryonlabs/kryon.git"
-ref = "1cd873fda5d12cd4dd562956da94cee33c3e364c"
+ref = "b9aed7589e9af2935a9cd9cb260e72944c195762"
 
 [install]
 bin = "Choano"
@@ -35,20 +35,20 @@ working_directory = "."
 
 [dependencies.apps]
 git = "https://github.com/waozixyz/apps.git"
-ref = "3515cdf3af20e79001f7774eed224e94180540ed"
+ref = "02034376164f09bc342f875f135ef3311781bd3b"
 
 [dependencies.entity]
 git = "https://github.com/waozixyz/entity.git"
-ref = "075784438af94fe4a0aba48ed4d8c7208c161bf1"
+ref = "171b4a0a0fa20ab78726595ee255157065fb6c45"
 
 [dependencies.game2d]
 git = "https://github.com/kryonlabs/game2d.git"
-ref = "8b5a989dea686250078da2d209fde1cd2946fc77"
+ref = "0b16a5be141f1fecb9e50492cf0112b2928f5a29"
 
 [dependencies.mingcute]
 git = "https://github.com/kryonlabs/mingcute.git"
 ref = "master"
 
-[dependencies.kss]
-git = "https://github.com/kryonlabs/kss.git"
-ref = "e3536e6d056961d2ba7fa5f18af81f75c80e8f62"
+[dependencies.css]
+git = "https://github.com/kryonlabs/css.git"
+ref = "6aad71c34fffec40ec903cc8f9d5c95f02572d35"

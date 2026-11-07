@@ -5,7 +5,7 @@ import {readFile,mkdtemp,mkdir,rm,writeFile} from 'node:fs/promises';
 import {join,extname,resolve} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 const root=resolve('build/progress-browser-test');
-const types={'.html':'text/html','.js':'text/javascript','.wasm':'application/wasm','.png':'image/png','.wav':'audio/wav','.json':'application/json'};
+const types={'.html':'text/html','.js':'text/javascript','.wasm':'application/wasm','.png':'image/png','.avif':'image/avif','.wav':'audio/wav','.json':'application/json'};
 const missing=[],errors=[];
 const server=createServer(async(req,res)=>{const url=new URL(req.url,'http://x');const path=url.pathname;if(path==='/browser-storage.html'){res.writeHead(200,{'Content-Type':'text/html'});res.end('<!doctype html><title>Browser storage setup</title><link rel="icon" href="/assets/choano/icon.png">');return}try{const file=resolve(root,'.'+(path==='/'?'/index.html':path));if(!file.startsWith(root+'/'))throw Error('Path');const data=await readFile(file);res.writeHead(200,{'Content-Type':types[extname(file)]||'application/octet-stream'});res.end(data)}catch{missing.push(path);res.writeHead(404);res.end()}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
