@@ -182,11 +182,11 @@ Game :: struct {
 // Portable record initializers require literal field values.
 game: Game = .{.dish_half_height = 208.0};
 
-StageSize :: (index: s32) -> s32 { return index * 8 + 14 }
+StageSize :: (index: s32) -> s32 { return index * 7 + 14 }
 FoodVisualScale :: (stage: s32) -> float32 {
     return ifx stage <= game.player_stage then FOOD_VISUAL_SCALE else 1.0
 }
-FishSize :: (index: s32) -> s32 { return index * 8 + 14 }
+FishSize :: (index: s32) -> s32 { return index * 7 + 14 }
 FishVisualSize :: (stage: s32) -> float32 {
     index := stage
     if index < STAGE_FIRST { index = STAGE_FIRST }
@@ -204,7 +204,7 @@ CreatureCue :: (enemy: Enemy) -> s32 {
 }
 
 GrowthThreshold :: (stage: s32) -> s32 {
-    thresholds: [10]s32 = .[0, 14, 34, 60, 94, 138, 195, 269, 365, 490]
+    thresholds: [10]s32 = .[0, 18, 42, 74, 116, 170, 240, 334, 456, 612]
     if stage < STAGE_FIRST { return thresholds[STAGE_FIRST] }
     if stage > PLAYER_STAGE_LAST { return thresholds[PLAYER_STAGE_LAST] }
     return thresholds[stage]
@@ -432,7 +432,7 @@ StartGame :: (seed: u32, mode: s32 = MODE_AMOEBA) {
         .player_x = DISH_CENTER_X,
         .player_y = DISH_CENTER_Y,
         .player_stage = STAGE_FIRST,
-        .next_growth_threshold = 14,
+        .next_growth_threshold = 18,
         .lives = 2,
         .next_spawn_timer = 5.0,
         .random = seed
@@ -493,6 +493,7 @@ GrowPlayer :: () {
     } else {
         game.next_growth_threshold = game.next_growth_threshold * 5 / 4
     }
+    game.growth_progress = 0
     game.growth_stages += 1
     QueueSound(SOUND_GROW)
     if game.growth_stages % 3 == 0 {

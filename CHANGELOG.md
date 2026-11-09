@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Reset Amoeba growth cleanly at each size, make later sizes take about a quarter more food, grow creatures more gently, and recolor the largest threat so it no longer looks edible.
 - Choano's theme is a CSS sheet now, read by Kryon's CSS package.
 - The art ships as AVIF, about an eighth of its former size.
 

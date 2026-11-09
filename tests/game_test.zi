@@ -84,13 +84,13 @@ DishFrameTests :: () -> s32 {
     if Expect(ClampPoint(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage)),
         "the tall straight edge clamps") != 0 { return 1 }
     if Expect(game.player_x == cast(float32)DISH_CENTER_X &&
-        Near(game.player_y, cast(float32)DISH_CENTER_Y - 292.85), "the rectangle keeps its straight height") != 0 { return 1 }
+        Near(game.player_y, cast(float32)DISH_CENTER_Y - 293.175), "the rectangle keeps its straight height") != 0 { return 1 }
 
     game.player_x = 450.0
     game.player_y = -100.0
     if Expect(ClampPoint(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage)),
         "a point outside a rounded corner clamps") != 0 { return 1 }
-    if Expect(Near(game.player_x, 435.35) && Near(game.player_y, -79.288),
+    if Expect(Near(game.player_x, 435.538) && Near(game.player_y, -79.553),
         "rounded collision projects to the corner arc") != 0 { return 1 }
 
     game.enemy_count = 0
@@ -179,11 +179,11 @@ main :: () -> s32 {
     if Expect(!SharkAlert(), "Amoeba mode has no shark music cue") != 0 { return 1 }
     if Expect(game.enemy_count == INITIAL_ENEMIES, "retuned initial enemy count") != 0 { return 1 }
     if Expect(game.lives == 2 && LivesRemaining() == 3 && game.player_stage == 1 && game.score == 0 &&
-        game.next_growth_threshold == 14, "original initial state") != 0 { return 1 }
-    game.growth_progress = 7
+        game.next_growth_threshold == 18, "retuned initial state") != 0 { return 1 }
+    game.growth_progress = 9
     if Expect(GrowthMeter() > .499 && GrowthMeter() < .501,
         "growth meter shows progress to the next size") != 0 { return 1 }
-    game.growth_progress = 15
+    game.growth_progress = 18
     if Expect(GrowthMeter() == 1.0, "growth meter fills at the next size") != 0 { return 1 }
     game.growth_progress = 0
     for index: cast(s32)0..game.enemy_count - 1 {
@@ -191,8 +191,8 @@ main :: () -> s32 {
             "initial enemies are delayed larger amoebas") != 0 { return 1 }
     }
 
-    if Expect(StageSize(1) == 22 && StageSize(10) == 94 &&
-        FishSize(1) == 22 && FishSize(10) == 94, "one-based stage sizes") != 0 { return 1 }
+    if Expect(StageSize(1) == 21 && StageSize(10) == 84 &&
+        FishSize(1) == 21 && FishSize(10) == 84, "one-based stage sizes grow more gently") != 0 { return 1 }
     game.player_x = 500.0
     game.player_y = 209.0
     unused ClampPoint(*game.player_x, *game.player_y, cast(float32)StageSize(game.player_stage))
@@ -210,18 +210,19 @@ main :: () -> s32 {
 
     StartGame(12345)
     game.enemy_count = 1
-    game.growth_progress = 13
+    game.growth_progress = 17
     game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 1,
         .velocity_x = 1.0, .velocity_y = 0.0, .active = true, .warning_timer = 0.0}
     UpdateGame(.{}, 1.0 / 60.0)
-    if Expect(game.player_stage == 2 && game.growth_stages == 1 &&
-        game.next_growth_threshold == 34, "gentler cumulative growth threshold") != 0 { return 1 }
+    if Expect(game.player_stage == 2 && game.growth_stages == 1 && game.growth_progress == 0 &&
+        GrowthMeter() == 0.0 && game.next_growth_threshold == 42,
+        "growth carries no surplus into the next level") != 0 { return 1 }
 
     StartGame(12345)
     game.growth_stages = 2
-    game.growth_progress = 43
+    game.growth_progress = 41
     game.player_stage = 2
-    game.next_growth_threshold = 34
+    game.next_growth_threshold = 42
     game.enemy_count = 1
     game.enemies[0] = .{.x = game.player_x, .y = game.player_y, .stage = 1,
         .velocity_x = 1.0, .velocity_y = 0.0, .active = true, .warning_timer = 0.0}
@@ -277,16 +278,16 @@ main :: () -> s32 {
     game.growth_progress = game.next_growth_threshold
     GrowPlayer()
     if Expect(game.player_stage == PLAYER_STAGE_LAST && game.full_size, "reaching full size is flagged for the award") != 0 { return 1 }
-    expected_thresholds: [10]s32 = .[0, 14, 34, 60, 94, 138, 195, 269, 365, 490]
+    expected_thresholds: [10]s32 = .[0, 18, 42, 74, 116, 170, 240, 334, 456, 612]
     thresholds_match := true
     for stage: 1..9 {
         thresholds_match = thresholds_match && GrowthThreshold(cast(s32)stage) == expected_thresholds[stage]
     }
-    if Expect(thresholds_match, "growth asks about 1.3 times more each level") != 0 { return 1 }
+    if Expect(thresholds_match, "each level asks for about a quarter more growth") != 0 { return 1 }
     game.full_size = false
     game.growth_progress = game.next_growth_threshold
     GrowPlayer()
-    if Expect(!game.full_size && game.next_growth_threshold == 612,
+    if Expect(!game.full_size && game.next_growth_threshold == 765,
         "growing past full size awards nothing again and slows to 1.25 times") != 0 { return 1 }
 
     StartGame(4242, MODE_FISH)

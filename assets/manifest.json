@@ -111,7 +111,7 @@
     "assets/choano/icon.png": "a43552d889ddc86a6a27ca80566661ca7240b1552068c497a3e7e9360bd56c7e",
     "assets/choano/icons/xyz.waozi.choano.full_size.shape": "c00e893b89afae749a30ac4bdb5c50b4a7d58f4211f11280d083c2bc76c31d51",
     "assets/choano/lock.avif": "3a87a373967867c30710db072fe0f87b876cbb328ee19908cfa4603456304e2e",
-    "assets/choano/organisms-hd.avif": "445db381c49f6ccc224d7b213dcc1f4ba3a57e76bfd048c544c813949735d78a",
+    "assets/choano/organisms-hd.avif": "2c375d83bb1cc81e3cca417ad2f0d1c172ac92c2571bc20a4d81dd53dbc6041e",
     "assets/choano/player-left-11-0.avif": "a32be8bc64739207e7b9cc802f1fb436a99ad37caedade0d56d629f9e50d87e9",
     "assets/choano/player-left-11-1.avif": "ba08cc02c9a7abcb6953690fb3d20a195a7c28f2fe41747ab60fe1d277eb7e1d",
     "assets/choano/player-left-11-2.avif": "a7b4d31288cb940ef299316dfaa3381948b8f26a94fcafefe2af127a5f04bd21",
@@ -224,5 +224,5 @@
     "assets/choano/title-portrait.avif": "10be8a3d9251deeede9080c715a7a5dadc1b1641db16aa3a04b874a266302ea9",
     "assets/choano/title-screen.avif": "ed2fc29b7155d911e400b5bebab5952018a15c2cc814f25fcb4fd054f111175c"
   },
-  "sha256": "6fce2b7bed4d3163cc5af53dc7730124f13d0d02f98cfd81c41097ee42b9c42a"
+  "sha256": "b60debf0f1bfd331f179dd85f6a621bca6ff62750e6bb1a46748f14300867662"
 }

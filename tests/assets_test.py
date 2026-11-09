@@ -35,6 +35,16 @@ def largest_pink_component(image, region):
         largest = max(largest, size)
     return largest
 
+def mean_visible_color(image, region):
+    crop = image.crop(region).convert('RGBA')
+    red = green = blue = weight = 0
+    for alpha, pixel in zip(crop.getchannel('A').getdata(), crop.convert('RGB').getdata()):
+        red += pixel[0] * alpha
+        green += pixel[1] * alpha
+        blue += pixel[2] * alpha
+        weight += alpha
+    return red / weight, green / weight, blue / weight
+
 def jpeg_details(data):
     offset = 2
     while offset + 4 < len(data):
@@ -159,6 +169,10 @@ for name, size in [('title-portrait.avif', (768, 1152)), ('title-landscape.avif'
 for name, minimum in [('organisms-hd.avif', 1254)]:
     with Image.open(ROOT / 'assets/choano' / name) as image:
         assert min(image.size) >= minimum and image.mode == 'RGBA', name
+        first_enemy = mean_visible_color(image, (81, 407, 281, 596))
+        largest_enemy = mean_visible_color(image, (371, 972, 619, 1183))
+        assert first_enemy[0] > first_enemy[1] + 80 and first_enemy[2] > first_enemy[1] + 50
+        assert largest_enemy[1] > largest_enemy[0] + 30 and largest_enemy[2] > largest_enemy[0]
 
 print('Choano local asset and package tests passed: 201 AVIF images, the PNG icon, 6 quiet chimes and the shark loop.')
 

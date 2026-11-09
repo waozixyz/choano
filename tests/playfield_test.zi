@@ -169,7 +169,7 @@ FishSizesNormalize :: () -> s32 {
             failures += Expect(Near(longest, FishVisualSize(visual_stage)), "every sea animal normalizes to its stage size")
         }
     }
-    failures += Expect(FishSize(1) == 22 && FishSize(10) == 94, "fish sizes are about twice as large")
+    failures += Expect(FishSize(1) == 21 && FishSize(10) == 84, "fish sizes grow more gently")
     return failures
 }
 
