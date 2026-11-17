@@ -161,7 +161,8 @@ def bundle():
 def profile():
     entity = package('entity')
     # Profile owns its imports; resolve its package exports with the same compiler.
-    run(ZIRAN, 'bundle', '--project', '--locked',
+    entity_locked = [] if (entity / 'ziran.local.toml').exists() else ['--locked']
+    run(ZIRAN, 'bundle', '--project', *entity_locked,
         '--define', 'KRYON_HOSTED_UI', '--asset-dir', 'assets=' + str(entity / 'assets'),
         '--entry', 'entity:Main', '-o', ROOT / 'build/entity.zx', entity / 'src/entity.zi', cwd=entity)
 

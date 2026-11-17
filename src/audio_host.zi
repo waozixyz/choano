@@ -1,6 +1,6 @@
 // Standalone owner; hosted Apps instances supply their own owner and reader.
 #import "kryon/media_audio_host"
-#import "kryon/media_audio_raylib"
+#import "kryon/media_audio_desktop"
 #import "kryon/session"
 #import "std/file"
 #if #defined(ANDROID_BUILD) {
@@ -44,6 +44,6 @@ AudioBegin :: (session: Session) { MediaAudioBegin(*owner, session, AudioAsset, 
 AudioEnd :: () { MediaAudioEnd() }
 audio_opened: bool;
 AudioOpen :: () {
-    if !audio_opened { MediaAudioUseRaylib(); audio_opened = true }
+    if !audio_opened { MediaAudioUseDesktop(); audio_opened = true }
 }
 AudioClose :: () { MediaAudioOwnerClose(*owner) }

@@ -90,6 +90,16 @@ class AccountBuildTest(unittest.TestCase):
             self.assertEqual(build.account_links('linux-x86_64-gnu'), ['libz.a', '-lgtk-3', '-lcairo', '-lX11'])
         self.assertIn('gtk+-3.0', config.call_args.args[0])
 
+    def test_profile_uses_the_dependency_local_override_policy(self):
+        with patch.object(build, 'package', return_value=self.root), \
+                patch.object(build, 'run') as run:
+            build.profile()
+            self.assertIn('--locked', run.call_args.args)
+            (self.root / 'ziran.local.toml').write_text('[overrides]\n')
+            build.profile()
+            self.assertNotIn('--locked', run.call_args.args)
+            self.assertEqual(run.call_args.kwargs['cwd'], self.root)
+
     def test_profile_asset_is_generated_ignored_and_kept_from_guest_bundles(self):
         subprocess.run(['git', 'check-ignore', 'assets/entity.zx'], cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
         self.assertEqual(build.without_profile(str(ROOT / 'assets'), ['entity.zx', 'choano']),
