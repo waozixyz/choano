@@ -68,14 +68,10 @@
     Copy :: #import "account_copy";
     #import "kryon/tree_input"
     #import "kryon/key_input"
-    #import "kryon/text_input_props"
-    #import "kryon/text_props"
+    Text :: #import "kryon/text";
     #import "kryon/text_align"
-    #import "kryon/text_widget"
-    #import "kryon/box_props"
-    #import "kryon/box_widget"
-    #import "kryon/button_props"
-    #import "kryon/button_widget"
+    Box :: #import "kryon/box";
+    Button :: #import "kryon/button";
     #import "kryon/drawing_props"
     #if #defined(ANDROID_BUILD) {
         Assets :: #import "kryon/app_asset";
@@ -156,16 +152,16 @@
     // The Profile header's Back, styled as the game's bars.
     Header :: (session: Session, viewport: Rectangle) -> bool {
         bar := Rectangle.{viewport.x, viewport.y, viewport.width, HEADER}
-        unused Box(session, BoxProps.{.key = cast(u64)61000, .bounds = bar, .fill = ColorFromPacked(0x0a2438ff)})
-        unused Box(session, BoxProps.{.key = cast(u64)61001,
-            .bounds = Rectangle.{bar.x, bar.y + HEADER - 3.0, bar.width, 3.0}, .fill = ColorFromPacked(0x80cbd8ff)})
+        unused Box.Draw(session, Box.Props.{.key = cast(u64)61000, .bounds = bar, .fill = ColorFromPacked(0x0a2438ff)})
+        unused Box.Draw(session, Box.Props.{.key = cast(u64)61001,
+                .bounds = Rectangle.{bar.x, bar.y + HEADER - 3.0, bar.width, 3.0}, .fill = ColorFromPacked(0x80cbd8ff)})
         title := Copy.Title()
-        strong: [1]TextRange = .[.{0, cast(s32)title.count}]
-        unused Text(session, TextProps.{.key = cast(u64)61002, .text = title, .font = 24, .strong = strong[:],
-            .bounds = Rectangle.{bar.x + 88.0, bar.y, bar.width - 176.0, HEADER - 3.0},
-            .align = TextAlign.TextAlignCenter, .vertical_align = TextAlign.TextAlignCenter})
-        return Button(session, ButtonProps.{.key = cast(u64)61003, .id = 61003, .label = Copy.Back(),
-            .bounds = Rectangle.{bar.x + 8.0, bar.y + 4.0, 96.0, HEADER - 11.0}}) != 0
+        strong: [1]Text.Range = .[.{0, cast(s32)title.count}]
+        Text.Draw(session, Text.Props.{.key = cast(u64)61002, .text = title, .size = 24, .strong = strong[:],
+                .bounds = Rectangle.{bar.x + 88.0, bar.y, bar.width - 176.0, HEADER - 3.0},
+                .align = TextAlign.TextAlignCenter, .vertical_align = TextAlign.TextAlignCenter})
+        return Button.Draw(session, Button.Props.{.key = cast(u64)61003, .id = 61003, .label = Copy.Back(),
+                .bounds = Rectangle.{bar.x + 8.0, bar.y + 4.0, 96.0, HEADER - 11.0}}) != 0
     }
     // Draws the open Profile below its own header. True when the provider drew
     // this frame; false when it could not, after showing why. Back or Escape
@@ -183,9 +179,9 @@
         if !drew {
             problem := ifx ready then Copy.Problem(Entity.EntityHostProblem()) else ""
             if problem == "" { problem = ifx profile_bytes == "" then Copy.Missing() else Copy.Stopped() }
-            unused Text(session, TextProps.{.key = cast(u64)61004, .text = problem, .font = 18,
-                .wrap = TextWrap.TextWrapAuto, .align = TextAlign.TextAlignCenter,
-                .bounds = Rectangle.{bounds.x + 24.0, bounds.y + 48.0, bounds.width - 48.0, 120.0}})
+            Text.Draw(session, Text.Props.{.key = cast(u64)61004, .text = problem, .size = 18,
+                    .wrap = Text.Wrap.TextWrapAuto, .align = TextAlign.TextAlignCenter,
+                    .bounds = Rectangle.{bounds.x + 24.0, bounds.y + 48.0, bounds.width - 48.0, 120.0}})
         }
         if back || key == 256 { Back() }
         return drew

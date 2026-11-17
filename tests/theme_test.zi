@@ -1,5 +1,5 @@
 Theme :: #import "theme";
-#import "kryon/Desktop"
+#import "kryon/desktop_runtime"
 #import "kryon/app_context_host"
 #import "kryon/hosted_values"
 #import "std/c_string"
@@ -32,9 +32,9 @@ main :: () -> s32 {
     // and AppThemeColor queries made by shared Entity Profile alike.
     if !WidgetPaletteUse(session, WidgetPalette.{.background = 0xf7f2e8ff, .text = 0x10203fff}) { return 4 }
     if !WidgetPaletteRestore(session) || ProfileColor("canvas") != cast(u32)0x051120ff ||
-        ProfileColor("text") != cast(u32)0xdbeaffff || ProfileColor("surface") != cast(u32)0x162b42ff || ProfileColor("accent") != cast(u32)0x99ccffff { return 5 }
+    ProfileColor("text") != cast(u32)0xdbeaffff || ProfileColor("surface") != cast(u32)0x162b42ff || ProfileColor("accent") != cast(u32)0x99ccffff { return 5 }
     if !WidgetPaletteRestore(session) || ProfileColor("canvas") != cast(u32)0x112233ff ||
-        ProfileColor("text") != cast(u32)0xffeeddff { return 6 }
+    ProfileColor("text") != cast(u32)0xffeeddff { return 6 }
     if !WidgetPaletteRestore(session) { return 7 }
     if Theme.Use(session, "missing.css") { return 8 }
     print("Choano local CSS theme and nested module color tests passed.\n")

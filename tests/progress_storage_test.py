@@ -10,7 +10,7 @@ os.chdir(ROOT)
 subprocess.run(['git', 'check-ignore', 'work/progress-storage'], check=True)
 (ROOT / 'work').mkdir(exist_ok=True)
 env = dict(os.environ, ZIRAN_PAR_THREADS='1')
-subprocess.run(['ziran', 'build', '--project', '--locked', '--target=c', '--exe',
+subprocess.run(['ziran', 'build', '--project', *([] if (ROOT / 'ziran.local.toml').exists() else ['--locked']), '--target=c', '--exe',
                 '--entry', 'progress_storage_test:main', '-o', 'build/progress-storage-test',
                 'tests/progress_storage_test.zi'], check=True, env=env)
 with tempfile.TemporaryDirectory(prefix='progress-storage-', dir=ROOT / 'work') as data:

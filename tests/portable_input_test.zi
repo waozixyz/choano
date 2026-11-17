@@ -19,7 +19,7 @@ Documents :: (context: *void, node: *AppNode) -> *AppFiles {
 #import "std/bundle_host"
 #import "std/byte_text_linux"
 
-#import "kryon/Desktop"
+#import "kryon/desktop_runtime"
 #import "kryon/hosted_app"
 #import "kryon/hosted_values"
 #import "kryon/widget_host"

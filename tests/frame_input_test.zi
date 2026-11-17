@@ -1,4 +1,4 @@
-#import "kryon/Desktop"
+#import "kryon/desktop_runtime"
 // Exercise Choano's actual Frame and movement policy with owned host input.
 App :: #import "app";
 Game :: #import "game";

@@ -11,16 +11,12 @@
     #import "kryon/tree_input"
 }
 #import "kryon/geometry"
-#import "kryon/box_props"
-#import "kryon/box_widget"
+Box :: #import "kryon/box";
 #import "kryon/drawing_props"
-#import "kryon/image_props"
-#import "kryon/image_widget"
-#import "kryon/text_props"
-#import "kryon/text_widget"
+Image :: #import "kryon/image";
+Text :: #import "kryon/text";
 #import "kryon/text_align"
-#import "kryon/scroll_props"
-#import "kryon/scroll_widget"
+Scroll :: #import "kryon/scroll";
 #import "kryon/tree"
 #import "kryon/widget_palette"
 #if #defined(CHOANO_PORTABLE) {
@@ -39,8 +35,7 @@ Headwear :: #import "headwear";
 Shop :: #import "shop";
 Account :: #import "account";
 SharkShape :: #import "shark_geometry";
-#import "kryon/shape_props"
-#import "kryon/shape_widget"
+Shape :: #import "kryon/shape";
 
 #import "game"
 #import "playfield"
@@ -138,13 +133,13 @@ PaintCellTinted :: (session: Session, sheet: string, source: Rectangle, side: st
     }
     if side == "left" {
         points: [4]Vector2 = .[.{fitted.x + fitted.width, fitted.y}, .{fitted.x, fitted.y},
-            .{fitted.x + fitted.width, fitted.y + fitted.height}, .{fitted.x, fitted.y + fitted.height}]
-        unused Image(session, ImageProps.{.key = key, .asset_path = sheet,
-            .bounds = fitted, .source = source, .smooth = true,
-            .tint = tint, .mesh = ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
+        .{fitted.x + fitted.width, fitted.y + fitted.height}, .{fitted.x, fitted.y + fitted.height}]
+        Image.Draw(session, Image.Props.{.key = key, .asset_path = sheet,
+                .bounds = fitted, .source = source, .smooth = true,
+                .tint = tint, .mesh = Image.ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
     } else {
-        unused Image(session, ImageProps.{.key = key, .asset_path = sheet,
-            .bounds = fitted, .source = source, .smooth = true, .tint = tint, .fit = ImageFit.ImageFitStretch})
+        Image.Draw(session, Image.Props.{.key = key, .asset_path = sheet,
+                .bounds = fitted, .source = source, .smooth = true, .tint = tint, .fit = Image.ImageFit.ImageFitStretch})
     }
 }
 PaintCell :: (session: Session, sheet: string, source: Rectangle, side: string, bounds: Rectangle, key: u64) {
@@ -176,9 +171,9 @@ FloatLayer :: (session: Session, sheet: string, source: Rectangle, size: float32
     for index: 0..3 {
         points[index] = Vector2.{view.x + points[index].x * view_scale, view.y + points[index].y * view_scale}
     }
-    unused Image(session, ImageProps.{.key = key, .asset_path = sheet,
-        .bounds = Presentation.QuadBounds(points), .source = source,
-        .smooth = true, .tint = tint, .mesh = ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
+    Image.Draw(session, Image.Props.{.key = key, .asset_path = sheet,
+            .bounds = Presentation.QuadBounds(points), .source = source,
+            .smooth = true, .tint = tint, .mesh = Image.ImageMesh.{.columns = 2, .rows = 2, .points = points[:]}})
 }
 
 FloatTinted :: (session: Session, sheet: string, source: Rectangle, side: string, size: float32, animation: float64,
@@ -191,8 +186,8 @@ Float :: (session: Session, sheet: string, source: Rectangle, side: string, size
     FloatTinted(session, sheet, source, side, size, animation, lean, bob, x, y, key, 0)
 }
 DrawSea :: (session: Session) {
-    unused Image(session, ImageProps.{.key = cast(u64)1, .asset_path = "assets/choano/fish/sea.avif",
-        .bounds = view, .fit = ImageFit.ImageFitStretch, .smooth = true})
+    Image.Draw(session, Image.Props.{.key = cast(u64)1, .asset_path = "assets/choano/fish/sea.avif",
+            .bounds = view, .fit = Image.ImageFit.ImageFitStretch, .smooth = true})
     for index: cast(s32)0..game.enemy_count - 1 {
         enemy := game.enemies[index]
         key := cast(u64)(2000 + index)
@@ -263,14 +258,14 @@ DrawBlob :: (session: Session, animation: float64, x: float32, y: float32, key: 
     at = CopyText(".avif", path_buffer, at)
     if at < cast(s32)path_buffer.count { path_buffer[at] = cast(u8)0 }
     path_buffer_index += 1
-    unused Image(session, ImageProps.{.key = key, .asset_path = TextUntilNul(path_buffer[:]),
-        .bounds = GameBounds(Rectangle.{x - 19.5, y - 19.5, 39.0, 39.0}),
-        .fit = ImageFit.ImageFitStretch, .smooth = false})
+    Image.Draw(session, Image.Props.{.key = key, .asset_path = TextUntilNul(path_buffer[:]),
+            .bounds = GameBounds(Rectangle.{x - 19.5, y - 19.5, 39.0, 39.0}),
+            .fit = Image.ImageFit.ImageFitStretch, .smooth = false})
 }
 
 DrawGame :: (session: Session, bounds: Rectangle) {
-    world_clip := Scroll(session, ScrollProps.{.key = cast(u64)49100, .bounds = bounds,
-        .content_height = cast(s32)bounds.height})
+    world_clip := Scroll.Draw(session, Scroll.Props.{.key = cast(u64)49100, .bounds = bounds,
+            .content_height = cast(s32)bounds.height})
     if !world_clip.opened { return }
     defer { unused End(session) }
 
@@ -308,20 +303,20 @@ DrawSharkFins :: (session: Session, parts: s32, pose: Presentation.FloatPose, ke
         points: [6]Vector2
         for at: 0..5 {
             world := Presentation.PosePoint(pose, .{(vertices[at].x - .5) * cast(float32)SHARK_LENGTH,
-                (vertices[at].y - .5) * cast(float32)SHARK_LENGTH * SharkShape.SHARK_ASPECT})
+                    (vertices[at].y - .5) * cast(float32)SHARK_LENGTH * SharkShape.SHARK_ASPECT})
             points[at] = .{view.x + world.x * view_scale, view.y + world.y * view_scale}
         }
         color := ColorFromPacked(0xff3b51c8)
         if part == SharkShape.FIN_TAIL {
             for triangle: 0..3 {
-                unused Triangle(session, TriangleProps.{.key = key + cast(u64)index * 8 + cast(u64)triangle,
-                    .first = points[triangle], .second = points[triangle + 1], .third = points[5], .color = color})
+                unused Shape.Triangle(session, Shape.TriangleProps.{.key = key + cast(u64)index * 8 + cast(u64)triangle,
+                        .first = points[triangle], .second = points[triangle + 1], .third = points[5], .color = color})
             }
         } else {
-            unused Triangle(session, TriangleProps.{.key = key + cast(u64)index * 8,
-                .first = points[0], .second = points[1], .third = points[2], .color = color})
-            unused Triangle(session, TriangleProps.{.key = key + cast(u64)index * 8 + 1,
-                .first = points[0], .second = points[2], .third = points[3], .color = color})
+            unused Shape.Triangle(session, Shape.TriangleProps.{.key = key + cast(u64)index * 8,
+                    .first = points[0], .second = points[1], .third = points[2], .color = color})
+            unused Shape.Triangle(session, Shape.TriangleProps.{.key = key + cast(u64)index * 8 + 1,
+                    .first = points[0], .second = points[2], .third = points[3], .color = color})
         }
     }
 }
@@ -330,16 +325,16 @@ DrawDish :: (session: Session) {
     if field.framed {
         // The dish's plain ground covers the whole area, a soft white rim
         // rings the arena and the ground shows again inside it.
-        unused Image(session, ImageProps.{.key = cast(u64)1, .asset_path = "assets/choano/background-inside.avif",
-            .bounds = field.area, .source = DishGround(), .fit = ImageFit.ImageFitCover, .smooth = true})
-        unused Box(session, BoxProps.{.key = cast(u64)3, .bounds = field.outer_frame,
-            .fill = ColorFromPacked(0xf5ffffe8), .radius = field.outer_radius})
-        unused Image(session, ImageProps.{.key = cast(u64)4, .asset_path = "assets/choano/background-inside.avif",
-            .bounds = field.inner_playable, .source = DishGround(), .fit = ImageFit.ImageFitCover, .smooth = true,
-            .radius = field.inner_radius})
+        Image.Draw(session, Image.Props.{.key = cast(u64)1, .asset_path = "assets/choano/background-inside.avif",
+                .bounds = field.area, .source = DishGround(), .fit = Image.ImageFit.ImageFitCover, .smooth = true})
+        unused Box.Draw(session, Box.Props.{.key = cast(u64)3, .bounds = field.outer_frame,
+                .fill = ColorFromPacked(0xf5ffffe8), .radius = field.outer_radius})
+        Image.Draw(session, Image.Props.{.key = cast(u64)4, .asset_path = "assets/choano/background-inside.avif",
+                .bounds = field.inner_playable, .source = DishGround(), .fit = Image.ImageFit.ImageFitCover, .smooth = true,
+                .radius = field.inner_radius})
     } else {
-        unused Image(session, ImageProps.{.key = cast(u64)1, .asset_path = "assets/choano/background-inside.avif",
-            .bounds = view, .fit = ImageFit.ImageFitStretch, .smooth = false})
+        Image.Draw(session, Image.Props.{.key = cast(u64)1, .asset_path = "assets/choano/background-inside.avif",
+                .bounds = view, .fit = Image.ImageFit.ImageFitStretch, .smooth = false})
     }
     for index: cast(s32)0..game.enemy_count - 1 {
         enemy := game.enemies[index]
@@ -421,20 +416,20 @@ DrawHud :: (session: Session, bar: Rectangle) {
 DrawGrowthMeter :: (session: Session, bar: Rectangle) {
     layout := Presentation.FitHud(bar)
     bounds := layout.growth_meter
-    unused Box(session, BoxProps.{.key = cast(u64)3030, .bounds = bounds,
-        .fill = ColorFromPacked(0x081d29f2), .border = ColorFromPacked(0x50758aff), .radius = 4.0})
+    unused Box.Draw(session, Box.Props.{.key = cast(u64)3030, .bounds = bounds,
+            .fill = ColorFromPacked(0x081d29f2), .border = ColorFromPacked(0x50758aff), .radius = 4.0})
     fill := bounds.width * GrowthMeter()
     if fill > 2.0 {
-        unused Box(session, BoxProps.{.key = cast(u64)3031,
-            .bounds = Rectangle.{bounds.x + 1.0, bounds.y + 1.0, fill - 2.0, bounds.height - 2.0},
-            .fill = ColorFromPacked(0xffd080ff), .radius = 3.0})
+        unused Box.Draw(session, Box.Props.{.key = cast(u64)3031,
+                .bounds = Rectangle.{bounds.x + 1.0, bounds.y + 1.0, fill - 2.0, bounds.height - 2.0},
+                .fill = ColorFromPacked(0xffd080ff), .radius = 3.0})
     }
 }
 
 HudText :: (session: Session, text: string, bounds: Rectangle, key: u64, size: s32, align: TextAlign) {
-    strong: [1]TextRange = .[.{0, cast(s32)text.count}]
-    unused Text(session, TextProps.{.key = key, .bounds = bounds, .text = text, .font = size,
-        .strong = strong[:], .align = align, .vertical_align = TextAlign.TextAlignCenter})
+    strong: [1]Text.Range = .[.{0, cast(s32)text.count}]
+    Text.Draw(session, Text.Props.{.key = key, .bounds = bounds, .text = text, .size = size,
+            .strong = strong[:], .align = align, .vertical_align = TextAlign.TextAlignCenter})
 }
 
 last_sound: s32;
@@ -524,8 +519,8 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     #if #defined(ANDROID_BUILD) || #defined(PLATFORM_ANDROID) || #defined(__ANDROID__) {
         full = AndroidWindowBounds()
     }
-    unused Box(session, BoxProps.{.key = cast(u64)49000, .bounds = full,
-        .fill = ColorFromPacked(0x051120ff)})
+    unused Box.Draw(session, Box.Props.{.key = cast(u64)49000, .bounds = full,
+            .fill = ColorFromPacked(0x051120ff)})
     held_input = FrameMovement(CaptureFrameInput(session))
     now := cast(float64)Clock.Milliseconds() / 1000.0
     #if #defined(CHOANO_PORTABLE) {
@@ -553,8 +548,8 @@ Frame :: (session: Session, viewport: Rectangle) -> s32 {
     }
     if Shell.HudVisible() && game.hint_timer > 0.0 { DrawFishHint(session, area) }
     unused AchievementToastDraw(session, *toast, AchievementToastProps.{.key = cast(u64)47000, .viewport = viewport,
-        .top = 52.0, .now = now, .fill = ColorFromPacked(0x0a2438f2), .border = ColorFromPacked(0x80cbd8ff),
-        .accent = ColorFromPacked(0xe0609aff)})
+            .top = 52.0, .now = now, .fill = ColorFromPacked(0x0a2438f2), .border = ColorFromPacked(0x80cbd8ff),
+            .accent = ColorFromPacked(0xe0609aff)})
     if Shell.TakeStart() {
         StartGame(cast(u32)Clock.Milliseconds(), ifx Shell.FishRun() then MODE_FISH else MODE_AMOEBA)
         if Shell.TakeFishHint() { game.hint_timer = FISH_HINT_SECONDS }

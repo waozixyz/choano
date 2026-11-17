@@ -159,15 +159,11 @@ def bundle():
 
 
 def profile():
-    entity, kryon, ziran, qr = map(package, ('entity', 'kryon', 'ziran', 'qrcode'))
-    # This legacy Profile entry uses explicit module paths. Invoke the locked
-    # compiler itself so the global launcher cannot emit another ZX version.
-    run(ziran / 'build/bin/ziran', 'bundle', '--root', entity, '--module-path', entity / 'src',
-        '--module-path', kryon / 'src/ui', '--module-path', 'kryon=' + str(kryon / 'src/ui'),
-        '--module-path', 'kryon=' + str(kryon / 'src/backend'),
-        '--module-path', 'qrcode=' + str(qr / 'src'), '--module-path', ziran / 'std',
+    entity = package('entity')
+    # Profile owns its imports; resolve its package exports with the same compiler.
+    run(ZIRAN, 'bundle', '--project', '--locked',
         '--define', 'KRYON_HOSTED_UI', '--asset-dir', 'assets=' + str(entity / 'assets'),
-        '--entry', 'entity:Main', '-o', ROOT / 'build/entity.zx', entity / 'src/entity.zi')
+        '--entry', 'entity:Main', '-o', ROOT / 'build/entity.zx', entity / 'src/entity.zi', cwd=entity)
 
 
 def web():

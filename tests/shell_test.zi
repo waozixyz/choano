@@ -1,6 +1,19 @@
 Shell :: #import "shell";
 #import "kryon/geometry"
 
+// Geometry tests do not load pictures; the native image host owns their sizes.
+#program_export
+ImageWidth :: (path: string) -> s32 {
+    unused path
+    return 0
+}
+
+#program_export
+ImageHeight :: (path: string) -> s32 {
+    unused path
+    return 0
+}
+
 Expect :: (value: bool, name: string) -> bool {
     if !value { print("Choano shell local test failed: %\n", name) }
     return value
@@ -8,13 +21,13 @@ Expect :: (value: bool, name: string) -> bool {
 
 Inside :: (inner: Rectangle, outer: Rectangle) -> bool {
     return inner.x >= outer.x && inner.y >= outer.y &&
-        inner.x + inner.width <= outer.x + outer.width &&
-        inner.y + inner.height <= outer.y + outer.height
+    inner.x + inner.width <= outer.x + outer.width &&
+    inner.y + inner.height <= outer.y + outer.height
 }
 
 Clear :: (first: Rectangle, second: Rectangle) -> bool {
     return first.x + first.width <= second.x || second.x + second.width <= first.x ||
-        first.y + first.height <= second.y || second.y + second.height <= first.y
+    first.y + first.height <= second.y || second.y + second.height <= first.y
 }
 
 Near :: (first: float32, second: float32, tolerance: float32 = 1.0) -> bool {
@@ -28,7 +41,7 @@ main :: () -> s32 {
             "Profile and Downloads leave room for both corner icons on narrow titles") { return 1 }
     }
     layouts: [4]Rectangle = .[.{0.0, 0.0, 720.0, 1560.0}, .{0.0, 0.0, 1560.0, 720.0},
-        .{0.0, 0.0, 900.0, 628.0}, .{18.0, 28.0, 376.0, 800.0}]
+    .{0.0, 0.0, 900.0, 628.0}, .{18.0, 28.0, 376.0, 800.0}]
     for bounds: layouts {
         settings := Shell.SettingsLayoutFor(bounds)
         if !Expect(Inside(settings.panel, bounds) && Inside(settings.swipe, settings.panel) &&

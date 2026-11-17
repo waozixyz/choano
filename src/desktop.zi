@@ -1,5 +1,4 @@
 Audio :: #import "audio_host";
-using Desktop :: #import "kryon/Desktop";
 DesktopLoop :: #import "kryon/desktop_loop";
 Timer :: #import "std/timer_linux";
 #import "app"
@@ -10,51 +9,23 @@ Timer :: #import "std/timer_linux";
 #import "kryon/tree_input"
 #import "kryon/Frame"
 #import "kryon/frame_snapshot"
+#import "kryon/tree_frame"
 
 #program_export
 ClockMillisecondsHost :: () -> s64 { return Timer.MonotonicMilliseconds() }
 
-DrawGameFrame :: (session: Session) -> bool {
+DrawGameFrame :: (session: Session, viewport: Rectangle) -> s32 {
     Audio.AudioBegin(session)
     defer { Audio.AudioEnd() }
-    if !DesktopFrameInputBegin(session) { return false }
-    defer { FrameInputEnd(session) }
-    BeginDesktopFrame()
-    viewport: Rectangle = DesktopViewport()
-    snapshot := CaptureFrameInput(session)
-    pointer := snapshot.pointer
-    TreePointerUpdate(session, pointer)
-    PointerWheelSend(session, pointer.x, pointer.y, snapshot.wheel)
-    if BeginFrame(session, cast(u64)1, viewport) != FrameStatus.FrameOk { return false }
-    if Frame(session, viewport) != 0 { TreeCancel(session); return false }
-    if EndFrame(session) != FrameStatus.FrameOk { return false }
-    return EndDesktopFrame()
+    return Frame(session, viewport)
 }
 
 #program_export
 main :: () -> s32 {
     if !DesktopLoop.DesktopStartBeside("assets/choano/background-inside.avif") { return 1 }
-    if !OpenDesktopSized(900, 680) { CloseDesktop(); return 1 }
-    unused DesktopSetTitle("Choano")
-    session: Session = SessionOpen()
-    if !SessionValid(session) { CloseDesktop(); return 1 }
+    unused TreeFrameUse()
     Audio.AudioOpen()
     defer { Audio.AudioClose() }
-    ok: bool = true
-    while ok && PollDesktop() {
-        KeyboardModifiersSend(session, DesktopModifiers())
-        key: s32 = DesktopPressedKey()
-        if key != 0 { KeyboardSend(session, key) }
-        codepoint: s32 = DesktopTypedCodepoint()
-        while codepoint != 0 {
-            TypedCodepointSend(session, codepoint)
-            codepoint = DesktopTypedCodepoint()
-        }
-        ok = DrawGameFrame(session)
-        if ok { PauseDesktop() }
-    }
-    CloseAccount()
-    CloseSession(session)
-    CloseDesktop()
-    return ifx ok then 0 else 1
+    defer { CloseAccount() }
+    return DesktopLoop.RunTitled(DrawGameFrame, 900, 680, "Choano")
 }
