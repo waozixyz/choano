@@ -35,23 +35,17 @@ def shared_script(owner, name):
     return module
 
 
+def renderer_metadata(selection, platform, env=None):
+    renderers = shared_script('kryon', 'renderer_artifact')
+    return renderers.renderer_metadata(artifact(selection, platform, env))
+
+
 def renderer_links():
-    artifacts = shared_script('ziran', 'ziran_artifacts')
-    renderers = shared_script('kryon', 'renderer_artifact')
-    artifact = artifacts.request('kryon:renderer-raylib', 'linux-x86_64-gnu', project=ROOT, ziran=ZIRAN)
-    return renderers.renderer_link(renderers.renderer_metadata(artifact), preloads=False)
-
-
-def avif_links():
-    """Kryon's desktop renderer decodes AVIF art with its self-contained
-    libkryonavif.so, kept in DT_NEEDED so packaging carries it beside the
-    game. Kryon's host also finds it in the program's lib and ../lib folders;
-    LDLIBS is split on spaces unquoted, so it takes no $ORIGIN run path."""
-    artifacts = shared_script('ziran', 'ziran_artifacts')
-    renderers = shared_script('kryon', 'renderer_artifact')
-    artifact = artifacts.request('kryon:renderer-desktop', 'linux-x86_64-gnu', project=ROOT, ziran=ZIRAN)
-    links = []
-    for library in renderers.renderer_metadata(artifact)['shared_libraries']:
+    meta = renderer_metadata('kryon:renderer-desktop', 'linux-x86_64-gnu')
+    links = [*meta['archives'], *meta['link_flags']]
+    # Keep the lazy codecs in DT_NEEDED for AppImage packaging. Ziran splits
+    # LDLIBS without expanding a literal $ORIGIN; the AppRun supplies its path.
+    for library in meta['shared_libraries']:
         links += ['-Wl,--no-as-needed', library, '-Wl,--as-needed', '-Wl,-rpath,' + str(Path(library).parent)]
     return links
 
@@ -61,9 +55,8 @@ def artifact(selection, platform, env=None):
 
 
 # The system libraries Entity's native-profile recipe adds for its Profile UI
-# (tools/artifacts.zi SystemLinkText). That recipe lists 65 inputs, past the
-# 64 the locked Ziran (before 3e69203b) accepts, so only its native-crypto
-# prerequisite is requested; switch to native-profile with a newer toolchain.
+# Choano compiles the account modules into each native host, so it only
+# requests Entity's platform and cryptography support.
 PROFILE_SYSTEM = {
     'linux-x86_64-gnu': (['sdl2', 'cairo', 'freetype2', 'fontconfig', 'pangocairo', 'gtk+-3.0'], ['-lX11']),
     'windows-x86_64-mingw': ([], ['-flto=1', '-luser32', '-lshell32', '-lole32', '-lcomdlg32']),
@@ -116,10 +109,8 @@ def native():
     # Preserve dependency-owned archive order before its platform libraries.
     links = renderer_links()
     links.extend(account_links('linux-x86_64-gnu'))
-    for query in (['sdl2', 'cairo', 'freetype2', 'pangocairo', 'fontconfig', 'gio-2.0'], ['libcurl']):
-        found = subprocess.run(['pkg-config', '--libs', *query], text=True, capture_output=True)
-        links.extend(shlex.split(found.stdout) if found.returncode == 0 else ['-l:libcurl.so.4'])
-    links.extend(avif_links())
+    curl = subprocess.run(['pkg-config', '--libs', 'libcurl'], text=True, capture_output=True)
+    links.extend(shlex.split(curl.stdout) if curl.returncode == 0 else ['-l:libcurl.so.4'])
     links.extend(['-pthread', *shlex.split(os.environ.get('LDLIBS', ''))])
     env = {**os.environ, 'LDLIBS': shlex.join(links),
            'CFLAGS': os.environ.get('CFLAGS', '-O2') + ' -ffunction-sections -fdata-sections -Wno-main -pthread',
@@ -171,10 +162,11 @@ def web():
     profile()
     output = ROOT / 'build/web'
     output.mkdir(parents=True, exist_ok=True)
+    # Run the bundled profile through the web runtime. Ziran 0.7.0 does not
+    # provide the embedded C exporter that Entity's optional --linked uses.
     run(sys.executable, package('entity') / 'scripts/build-web.py',
         '--profile', ROOT / 'build/entity.zx', '--output', output / 'game.html',
-        '--source', 'src/web/runtime.zi', '--entry', 'runtime:main',
-        '--linked', ROOT / 'build/entity.zx')
+        '--source', 'src/web/runtime.zi', '--entry', 'runtime:main')
     # The browser decodes the same AVIF art; Web Audio plays the same WAV files.
     if (output / 'assets').exists():
         shutil.rmtree(output / 'assets')

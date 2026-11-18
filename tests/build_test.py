@@ -26,10 +26,10 @@ class RendererTest(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         (self.root / 'include').mkdir()
-        self.meta = dict(schema=1, artifact='renderer-raylib', platform='linux-x86_64-gnu',
-            archives=['second.a', 'first.a'], link_flags=['-lm', '-pthread'], compile_flags=[], defines=[],
+        self.meta = dict(schema=1, artifact='renderer-desktop', platform='linux-x86_64-gnu',
+            archives=['second.a', 'first.a'], shared_libraries=['libkryonavif.so'], link_flags=['-lm', '-pthread'], compile_flags=[], defines=[],
             include_directories=['include'], resources=dict(font='font.ttf', font_license='font.txt'))
-        for name in [*self.meta['archives'], 'font.ttf', 'font.txt']:
+        for name in [*self.meta['archives'], *self.meta['shared_libraries'], 'font.ttf', 'font.txt']:
             (self.root / name).write_bytes(name.encode())
         self.descriptor = self.root / 'artifact.tsv'
         self.save()
@@ -44,8 +44,8 @@ class RendererTest(unittest.TestCase):
 
     def save(self):
         (self.root / 'renderer.json').write_text(json.dumps(self.meta))
-        rows = dict(schema='1', package='kryon', artifact='renderer-raylib', platform='linux-x86_64-gnu', key='a' * 64)
-        for name in ['renderer.json', *self.meta['archives'], 'font.ttf', 'font.txt']:
+        rows = dict(schema='1', package='kryon', artifact='renderer-desktop', platform='linux-x86_64-gnu', key='a' * 64)
+        for name in ['renderer.json', *self.meta['archives'], *self.meta['shared_libraries'], 'font.ttf', 'font.txt']:
             rows[name] = hashlib.sha256((self.root / name).read_bytes()).hexdigest()
         self.descriptor.write_text(''.join(f'{k}\t{v}\n' for k, v in rows.items()))
 
@@ -56,16 +56,16 @@ class RendererTest(unittest.TestCase):
         (self.root / 'native/desktop').write_bytes(b'program')
         with patch.object(build, 'run') as run, patch.object(build, 'profile_asset'), \
                 patch.object(build, 'account_links', return_value=['-laccount']), \
-                patch.object(build, 'avif_links', return_value=['-Wl,--no-as-needed', 'libkryonavif.so']), \
                 patch.object(build, 'NATIVE_WORK', self.root / 'native'), \
                 patch.object(build, 'NATIVE', self.root / 'Choano-native'), \
                 patch.dict(os.environ, LDLIBS="'-Lwith spaces' -lcustom"):
             build.native()
         links = shlex.split(run.call_args.kwargs['env']['LDLIBS'])
-        self.assertEqual(links[:5], [str(resolved / 'second.a'), str(resolved / 'first.a'), '-lm', '-pthread', '-laccount'])
+        self.assertEqual(links[:4], [str(resolved / 'second.a'), str(resolved / 'first.a'), '-lm', '-pthread'])
         self.assertEqual(links[-2:], ['-Lwith spaces', '-lcustom'])
         # The AVIF codec stays a runtime dependency of the program.
-        self.assertIn('libkryonavif.so', links)
+        self.assertEqual(links[4:9], ['-Wl,--no-as-needed', str(resolved / 'libkryonavif.so'),
+                                    '-Wl,--as-needed', '-Wl,-rpath,' + str(resolved), '-laccount'])
 
     def test_corrupt_archive(self):
         (self.root / 'first.a').write_bytes(b'corrupt')

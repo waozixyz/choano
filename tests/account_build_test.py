@@ -56,13 +56,12 @@ class AccountBuildTest(unittest.TestCase):
         program = self.root / 'Choano-native'
         program.write_bytes(b'old program')
         with patch.object(build, 'run') as run, patch.object(build, 'profile_asset') as profile, \
-                patch.object(build, 'renderer_links', return_value=['renderer.a']), \
-                patch.object(build, 'avif_links', return_value=['libkryonavif.so']) as avif, \
+                patch.object(build, 'renderer_links', return_value=['renderer.a', 'libkryonavif.so']) as renderer, \
                 patch.object(build, 'account_links', return_value=['libmonocypher.a', '-lgtk']) as accounts, \
                 patch.object(build, 'NATIVE_WORK', work), patch.object(build, 'NATIVE', program):
             build.native()
         profile.assert_called_once()
-        avif.assert_called_once_with()
+        renderer.assert_called_once_with()
         accounts.assert_called_once_with('linux-x86_64-gnu')
         command = list(map(str, run.call_args.args))
         for define in ('CHOANO_ACCOUNTS', 'POSIX_THREADS'):
@@ -72,7 +71,7 @@ class AccountBuildTest(unittest.TestCase):
         self.assertEqual(command[-1], 'src/desktop.zi')
         links = shlex.split(run.call_args.kwargs['env']['LDLIBS'])
         self.assertIn('libkryonavif.so', links)
-        self.assertEqual(links[:3], ['renderer.a', 'libmonocypher.a', '-lgtk'])
+        self.assertEqual(links[:4], ['renderer.a', 'libkryonavif.so', 'libmonocypher.a', '-lgtk'])
         self.assertEqual(program.read_bytes(), b'new program')
         self.assertTrue(os.access(program, os.X_OK))
         self.assertEqual((self.root / 'Choano-native.title').read_text(), 'Choano\n')
@@ -138,7 +137,9 @@ class AccountBuildTest(unittest.TestCase):
         cpp = self.root / 'droid/app/src/main/cpp'
         cpp.mkdir(parents=True)
         cmake = cpp / 'CMakeLists.txt'
-        cmake.write_text('set(APP_ZIRAN_DEFINES --define ANDROID_BUILD)\nadd_library(main SHARED x.c)\n')
+        cmake.write_text('set(APP_ZIRAN_DEFINES --define ANDROID_BUILD)\n'
+                         'execute_process(COMMAND generator --manifest "${APP_ZIRAN_MANIFEST}")\n'
+                         'add_library(main SHARED x.c)\n')
         ndk = self.root / 'ndk'
         ndk.mkdir()
         requests = []
@@ -157,6 +158,8 @@ class AccountBuildTest(unittest.TestCase):
         text = cmake.read_text()
         self.assertEqual(text.count('CHOANO_ACCOUNTS'), 1)
         self.assertEqual(text.count(android.ACCOUNT_MARKER), 1)
+        self.assertEqual(text.count('android_runtime.zi'), 1)
+        self.assertIn('target_link_libraries(main PRIVATE opus OpenSLES)', text)
         self.assertIn('"/cache/android-aarch64-bionic/libmonocypher.a"', text)
         self.assertIn('if(ANDROID_ABI STREQUAL "armeabi-v7a")', text)
         selection, platform, options = requests[0]

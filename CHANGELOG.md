@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Run desktop and Android on Kryon 0.6.0 with Ziran 0.7.0.
+
 - Run in the current Arcade and Inner Breeze package format.
 - Reset Amoeba growth cleanly at each size, make later sizes take about a quarter more food, grow creatures more gently, and recolor the largest threat so it no longer looks edible.
 - Choano's theme is a CSS sheet now, read by Kryon's CSS package.

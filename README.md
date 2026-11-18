@@ -103,11 +103,11 @@ through `APPIMAGE_EXTRACT_AND_RUN`, without FUSE. Releases name it
 ## Windows installer
 
 `python3 scripts/desktop_release.py windows` builds `build/Choano-setup.exe`.
-`src/windows.zi` runs the same game Frame on Kryon's raylib host (RGFW, OpenGL
-1.1, AVIF art through Kryon's static libavif and raylib audio for the chimes
-and shark loop), linked statically with MinGW-w64 from the locked Ziran
-runtime and raylib; the build keeps its intermediates in `build/windows`. NSIS (`makensis`) packs the
-program, Kryon's Liberation Sans and every asset into a per-user installer:
+The MinGW-w64 build uses the Linux edition's `src/desktop.zi` entry point,
+Kryon's SDL2/Cairo renderer SDK, the AVIF decoder DLL and Ziran's audio sink.
+The decoder builds with CMake, Meson, Ninja and NASM.
+NSIS (`makensis`) packs the program, its libraries, Kryon's Liberation Sans
+and every asset into a per-user installer with
 no administrator rights, Start menu and desktop shortcuts, and an uninstall
 entry in the player's own registry. Settings live in
 `%LOCALAPPDATA%\Choano` and stay after uninstalling. The installer is not
@@ -121,8 +121,9 @@ uninstalls it. Releases name it `choano-vVERSION-windows-x86_64-setup.exe`.
 `make android` builds the unsigned release APK on Kryon's Android host and
 `make android-gplay` the Google Play edition's. They need JDK 21 and the
 Android SDK's NDK 28.2.13676358, build-tools 36.0.0, android-36 and CMake
-3.22.1; Gradle's project is generated in ignored `droid/` from the locked
-Kryon. `python3 scripts/android.py sign APK --output FILE` signs with the
+3.22.1, plus Meson and Ninja for the AVIF decoder. Gradle's project is
+generated in ignored `droid/` from the locked Kryon.
+`python3 scripts/android.py sign APK --output FILE` signs with the
 ignored `backup/android-signing` key and verifies the package, both ARM
 architectures, the bundled art and the Choano certificate.
 

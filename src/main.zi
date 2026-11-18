@@ -1,18 +1,100 @@
-Audio :: #import "audio_host";
-Account :: #import "account";
-#import "android_run"
-Timer :: #import "std/timer_linux";
+#if #defined(ANDROID_BUILD) {
+    Audio :: #import "audio_host";
+    Account :: #import "account";
+    Clock :: #import "std/timer_linux";
+    #import "app"
+    Clipboard :: #import "kryon/android_clipboard";
+    #import "kryon/android_device"
+    #import "kryon/android_runtime"
+    #import "kryon/android_surface"
+    #import "kryon/android_touch"
+    #import "kryon/frame_snapshot"
+    #import "kryon/geometry"
+    #import "kryon/input_protocol"
+    #import "kryon/pixmap_assets_android"
+    #import "kryon/pixmap_frame"
+    #import "kryon/scroll_device"
+    #import "kryon/Frame"
+    #import "kryon/session"
+    #import "kryon/test_driver"
+    #import "kryon/tree"
+    #import "kryon/tree_input"
 
-// Choano: the Android entry. raylib's NativeActivity backend calls this C
-// main; the canonical host loop in android_run drives the app's Frame.
-#program_export
-main :: (argc: s32, argv: **u8) -> s32 {
-    unused argc
-    unused argv
-    defer { Audio.AudioClose() }
-    defer { Account.Close() }
-    return AndroidRunMain()
+    DrawAndroidGame :: (session: Session, viewport: Rectangle) -> bool {
+        if !AndroidTouchFrameInputBegin(session, AndroidLayoutZoom()) { return false }
+        defer { FrameInputEnd(session) }
+        pointer := TestDriverPointer(session, PollPointer())
+        TreePointerUpdate(session, pointer)
+        TreeSecondaryPointerUpdate(session, PollSecondaryPointer())
+        BeginScrollFrame(session, Vector2.{pointer.x, pointer.y}, pointer.pressed, pointer.down,
+            pointer.released, 0.0, cast(float64)Clock.MonotonicMilliseconds() / 1000.0)
+        key := AndroidTouchTakeKey()
+        if key == 0 {
+            for candidate: cast(s32)0..349 {
+                if TestDriverKeyPressed(candidate) { key = candidate; break }
+            }
+        }
+        if AndroidTextInputKeyPressed(259) { key = 259 }
+        if AndroidTextInputKeyPressed(257) { key = 257 }
+        if key != 0 { KeyboardSend(session, key) }
+        codepoint := AndroidTextInputCharacter()
+        while codepoint != 0 {
+            TypedCodepointSend(session, codepoint)
+            codepoint = AndroidTextInputCharacter()
+        }
+        if BeginFrame(session, cast(u64)1, viewport) != FrameStatus.FrameOk { return false }
+        if Frame(session, viewport) != 0 {
+            TreeCancel(session)
+            return false
+        }
+        frame := EndPixmapFrame(session, AndroidFrameReusable(), cast(u32)0xff000000)
+        AndroidFrameUnchanged(frame.paint_unchanged)
+        return frame.status == FrameStatus.FrameOk
+    }
+
+    #program_export
+    main :: (argc: s32, argv: **u8) -> s32 {
+        unused argv
+        // The C frame graph reaches these exports through Kryon's host ABI.
+        // Keep them in the Android IR during the generator's entry walk.
+        if argc < 0 {
+            unused Clipboard.SystemClipboardOpenHost()
+            unused Clipboard.SystemClipboardByteHost(-1)
+            unused Clipboard.SystemClipboardWriteHost("")
+            return 1
+        }
+        session := SessionOpen()
+        if !SessionValid(session) { return 1 }
+        defer { unused CloseSession(session) }
+        defer { Account.Close() }
+        defer { Audio.AudioClose() }
+        AndroidTextInputOpen(session)
+        defer { AndroidTextInputClose(session) }
+        first_frame := true
+        timeout: s32 = 16
+        while PollAndroidHost(timeout) {
+            viewport := AndroidHostViewport()
+            if AndroidHostPaused() || viewport.width <= 0.0 || viewport.height <= 0.0 {
+                AndroidTextInputFrame(session, false)
+                timeout = 1000
+                continue
+            }
+            timeout = 16
+            AndroidTextInputBeginFrame(session)
+            BeginAndroidFrame()
+            ok := DrawAndroidGame(session, viewport)
+            presented := EndAndroidFrame()
+            if !ok || !presented { return 1 }
+            AndroidTextInputFrame(session, TreeTextInputActive(session))
+            TestDriverFrame(session)
+            if first_frame {
+                AndroidNotifyFirstFrame()
+                first_frame = false
+            }
+        }
+        return 0
+    }
+
+    #program_export
+    ClockMillisecondsHost :: () -> s64 { return Clock.MonotonicMilliseconds() }
 }
-
-#program_export
-ClockMillisecondsHost :: () -> s64 { return Timer.MonotonicMilliseconds() }

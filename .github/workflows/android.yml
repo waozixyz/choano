@@ -46,7 +46,7 @@ jobs:
           project: waozixyz/choano
           path: ziranlang/ziran
           fetch: true
-          packages: build-essential cmake pkg-config zlib1g-dev python3-pil
+          packages: build-essential cmake meson ninja-build pkg-config zlib1g-dev python3-pil
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

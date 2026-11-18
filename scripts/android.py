@@ -131,7 +131,7 @@ def account_provider(android, edition, abis):
             options=[f'entity:edition={"play" if edition == "gplay" else "direct"}', f'entity:ndk={ndk}',
                      f'entity:android_api={api}'])
         flags = ' '.join('"' + flag.replace('\\', '/').replace('"', '') + '"' for flag in crypto.link_flags(env=env))
-        rows.append(f'if(ANDROID_ABI STREQUAL "{abi}")\n    target_link_libraries(main {flags})\nendif()\n')
+        rows.append(f'if(ANDROID_ABI STREQUAL "{abi}")\n    target_link_libraries(main PRIVATE {flags})\nendif()\n')
     cmake = ROOT / 'droid/app/src/main/cpp/CMakeLists.txt'
     text = cmake.read_text().split(ACCOUNT_MARKER)[0]
     defines = 'set(APP_ZIRAN_DEFINES --define ANDROID_BUILD'
@@ -139,12 +139,26 @@ def account_provider(android, edition, abis):
         raise SystemExit("Kryon's Android CMakeLists.txt no longer sets APP_ZIRAN_DEFINES")
     if 'CHOANO_ACCOUNTS' not in text:
         text = text.replace(defines, defines + ' --define CHOANO_ACCOUNTS', 1)
-    cmake.write_text(text + ACCOUNT_MARKER + ''.join(rows))
+    # The scaffold's default host owns its own frame loop. Select the
+    # NativeActivity runtime for Choano's main, which brackets app audio.
+    generator = '--manifest "${APP_ZIRAN_MANIFEST}"'
+    host = '--host "${KRYON_DIR}/src/backend/android_runtime.zi"'
+    if generator not in text:
+        raise SystemExit("Kryon's Android CMakeLists.txt no longer generates the native sources")
+    if host not in text:
+        text = text.replace(generator, host + '\n    ' + generator, 1)
+    cmake.write_text(text + ACCOUNT_MARKER + """
+set(OPUS_DIR "$ENV{KRYON_ANDROID_OPUS_DIR}")
+set(SAMPLERATE_DIR "$ENV{KRYON_ANDROID_SAMPLERATE_DIR}")
+add_subdirectory("$ENV{KRYON_ANDROID_AUDIO_DIR}/native" choano-audio EXCLUDE_FROM_ALL)
+target_link_libraries(main PRIVATE opus OpenSLES)
+""" + ''.join(rows))
 
 
 def build(edition, abis=ABIS):
     run(ZIRAN, 'fetch', *LOCKED, cwd=ROOT)
-    kryon, compiler, raylib, webp = package('kryon'), package('ziran'), package('raylib'), package('libwebp')
+    kryon, compiler = package('kryon'), package('ziran')
+    webp, avif, aom = package('libwebp'), package('libavif'), package('libaom')
     if not all((compiler / 'build/bin' / name).is_file() for name in ('ziran', 'zi2c')):
         run('make', '-s', '-j2', '-C', compiler, 'build/bin/ziran', 'build/bin/zi2c', 'build/bin/zi2zir')
     android = sdk()
@@ -173,8 +187,8 @@ def build(edition, abis=ABIS):
         title.convert('RGB').save(res / 'drawable-nodpi/startup_art.jpg', quality=90)
     name, code = version()
     command = ['sh', ROOT / 'droid/gradlew', '-p', ROOT / 'droid', '--no-daemon', '--max-workers=1',
-               '-Pkryon.dir=' + str(kryon), '-Pziran.dir=' + str(compiler), '-Praylib.dir=' + str(raylib / 'src'),
-               '-Pwebp.dir=' + str(webp),
+               '-Pkryon.dir=' + str(kryon), '-Pziran.dir=' + str(compiler),
+               '-Pwebp.dir=' + str(webp), '-Pavif.dir=' + str(avif), '-Paom.dir=' + str(aom),
                '-Papp.abis=' + abis, '-Papp.edition=' + edition, '-Papp.versionName=' + name,
                '-Papp.versionCode=' + str(code), '-Pandroid.aapt2FromMavenOverride=' + str(aapt2)]
     # Kryon's Play Billing needs AndroidX; only the Google Play edition has it.
@@ -182,10 +196,10 @@ def build(edition, abis=ABIS):
         command.append('-Pandroid.useAndroidX=true')
     env = dict(os.environ, ANDROID_HOME=str(android), ANDROID_SDK_ROOT=str(android), CMAKE_BUILD_PARALLEL_LEVEL='1',
                GRADLE_USER_HOME=str(OUT / 'gradle-home'))
+    env['KRYON_PROJECT_ENTRY'] = 'src/app.zi'
     # Kryon's Android CMake builds its AVIF and Opus codecs from these locked
     # sources, as its own scripts/android-build.sh passes them.
-    for variable, name_ in (('KRYON_ANDROID_AVIF_DIR', 'libavif'), ('KRYON_ANDROID_AOM_DIR', 'libaom'),
-                            ('KRYON_DAV1D_DIR', 'dav1d'), ('KRYON_AVIF_PACKAGE_DIR', 'avif'),
+    for variable, name_ in (('KRYON_DAV1D_DIR', 'dav1d'), ('KRYON_AVIF_PACKAGE_DIR', 'avif'),
                             ('KRYON_WEBP_PACKAGE_DIR', 'webp'), ('KRYON_ANDROID_AUDIO_DIR', 'audio'),
                             ('KRYON_ANDROID_OPUS_DIR', 'libopus'), ('KRYON_ANDROID_SAMPLERATE_DIR', 'libsamplerate')):
         env[variable] = str(package(name_))

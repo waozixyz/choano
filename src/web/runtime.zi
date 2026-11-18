@@ -9,12 +9,7 @@ using Canvas :: #import "kryon/Canvas";
 #import "kryon/frame_snapshot"
 #import "kryon/page_core"
 #import "kryon/key_input"
-#import "kryon/text_input_props"
-#import "kryon/text_props"
-#import "kryon/text_widget"
 #import "kryon/widget_palette"
-#import "kryon/button_props"
-#import "kryon/button_widget"
 #import "kryon/open_uri"
 #import "std/web"
 #import "std/file"
@@ -61,22 +56,22 @@ main :: () -> s32 {
         Entity.EntityHostPump()
         viewport := CanvasViewport()
         pointer := CaptureFrameInput(session).pointer
-        key := CanvasPressedKey()
-        TreePointerUpdate(session, pointer)
-        KeyboardModifiersSend(session, CanvasModifiers())
-        if key != 0 { unused KeyboardSend(session, key) }
-        point := CanvasTypedCodepoint()
-        while point != 0 { unused TypedCodepointSend(session, point); point = CanvasTypedCodepoint() }
+        key, modifiers := CanvasInputTake(session)
         BeginCanvasFrame()
+        TreePointerUpdate(session, pointer)
+        PointerWheelSend(session, pointer.x, pointer.y, CanvasWheelMove())
+        CanvasSampleScroll(session, pointer, CanvasWheelMove())
+        KeyboardModifiersSend(session, modifiers)
+        if key != 0 { unused KeyboardSend(session, key) }
         if BeginFrame(session, cast(u64)1, viewport) != FrameStatus.FrameOk { return 1 }
         if visible {
             App.UsePalette(session)
             unused KeyboardTake(session)
             App.PauseClock()
             typed: [1024]u8
-            input := TextFieldInputFor(key, CanvasModifiers(), TypedTextTake(session, typed[:]))
+            input := TextFieldInputFor(key, modifiers, TypedTextTake(session, typed[:]))
             bounds := Rectangle.{0.0, 52.0, viewport.width, viewport.height - 52.0}
-            if !Entity.EntityHostFrame(session, bounds, key, CanvasModifiers(), input, true) {
+            if !Entity.EntityHostFrame(session, bounds, key, modifiers, input, true) {
                 unused WidgetPaletteRestore(session)
                 return 1
             }
@@ -114,7 +109,7 @@ main :: () -> s32 {
             WebSet(WebModule, WebName("choanoDishFrame"), WebBool(Game.game.dish_frame_enabled))
         }
         WebSet(WebModule, WebName("profileVisible"), WebBool(visible))
-        if EndFrame(session) != FrameStatus.FrameOk { return 1 }
+        if EndCanvasUiFrame(session) != FrameStatus.FrameOk { return 1 }
         CanvasCursor(session)
         unused EndCanvasFrame()
         if PageNow() - saved > 1000.0 { unused BundleStorageSync(false); saved = PageNow() }

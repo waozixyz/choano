@@ -9,7 +9,7 @@ playing: s32;
 #if #defined(PLATFORM_WEB) {
     EFFECT_GAIN :: .6;
     MUSIC_GAIN :: .45;
-} else #if #defined(ANDROID_BUILD) || #defined(CHOANO_RAYLIB) {
+} else #if #defined(ANDROID_BUILD) || #defined(_WIN32) {
     EFFECT_GAIN :: 1.0;
     MUSIC_GAIN :: .7;
 } else {

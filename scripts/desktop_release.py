@@ -3,7 +3,7 @@
 
 `appimage` packs the native SDL/Cairo/Pango game, its bundled libraries and
 every asset into build/Choano.AppImage. `windows` cross-compiles the same
-Frame on Kryon's raylib host with MinGW and packs it, its font and every
+Frame on Kryon's SDL2/Cairo host with MinGW and packs it, its font and every
 asset into the per-user NSIS installer build/Choano-setup.exe. The release
 workflow copies each to its public versioned name.
 """
@@ -86,12 +86,9 @@ WINDOWS_PACKAGING = ROOT / 'packaging/windows'
 # The Linux toolchain's MinGW-w64 cross compiler, and NSIS.
 MINGW = os.environ.get('MINGW_PREFIX', 'x86_64-w64-mingw32-')
 WINDOWS_DEFINES = ['--define', '_WIN32', '--define', 'PLATFORM_DESKTOP', '--define', '__x86_64__',
-                   '--define', 'CHOANO_RAYLIB', '--define', 'CHOANO_ACCOUNTS']
-# libssp: the audio package's MinGW libopus keeps its stack protector.
-WINDOWS_LIBRARIES = ['-lssp', '-lopengl32', '-lgdi32', '-lwinmm', '-luser32', '-lshell32', '-lole32', '-luuid', '-lm']
-# raylib as Shovey and Breeze ship it on Windows: RGFW and OpenGL 1.1. Kryon's
-# static libavif decoder supplies AVIF image support.
-RAYLIB_FLAGS = '-O2 -ffunction-sections -fdata-sections -DSUPPORT_FILEFORMAT_JPG=1 -DSUPPORT_FILEFORMAT_TTF=1'
+                   '--define', 'CHOANO_ACCOUNTS']
+WINDOWS_LIBRARIES = ['-lgdi32', '-lwinmm', '-luser32', '-lshell32', '-lole32', '-lcomdlg32',
+                     '-luuid', '-ladvapi32', '-lm']
 
 
 def run(*args, **kwargs):
@@ -299,11 +296,14 @@ def record(output, source):
 def windows_runtime(compiler):
     """The Ziran runtime of the locked toolchain, cross-compiled out of tree."""
     runtime = WINDOWS / 'runtime/libziran.a'
-    if not built(runtime, str(compiler)):
+    cc = windows_tool(MINGW + 'gcc')
+    zlib = package('zlib')
+    identity = f'{compiler}\n{cc}\n{zlib}'
+    if not built(runtime, identity):
         run('make', '-B', '-C', compiler, 'BOOTSTRAP=1', 'BUILD_DIR=' + str(runtime.parent),
-            'CC=' + windows_tool(MINGW + 'gcc'), 'AR=' + windows_tool(MINGW + 'ar'),
-            'OBJCOPY=' + windows_tool(MINGW + 'objcopy'), 'CFLAGS=-O2', runtime)
-        record(runtime, str(compiler))
+            'CC=' + cc, 'AR=' + windows_tool(MINGW + 'ar'),
+            'OBJCOPY=' + windows_tool(MINGW + 'objcopy'), f'CFLAGS=-O2 -I{zlib}', runtime)
+        record(runtime, identity)
     return runtime
 
 
@@ -322,76 +322,22 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
     return toolchain
 
 
-def windows_cmake_library(name, source, library, identity, *configure):
-    """LIBRARY from SOURCE's CMake target NAME, configured out of tree in
-    LIBRARY's build folder unless IDENTITY already built it."""
-    folder = WINDOWS / name
-    if built(library, identity):
-        return library
-    if folder.exists():
-        shutil.rmtree(folder)
-    folder.mkdir(parents=True)
-    # A Nix MinGW links its thread library only from these folders, also in
-    # CMake's own compiler checks.
-    run('cmake', '-S', source, '-B', folder, '-DCMAKE_TOOLCHAIN_FILE=' + str(windows_toolchain(folder)),
-        '-DCMAKE_BUILD_TYPE=Release', '-DBUILD_SHARED_LIBS=OFF',
-        '-DCMAKE_EXE_LINKER_FLAGS=' + ' '.join(mingw_library_flags()), *configure)
-    run('cmake', '--build', folder, '--target', name, '--parallel', '1')
-    record(library, identity)
-    return library
-
-
-def windows_raylib():
-    """Static raylib from the locked package, configured out of tree."""
-    source = package('raylib')
-    library = WINDOWS / 'raylib/raylib/libraylib.a'
-    linking = ' '.join(mingw_library_flags())
-    identity = f'{source}\n{windows_tool(MINGW + "gcc")}\n{windows_tool(MINGW + "g++")}\n{RAYLIB_FLAGS}\n{linking}'
-    windows_cmake_library(
-        'raylib', source, library, identity, '-DBUILD_EXAMPLES=OFF', '-DPLATFORM=RGFW',
-        '-DOPENGL_VERSION=1.1', '-DOPENGL_opengl_LIBRARY=opengl32', '-DOPENGL_gl_LIBRARY=opengl32',
-        '-DCMAKE_C_FLAGS=' + RAYLIB_FLAGS)
-    return source, library
-
-
-def windows_webp():
-    """Kryon's static WebP decoder (kryonwebp), which its raylib host links
-    for WebP images, from Kryon's own CMake project and the locked libwebp."""
-    project = package('kryon') / 'cmake/webp'
-    source = package('libwebp')
-    library = WINDOWS / 'kryonwebp/libkryonwebp.a'
-    identity = f'{project}\n{source}\n{windows_tool(MINGW + "gcc")}\n{" ".join(mingw_library_flags())}'
-    return windows_cmake_library('kryonwebp', project, library, identity,
-                                 f'-DWEBP_DIR={source}', '-DCMAKE_C_FLAGS=-O2')
-
-
 def windows_avif():
-    """Kryon's static AVIF decoder, which its raylib host links for AVIF art:
-    libavif with dav1d inside, and libaom, from Kryon's own CMake project and
-    the avif package's locked sources."""
-    project = package('kryon') / 'cmake/avif'
-    sources = {name: package(name) for name in ('avif', 'libavif', 'libaom', 'dav1d')}
-    folder = WINDOWS / 'avif_static'
-    archives = [folder / 'avif/libavif.a', folder / 'aom/libaom.a']
-    identity = '\n'.join([str(project), *map(str, sources.values()), windows_tool(MINGW + 'gcc'),
-                          ' '.join(mingw_library_flags())])
-    windows_cmake_library('avif_static', project, archives[0], identity,
-                          f'-DKRYON_AVIF_PACKAGE_DIR={sources["avif"]}', f'-DAVIF_DIR={sources["libavif"]}',
-                          f'-DAOM_DIR={sources["libaom"]}', f'-DDAV1D_DIR={sources["dav1d"]}')
-    missing = [path for path in archives if not path.is_file()]
-    if missing:
-        raise SystemExit('desktop release: the AVIF build made no ' + ', '.join(map(str, missing)))
-    return archives
-
-
-def windows_opus():
-    """libopus for the Ogg Opus decoder in Kryon's raylib audio, from the
-    audio package's own CMake recipe and its locked sources."""
-    sources = {name: package(name) for name in ('audio', 'libopus', 'libsamplerate')}
-    library = WINDOWS / 'opus/libopus/libopus.a'
-    identity = '\n'.join([*map(str, sources.values()), windows_tool(MINGW + 'gcc'), ' '.join(mingw_library_flags())])
-    return windows_cmake_library('opus', sources['audio'] / 'native', library, identity,
-                                 f'-DOPUS_DIR={sources["libopus"]}', f'-DSAMPLERATE_DIR={sources["libsamplerate"]}')
+    """Build the AVIF DLL the Cairo host opens on demand."""
+    sources = {option: package(name) for option, name in (
+        ('KRYON_DIR', 'kryon'), ('KRYON_AVIF_PACKAGE_DIR', 'avif'),
+        ('AVIF_DIR', 'libavif'), ('AOM_DIR', 'libaom'), ('DAV1D_DIR', 'dav1d'))}
+    folder = WINDOWS / 'avif'
+    library = folder / 'kryonavif.dll'
+    folder.mkdir(parents=True, exist_ok=True)
+    linking = mingw_library_flags()
+    run('cmake', '-S', WINDOWS_PACKAGING, '-B', folder,
+        '-DCMAKE_TOOLCHAIN_FILE=' + str(windows_toolchain(folder)), '-DCMAKE_BUILD_TYPE=Release',
+        '-DCMAKE_SHARED_LINKER_FLAGS=' + ' '.join([*linking, '-static', '-static-libgcc']),
+        '-DCMAKE_EXE_LINKER_FLAGS=' + ' '.join(linking),
+        *(f'-D{option}={path}' for option, path in sources.items()))
+    run('cmake', '--build', folder, '--target', 'kryonavif', '--parallel', '1')
+    return library
 
 
 def windows_icon(target):
@@ -430,23 +376,22 @@ def windows_account_links():
     return choano_build.account_links('windows-x86_64-mingw', env)
 
 
-def build_windows_program():
-    """build/windows/Choano.exe: src/windows.zi on raylib, linked statically."""
-    # Resolve the provider before replacing any existing Windows build output.
+def windows_renderer():
+    import build as choano_build
+    env = dict(os.environ, CC=windows_tool(MINGW + 'gcc'), AR=windows_tool(MINGW + 'ar'))
+    return choano_build.renderer_metadata('kryon:renderer-desktop-windows', 'windows-x86_64-mingw', env)
+
+
+def build_windows_program(renderer):
+    """Cross-compile the same desktop entry used for the Linux build."""
     accounts = windows_account_links()
-    for folder in (WINDOWS / 'ir', WINDOWS / 'c'):
-        if folder.exists():
-            shutil.rmtree(folder)
-    run(ZIRAN, 'ir', '--project', *LOCKED, *WINDOWS_DEFINES, '-o', WINDOWS / 'ir', 'src/windows.zi', cwd=ROOT)
     generated = WINDOWS / 'c'
-    run(ZIRAN, 'build', '--project', *LOCKED, '--target=c', *WINDOWS_DEFINES, '--entry', 'windows:main',
-        '--root', WINDOWS / 'ir', '-o', generated, WINDOWS / 'ir/windows.zir', cwd=ROOT)
+    if generated.exists():
+        shutil.rmtree(generated)
+    run(ZIRAN, 'build', '--project', *LOCKED, '--target=c', '--target-os', 'windows', '--target-cpu', 'x64',
+        *WINDOWS_DEFINES, '--entry', 'desktop:main', '-o', generated, 'src/desktop.zi', cwd=ROOT)
     compiler = package('ziran')
     runtime = windows_runtime(compiler)
-    raylib_source, raylib = windows_raylib()
-    webp = windows_webp()
-    avif = windows_avif()
-    opus = windows_opus()
     # The program's icon in Explorer, the taskbar and the installer.
     windows_icon(WINDOWS / 'choano.ico')
     (WINDOWS / 'choano.rc').write_text('1 ICON "choano.ico"\n')
@@ -460,8 +405,8 @@ def build_windows_program():
     program = WINDOWS / 'Choano.exe'
     partial = WINDOWS / 'Choano.new.exe'
     run(windows_tool(MINGW + 'gcc'), '-std=c11', '-O2', '-ffunction-sections', '-fdata-sections', *includes,
-        *sorted(generated.rglob('*.c')), runtime, raylib, webp, *avif, opus, WINDOWS / 'choano-resource.o', '-Wl,--gc-sections',
-        *mingw_library_flags(), '-static', '-static-libgcc', '-mwindows', *accounts, *WINDOWS_LIBRARIES,
+        *sorted(generated.rglob('*.c')), runtime, WINDOWS / 'choano-resource.o', *renderer['archives'], '-Wl,--gc-sections',
+        *mingw_library_flags(), '-static', '-static-libgcc', '-mwindows', *accounts, *renderer['link_flags'], *WINDOWS_LIBRARIES,
         '-o', partial)
     run(windows_tool(MINGW + 'strip'), partial)
     check_windows_program(partial)
@@ -469,13 +414,17 @@ def build_windows_program():
     return program
 
 
-def stage_windows(stage, program):
-    """The installed folder: the program, Kryon's font and every asset."""
+def stage_windows(stage, program, renderer, avif):
+    """Preserve the renderer SDK layout, with the DLLs beside the program."""
     if stage.exists():
         shutil.rmtree(stage)
     stage.mkdir(parents=True)
-    shutil.copy2(program, stage / 'Choano.exe')
-    shutil.copyfile(package('kryon') / 'assets/fonts/LiberationSans-Regular.ttf', stage / 'kryon-font.ttf')
+    run('tar', '-xf', renderer['runtime_archive'], '-C', stage)
+    binary_dir = stage / 'bin'
+    shutil.copy2(program, binary_dir / 'Choano.exe')
+    shutil.copy2(avif, binary_dir / 'kryonavif.dll')
+    shutil.copyfile(renderer['resources']['font'], binary_dir / 'kryon-font.ttf')
+    shutil.copyfile(renderer['resources']['font_license'], binary_dir / 'LICENSE-Liberation')
     shutil.copytree(ROOT / 'assets', stage / 'assets')
     return stage
 
@@ -486,8 +435,9 @@ def build_windows():
     WINDOWS.mkdir(parents=True, exist_ok=True)
     # The Profile bundle the account provider reads from assets/entity.zx.
     run(sys.executable, ROOT / 'scripts/build.py', 'profile-asset', cwd=ROOT)
-    program = build_windows_program()
-    stage = stage_windows(WINDOWS / 'Choano', program)
+    renderer = windows_renderer()
+    program = build_windows_program(renderer)
+    stage = stage_windows(WINDOWS / 'Choano', program, renderer, windows_avif())
     partial = WINDOWS / 'Choano-setup.new.exe'
     partial.unlink(missing_ok=True)
     run(windows_tool('makensis'), '-V2', '-NOCD', f'-DVERSION={version}', f'-DSTAGE={stage}',

@@ -32,16 +32,21 @@ Section "Install"
     SetShellVarContext current
     ; A reinstall replaces the old assets rather than mixing them.
     RMDir /r "$INSTDIR\assets"
+    RMDir /r "$INSTDIR\bin"
+    RMDir /r "$INSTDIR\etc"
+    RMDir /r "$INSTDIR\share"
+    Delete "$INSTDIR\Choano.exe"
+    Delete "$INSTDIR\kryon-font.ttf"
     SetOutPath "$INSTDIR"
     File /r "${STAGE}\*.*"
     WriteUninstaller "$INSTDIR\Uninstall.exe"
     ; Shortcuts start in the program folder, beside its assets.
-    CreateShortCut "$SMPROGRAMS\${APP}.lnk" "$INSTDIR\Choano.exe" "" "$INSTDIR\Choano.exe" 0
-    CreateShortCut "$DESKTOP\${APP}.lnk" "$INSTDIR\Choano.exe" "" "$INSTDIR\Choano.exe" 0
+    CreateShortCut "$SMPROGRAMS\${APP}.lnk" "$INSTDIR\bin\Choano.exe" "" "$INSTDIR\bin\Choano.exe" 0
+    CreateShortCut "$DESKTOP\${APP}.lnk" "$INSTDIR\bin\Choano.exe" "" "$INSTDIR\bin\Choano.exe" 0
     WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayName" "${APP}"
     WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayVersion" "${VERSION}"
     WriteRegStr HKCU "${UNINSTALL_KEY}" "Publisher" "Waozi"
-    WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\Choano.exe"
+    WriteRegStr HKCU "${UNINSTALL_KEY}" "DisplayIcon" "$INSTDIR\bin\Choano.exe"
     WriteRegStr HKCU "${UNINSTALL_KEY}" "InstallLocation" "$INSTDIR"
     WriteRegStr HKCU "${UNINSTALL_KEY}" "URLInfoAbout" "https://waozi.xyz"
     WriteRegStr HKCU "${UNINSTALL_KEY}" "UninstallString" '"$INSTDIR\Uninstall.exe"'
@@ -56,8 +61,9 @@ Section "Uninstall"
     Delete "$SMPROGRAMS\${APP}.lnk"
     Delete "$DESKTOP\${APP}.lnk"
     RMDir /r "$INSTDIR\assets"
-    Delete "$INSTDIR\Choano.exe"
-    Delete "$INSTDIR\kryon-font.ttf"
+    RMDir /r "$INSTDIR\bin"
+    RMDir /r "$INSTDIR\etc"
+    RMDir /r "$INSTDIR\share"
     Delete "$INSTDIR\Uninstall.exe"
     RMDir "$INSTDIR"
     DeleteRegKey HKCU "${UNINSTALL_KEY}"
