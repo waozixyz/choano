@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 os.chdir(ROOT)
@@ -61,6 +62,35 @@ def main():
         run(ZIRAN, 'build', '--project', *LOCKED, '--target=c', '--exe',
             '--entry', 'portable_input_test:main', '-o', 'build/portable-input-test',
             'tests/portable_input_test.zi', env=portable_env)
-        run('xvfb-run', '-a', './build/portable-input-test/portable_input_test')
+        check_portable_progress()
+
+
+def check_portable_progress():
+    for phase, owner in (('guest', ''), ('linked', '0123456789abcdef' * 4),
+                         ('new-account', 'fedcba9876543210' * 4)):
+        with tempfile.TemporaryDirectory(prefix='portable-progress-', dir=WORK) as directory:
+            name = owner or 'guest'
+            suffix = hashlib.sha256(owner.encode()).hexdigest()[:40] if owner else 'guest'
+            key = f'local.choano.earned.v1.{suffix}'
+            legacy = f'choano.earned.{name}.v1' if phase != 'new-account' else ''
+            env = dict(ENV, CHOANO_DATA=directory, CHOANO_TEST_PROGRESS_KEY=key,
+                       CHOANO_TEST_LEGACY_KEY=legacy, CHOANO_TEST_PROGRESS_PHASE=phase,
+                       CHOANO_TEST_RECORD_STATUS=json.dumps({'account': owner}))
+            old = {'earned': {'game': 'choano', 'unlocked': 1 if not owner else 5,
+                              'completed': '', 'updated_at': 37}, 'pending': False}
+            target = Path(directory, key)
+            if legacy:
+                original = Path(directory, legacy)
+                original.write_text(json.dumps(old))
+            run('xvfb-run', '-a', './build/portable-input-test/portable_input_test', env=env)
+            saved = json.loads(target.read_text())
+            if legacy:
+                assert json.loads(original.read_text()) == old
+                assert saved == old
+            else:
+                assert saved['earned']['unlocked'] == 1 and not saved['pending']
+            run('xvfb-run', '-a', './build/portable-input-test/portable_input_test',
+                env=dict(env, CHOANO_TEST_PROGRESS_PHASE='restart'))
+            assert json.loads(target.read_text()) == saved
 
 if __name__ == '__main__': main()

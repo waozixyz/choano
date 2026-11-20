@@ -9,15 +9,41 @@
 Prefs :: #import "preferences";
 Game :: #import "game";
 #if #defined(CHOANO_PORTABLE) {
-    Context :: #import "kryon/app_context";
+    #import "crypto/sha256"
+    Runtime :: #import "portable_runtime";
     Close :: () {}
-    Ready :: () -> bool { return Context.DocumentStorageReady() }
-    Confirm :: () -> bool { return Context.DocumentFlush() }
-    Read :: (name: string) -> string { return Context.DocumentRead(name) }
-    ReleaseRead :: (text: string) { unused text }
-    Missing :: () -> bool { return Context.DocumentStatus() == 0 }
-    Write :: (name: string, value: string) -> bool {
-        return Context.DocumentWrite(name, value) && Context.DocumentFlush()
+
+    PortableName :: (owner: string, output: []u8) -> string {
+        if owner == "" { return "local.choano.earned.v1.guest" }
+        // App record names are limited to 63 characters across the two hosts.
+        // Use a bounded digest for 64-character account IDs and any legacy IDs.
+        hash := Sha256Of(owner)
+        digest: [40]u8
+        for index: 0..19 {
+            digest[index * 2] = HexCharacter(hash[index] >> cast(u8)4)
+            digest[index * 2 + 1] = HexCharacter(hash[index] & cast(u8)15)
+        }
+        out: Vec(u8)
+        BuilderPrint(*out, "local.choano.earned.v1.%", TextView(digest[:]))
+        copied := CopyCString(TextView(VecSlice(out, 0, out.count)), output)
+        VecFree(out)
+        return ifx copied then TextUntilNul(output) else ""
+    }
+
+    PortableLegacyName :: (owner: string, name: string) -> bool {
+        if name.count >= 64 {
+            if owner.count != 64 || !Runtime.Supports("DocumentReadHost") { return false }
+            for byte: owner {
+                if !((byte >= #char "a" && byte <= #char "f") ||
+                    (byte >= #char "0" && byte <= #char "9")) { return false }
+            }
+            return true
+        }
+        for byte: name {
+            if !((byte >= #char "a" && byte <= #char "z") ||
+                (byte >= #char "0" && byte <= #char "9") || byte == #char "." || byte == #char "-") { return false }
+        }
+        return true
     }
 } else {
     #import "kryon/app_files"
@@ -57,23 +83,42 @@ Name :: (owner: string, output: []u8) -> string {
     return ifx copied then TextUntilNul(output) else ""
 }
 Load :: (owner: string, record: *GameProgressRecord, pending: *bool) -> bool {
-    if !Ready() || !Confirm() { return false }
     name_bytes: [256]u8
     name := Name(owner, name_bytes[:])
     if name == "" { return false }
-    text := Read(name)
-    defer { ReleaseRead(text) }
-    if text == "" && Missing() {
-        record.* = .{}; unused CopyCString("choano", record.game[:]); record.unlocked = 1
-        pending.* = false
-        // Existing device earnings belong to the guest only.
-        if owner == "" {
-            legacy := Prefs.Load()
-            if legacy.accessories_stage > record.unlocked { record.unlocked = legacy.accessories_stage }
-            if legacy.fish_unlocked { record.unlocked = Game.PLAYER_STAGE_LAST }
+    #if #defined(CHOANO_PORTABLE) {
+        key_bytes: [64]u8
+        key := PortableName(owner, key_bytes[:])
+        if key == "" { return false }
+        text := Runtime.ReadRecord(key)
+        if text != "" { return Decode(text, record, pending) }
+        // Standalone Arcade keeps app records beside the older documents.
+        // Migrate only valid old saves, and bind only after the host commits.
+        if PortableLegacyName(owner, name) {
+            legacy := Runtime.ReadRecord(name)
+            if legacy != "" {
+                return Decode(legacy, record, pending) && Runtime.SaveRecord(key, legacy)
+            }
         }
-        return Persist(owner, record, false)
+    } else {
+        if !Ready() || !Confirm() { return false }
+        text := Read(name)
+        defer { ReleaseRead(text) }
+        if text != "" { return Decode(text, record, pending) }
+        if !Missing() { return false }
     }
+    record.* = .{}; unused CopyCString("choano", record.game[:]); record.unlocked = 1
+    pending.* = false
+    // Existing device earnings belong to the guest only.
+    if owner == "" {
+        legacy := Prefs.Load()
+        if legacy.accessories_stage > record.unlocked { record.unlocked = legacy.accessories_stage }
+        if legacy.fish_unlocked { record.unlocked = Game.PLAYER_STAGE_LAST }
+    }
+    return Persist(owner, record, false)
+}
+
+Decode :: (text: string, record: *GameProgressRecord, pending: *bool) -> bool {
     at := FieldAt(text, 0, "earned")
     if at < 0 { return false }
     end := ValueEnd(text, at, 0)
@@ -88,7 +133,9 @@ Load :: (owner: string, record: *GameProgressRecord, pending: *bool) -> bool {
     return true
 }
 Persist :: (owner: string, record: *GameProgressRecord, pending: bool) -> bool {
-    if !Ready() { return false }
+    #if !#defined(CHOANO_PORTABLE) {
+        if !Ready() { return false }
+    }
     name_bytes: [256]u8
     name := Name(owner, name_bytes[:])
     if name == "" { return false }
@@ -97,5 +144,12 @@ Persist :: (owner: string, record: *GameProgressRecord, pending: bool) -> bool {
     GameProgressWrite(record, *out)
     BuilderPrint(*out, "}")
     defer { VecFree(out) }
-    return Write(name, TextView(VecSlice(out, 0, out.count)))
+    text := TextView(VecSlice(out, 0, out.count))
+    #if #defined(CHOANO_PORTABLE) {
+        key_bytes: [64]u8
+        key := PortableName(owner, key_bytes[:])
+        return key != "" && Runtime.SaveRecord(key, text)
+    } else {
+        return Write(name, text)
+    }
 }

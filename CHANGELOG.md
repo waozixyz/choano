@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- Keep portable Choano progress in the host’s app record store.
 - Run desktop and Android on Kryon 0.6.0 with Ziran 0.7.0.
 
 - Run in the current Arcade and Inner Breeze package format.

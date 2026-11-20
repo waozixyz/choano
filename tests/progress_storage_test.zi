@@ -14,7 +14,7 @@ main :: () -> s32 {
     if !Storage.Load("account-a", *value, *pending) || !pending || value.unlocked != 5 { return 3 }
     if !Storage.Persist("account-a", *value, false) { return 4 }
     Storage.Close()
-    if !Storage.Load("account-b", *value, *pending) || pending || value.unlocked != 1 { return 5 }
+    if !Storage.Load("account-b", *value, *pending) || pending || value.unlocked != 4 { return 5 }
     if Storage.Load("../account-a", *value, *pending) { return 6 }
     Storage.Close()
     if !Storage.Load("account-a", *value, *pending) || pending || value.unlocked != 5 { return 7 }

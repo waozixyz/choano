@@ -233,8 +233,8 @@
     }
   ],
   "root": {
-    "dependencies": {"apps": "p333db0ddd841f1ec", "css": "p6269d7141b731fe4", "entity": "pb3958804740a96f2", "game2d": "pcad095808686987d", "kryon": "p09ea4e5550e9f459", "mingcute": "pe1027b9d16704793"},
-    "dependency_refs": {"apps": "b95d19334ab4338d3611ec9d44db62b50694e464", "css": "9ee24b3f70b9c7d776dc391cba15ba97533db227", "entity": "fc8f3d899dfc3d3e0b535006526485c6d8c8c279", "game2d": "fcacb49c1e128e9eb100884e6029b24b4e608d38", "kryon": "8d5d2e752a219674f993473c8410847ba42fad48", "mingcute": "master"},
+    "dependencies": {"apps": "p333db0ddd841f1ec", "crypto": "pc23fbf455e97614d", "css": "p6269d7141b731fe4", "entity": "pb3958804740a96f2", "game2d": "pcad095808686987d", "kryon": "p09ea4e5550e9f459", "mingcute": "pe1027b9d16704793"},
+    "dependency_refs": {"apps": "b95d19334ab4338d3611ec9d44db62b50694e464", "crypto": "master", "css": "9ee24b3f70b9c7d776dc391cba15ba97533db227", "entity": "fc8f3d899dfc3d3e0b535006526485c6d8c8c279", "game2d": "fcacb49c1e128e9eb100884e6029b24b4e608d38", "kryon": "8d5d2e752a219674f993473c8410847ba42fad48", "mingcute": "master"},
     "name": "Choano"
   },
   "toolchain": {

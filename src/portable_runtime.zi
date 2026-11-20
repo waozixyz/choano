@@ -1,10 +1,17 @@
 host_api :: #system_library "host_api";
 AppServiceHost :: (name: string, request: string) -> string #foreign host_api;
+AppSupportsHost :: (name: string) -> bool #foreign host_api;
 AppKeyHost :: () -> s32 #foreign host_api;
+AppRecordHost :: (name: string) -> string #foreign host_api;
+SaveAppRecordHost :: (name: string, text: string) -> bool #foreign host_api;
 frame_now: float64;
 frame_key: s32;
 Milliseconds :: () -> s64 { return cast(s64)(frame_now * 1000.0) }
+Supports :: (name: string) -> bool { return AppSupportsHost(name) }
 Service :: (name: string, request: string) -> string { return AppServiceHost(name, request) }
+
+ReadRecord :: (name: string) -> string { return AppRecordHost(name) }
+SaveRecord :: (name: string, text: string) -> bool { return SaveAppRecordHost(name, text) }
 
 CaptureKey :: () { frame_key = AppKeyHost() }
 PressedKey :: () -> s32 { return frame_key }

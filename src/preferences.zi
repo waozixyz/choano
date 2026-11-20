@@ -1,11 +1,9 @@
 #import "std/text_buffer"
 Accessories :: #import "accessories";
 #if #defined(CHOANO_PORTABLE) {
-    host_api :: #system_library "host_api";
-    AppRecordHost :: (name: string) -> string #foreign host_api;
-    SaveAppRecordHost :: (name: string, text: string) -> bool #foreign host_api;
-    Read :: () -> string { return AppRecordHost("choano.preferences") }
-    Write :: (value: string) -> bool { return SaveAppRecordHost("choano.preferences", value) }
+    Runtime :: #import "portable_runtime";
+    Read :: () -> string { return Runtime.ReadRecord("choano.preferences") }
+    Write :: (value: string) -> bool { return Runtime.SaveRecord("choano.preferences", value) }
 } else #if #defined(ANDROID_BUILD) {
     // The APK's assets are read-only; settings live in the app's private
     // files folder, which Android creates.

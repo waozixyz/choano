@@ -2,10 +2,14 @@ AudioFixture :: #import "audio_test";
 #import "kryon/media_audio_host"
 sound_allowed: bool;
 progress_files: AppFiles;
-Documents :: (context: *void, node: *AppNode) -> *AppFiles {
-    if TextUntilNul(node.identity.id[:]) != "xyz.waozi.choano" { return null }
-    return *progress_files
-}
+record_text: string;
+progress_owner: string;
+progress_key: string;
+legacy_key: string;
+can_write_progress: bool;
+progress_writes: s32;
+progress_reads: s32;
+legacy_reads: s32;
 
 // Actual Choano node/2 bundle through the published Apps and widget boundary.
 #import "apps/host"
@@ -34,26 +38,32 @@ Documents :: (context: *void, node: *AppNode) -> *AppFiles {
 
 Allow :: (context: *void, node: *AppNode, name: string) -> bool {
     unused context; unused node
-    return AppHostDocumentFunction(name) || name == "DocumentReadHost" || name == "DocumentWriteHost" || name == "DocumentStatusHost" || name == "AppRecordHost" || name == "SaveAppRecordHost" || (name == "AppSoundHost" && sound_allowed)
+    return (name == "DocumentReadHost" && legacy_key != "") || name == "AppRecordHost" ||
+    name == "SaveAppRecordHost" || name == "entity.records" || (name == "AppSoundHost" && sound_allowed)
 }
 Service :: (context: *void, node: *AppNode, module: *u8, function: *u8, arguments: *HostValue, count: s32, result: *HostValue) -> s32 {
-    unused context; unused node; unused module; unused arguments; unused count
+    unused context; unused module
+    if TextUntilNul(node.identity.id[:]) != "xyz.waozi.choano" { return 0 }
     name := TextFromCString(function)
-    if name == "DocumentReadHost" {
-        result.* = AppHostText(AppFileRead(*progress_files, AppArgumentText(arguments[0])))
-    } else if name == "DocumentWriteHost" {
-        result.* = HostScalar("bool", ifx AppFileWrite(*progress_files, AppArgumentText(arguments[0]), AppArgumentText(arguments[1])) then 1 else 0)
-    } else if name == "DocumentStatusHost" {
-        result.* = HostScalar("s32", cast(s64)progress_files.status)
-    } else if name == "AppServiceHost" {
-        result.* = AppHostText("{\"account\":\"local\"}")
-    } else if name == "AppRecordHost" {
-        value := "1s000"
-        result.* = HostValue.{.kind = cast(s32)HostString, .type_name = HostTextData("string"),
-            .data = HostTextData(value), .length = cast(usize)value.count}
-    } else { result.* = HostScalar("bool", 1) }
+    if name == "AppServiceHost" && count == 2 && AppArgumentText(arguments[0]) == "entity.records" {
+        request := AppArgumentText(arguments[1])
+        result.* = AppHostText(ifx request == "{\"operation\":\"status\"}" then progress_owner else "{\"status\":\"unavailable\"}")
+    } else if name == "AppRecordHost" && count == 1 {
+        key := AppArgumentText(arguments[0])
+        if key == progress_key { progress_reads += 1 }
+        if key == legacy_key { legacy_reads += 1 }
+        AppFileFree(record_text)
+        record_text = AppFileRead(*progress_files, key)
+        result.* = AppHostText(record_text)
+    } else if name == "SaveAppRecordHost" && count == 2 {
+        key := AppArgumentText(arguments[0])
+        if key == progress_key { progress_writes += 1 }
+        saved := can_write_progress && AppFileWrite(*progress_files, key, AppArgumentText(arguments[1]))
+        result.* = HostScalar("bool", ifx saved then 1 else 0)
+    } else { return 0 }
     return 1
 }
+
 using HostValueKind;
 
 Widgets :: (context: *void, node: *AppNode, module: *u8, function: *u8, arguments: *HostValue, count: s32, result: *HostValue) -> s32 {
@@ -93,8 +103,11 @@ main :: () -> s32 {
     bytes, found := ReadEntireFile("work/frame-input-adoption/guest.zx")
     host: AppHost
     if !AppFilesOpen(*progress_files, EnvironmentText("CHOANO_DATA")) { return 27 }
-    defer { AppFilesClose(*progress_files) }
-    platform := AppPlatform.{.documents = Documents, .host_api = 43, .allows = Allow, .call = Service, .widgets = Widgets, .save = Save}
+    defer { AppFilesClose(*progress_files); AppFileFree(record_text) }
+    progress_owner = EnvironmentText("CHOANO_TEST_RECORD_STATUS")
+    progress_key = EnvironmentText("CHOANO_TEST_PROGRESS_KEY")
+    legacy_key = EnvironmentText("CHOANO_TEST_LEGACY_KEY")
+    platform := AppPlatform.{.host_api = 43, .allows = Allow, .call = Service, .widgets = Widgets, .save = Save}
     digest, digest_found := ReadEntireFile("work/frame-input-adoption/portable.sha256")
     if !found || !digest_found || !AppHostStart(*host, bytes, "local.test", "xyz.waozi.choano", "choano",
         digest, "input-test", platform, "", "en", APPS_NODE_PROTOCOL) { return 2 }
@@ -104,6 +117,22 @@ main :: () -> s32 {
     runtime.app.bounds = .{0.0, 0.0, 900.0, 680.0}
     runtime.legacy.frame = .{.session = session, .width = 900, .height = 680, .now = 1.0}
     sample := FrameInputSnapshot.{.available = true, .focused = true}
+    phase := EnvironmentText("CHOANO_TEST_PROGRESS_PHASE")
+    if phase == "restart" {
+        if !Draw(*host, sample) || progress_reads != 1 || legacy_reads != 0 || progress_writes != 0 { return 28 }
+        print("Choano reopened its committed progress in a fresh host process.\n")
+        return 0
+    }
+    // A failed commit must leave the old file in place and let Load retry.
+    if !Draw(*host, sample) || progress_writes != 1 { return 29 }
+    missing := AppFileRead(*progress_files, progress_key)
+    not_created := missing == "" && progress_files.status == 0
+    AppFileFree(missing)
+    if !not_created { return 30 }
+    can_write_progress = true
+    if !Draw(*host, sample) || progress_writes < 2 { return 31 }
+    if phase == "linked" && legacy_reads < 2 { return 32 }
+    if phase != "guest" { return 0 }
     if !Draw(*host, sample, KeyEnter) || !Draw(*host, sample) { return 3 }
     if AudioFixture.plays != 0 { return 23 }
     sound_allowed = true

@@ -52,3 +52,7 @@ ref = "master"
 [dependencies.css]
 git = "https://github.com/kryonlabs/css.git"
 ref = "9ee24b3f70b9c7d776dc391cba15ba97533db227"
+
+[dependencies.crypto]
+git = "https://github.com/ziranlang/crypto.git"
+ref = "master"
